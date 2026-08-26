@@ -88,6 +88,12 @@ const DashboardView = {
                         required
                         style="padding-bottom: 40px;"
                       ></textarea>
+                      <button type="button" id="clear-btn" title="Textfeld leeren" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.05); border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                        🗑️ Leeren
+                      </button>
+                      <button type="button" id="retranscribe-btn" class="versteckt" title="Letzte Audioaufnahme erneut transkribieren" style="position: absolute; bottom: 8px; right: 48px; background: rgba(0,0,0,0.05); border: none; border-radius: 4px; padding: 6px 10px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                        🔄 Aufnahme nochmal transkribieren
+                      </button>
                       <button type="button" id="mic-btn" class="btn-icon" title="Spracheingabe (Diktieren)" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.05); border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.2s;">
                         🎤
                       </button>
@@ -185,16 +191,51 @@ const DashboardView = {
 
     // Formular absenden
     let originalTranskript = null;
+    let letzterAudioBlob = null;
     
+    // UI Elemente (Voice & Hilfstasten)
+    const clearBtn = document.getElementById('clear-btn');
+    const retranscribeBtn = document.getElementById('retranscribe-btn');
+    const micBtn = document.getElementById('mic-btn');
+    const micStatus = document.getElementById('mic-status');
+    const micTimer = document.getElementById('mic-timer');
+
+    // Leeren Button
+    clearBtn?.addEventListener('click', () => {
+      kombiTextarea.value = '';
+      kombiTextarea.dispatchEvent(new Event('input'));
+    });
+
+    // Erneut Transkribieren Button
+    retranscribeBtn?.addEventListener('click', async () => {
+      if (!letzterAudioBlob) return;
+      
+      UI.btnLaden(retranscribeBtn, true);
+      const alterPlaceholder = kombiTextarea.placeholder;
+      kombiTextarea.placeholder = "Versuche erneute Transkription...";
+      
+      try {
+        const antwort = await API.audioTranskribieren(letzterAudioBlob);
+        if (antwort.transkript) {
+          const prev = kombiTextarea.value.trim();
+          kombiTextarea.value = prev ? prev + '\n' + antwort.transkript : antwort.transkript;
+          originalTranskript = antwort.transkript;
+          kombiTextarea.dispatchEvent(new Event('input'));
+          UI.erfolg('Spracheingabe erfolgreich erneut transkribiert.');
+        }
+      } catch (err) {
+        UI.fehler('Erneute Transkription fehlgeschlagen: ' + err.message);
+      } finally {
+        kombiTextarea.placeholder = alterPlaceholder;
+        UI.btnLaden(retranscribeBtn, false);
+      }
+    });
+
     // Mikrofon-Logik
     let mediaRecorder = null;
     let audioChunks = [];
     let recordInterval = null;
     let recordTime = 0;
-
-    const micBtn = document.getElementById('mic-btn');
-    const micStatus = document.getElementById('mic-status');
-    const micTimer = document.getElementById('mic-timer');
 
     const updateMicTimer = () => {
       const m = Math.floor(recordTime / 60).toString().padStart(2, '0');
@@ -229,13 +270,15 @@ const DashboardView = {
         });
 
         mediaRecorder.addEventListener('stop', async () => {
-          const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+          letzterAudioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+          retranscribeBtn?.classList.remove('versteckt');
+
           UI.btnLaden(kombiBtn, true);
           const alterPlaceholder = kombiTextarea.placeholder;
           kombiTextarea.placeholder = "Transkribiere Audio (Deepgram)...";
           
           try {
-            const antwort = await API.audioTranskribieren(audioBlob);
+            const antwort = await API.audioTranskribieren(letzterAudioBlob);
             if (antwort.transkript) {
               const prev = kombiTextarea.value.trim();
               kombiTextarea.value = prev ? prev + '\n' + antwort.transkript : antwort.transkript;
