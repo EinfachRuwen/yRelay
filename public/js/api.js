@@ -123,8 +123,8 @@ const API = {
     return this.anfrage('PUT', '/admin/einstellungen', daten);
   },
 
-  async adminSmtpTesten() {
-    return this.anfrage('POST', '/admin/einstellungen/smtp-test');
+  async adminSmtpTesten(daten) {
+    return this.anfrage('POST', '/admin/einstellungen/smtp-test', daten);
   },
 
   async adminStatistiken() {

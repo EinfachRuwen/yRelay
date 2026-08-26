@@ -172,9 +172,10 @@ router.post('/nutzer/:id/einladung-neu', async (req, res) => {
 
 // GET /api/admin/nachrichten - Alle gesendeten Nachrichten
 router.get('/nachrichten', (req, res) => {
+  const fixTZ = (d) => d ? d.replace(' ', 'T') + 'Z' : null;
   const nachrichten = db.prepare(`
     SELECT m.id, m.type, m.priority, m.content, m.status, m.error_message,
-           m.created_at, u.username, u.email
+           m.reply_content, m.replied_at, m.created_at, u.username, u.email
     FROM messages m
     JOIN users u ON m.user_id = u.id
     ORDER BY m.created_at DESC
@@ -188,7 +189,9 @@ router.get('/nachrichten', (req, res) => {
     inhalt: n.content,
     status: n.status,
     fehler: n.error_message,
-    gesendetAm: n.created_at,
+    antwortText: n.reply_content,
+    antwortDatum: fixTZ(n.replied_at),
+    gesendetAm: fixTZ(n.created_at),
     von: { benutzername: n.username, email: n.email },
   })));
 });
@@ -232,6 +235,29 @@ router.put('/einstellungen', (req, res) => {
 
 // POST /api/admin/einstellungen/smtp-test - SMTP-Verbindung testen
 router.post('/einstellungen/smtp-test', async (req, res) => {
+  const { smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom } = req.body;
+  
+  if (smtpHost) {
+    const nodemailer = require('nodemailer');
+    const port = parseInt(smtpPort || '587', 10);
+    const pass = smtpPass === '••••••••' ? getSetting('smtp_pass') : smtpPass;
+    
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: port,
+      secure: port === 465,
+      auth: { user: smtpUser, pass: pass },
+      tls: { rejectUnauthorized: false },
+    });
+    
+    try {
+      await transporter.verify();
+      return res.json({ nachricht: 'SMTP-Verbindung erfolgreich.' });
+    } catch (err) {
+      return res.status(400).json({ fehler: err.message });
+    }
+  }
+
   const ergebnis = await testeSMTP();
   if (ergebnis.erfolg) {
     res.json({ nachricht: 'SMTP-Verbindung erfolgreich.' });

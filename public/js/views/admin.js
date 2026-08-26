@@ -547,7 +547,13 @@ const AdminView = {
       const btn = e.currentTarget;
       UI.btnLaden(btn, true);
       try {
-        await API.adminSmtpTesten();
+        await API.adminSmtpTesten({
+          smtpHost: document.getElementById('smtp-host').value.trim(),
+          smtpPort: document.getElementById('smtp-port').value.trim(),
+          smtpUser: document.getElementById('smtp-user').value.trim(),
+          smtpPass: document.getElementById('smtp-pass').value || '••••••••',
+          smtpFrom: document.getElementById('smtp-from').value.trim(),
+        });
         UI.erfolg('SMTP-Verbindung erfolgreich! ✅');
       } catch (err) {
         UI.fehler(`SMTP-Test fehlgeschlagen: ${err.message}`);

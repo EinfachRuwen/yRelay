@@ -101,7 +101,10 @@ function initSettings() {
 
 function getSetting(key) {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
-  return row ? row.value : null;
+  // Wenn ein Wert in der DB steht und nicht leer ist, nutze ihn.
+  // Ansonsten falle auf die Umgebungsvariablen (z.B. aus docker-compose) zurück.
+  if (row && row.value !== '') return row.value;
+  return process.env[key.toUpperCase()] || '';
 }
 
 function setSetting(key, value) {
