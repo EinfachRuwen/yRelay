@@ -28,98 +28,73 @@ const DashboardView = {
           <div class="sektion-titel">👋 Hallo, ${UI.escapeHtml(nutzer.benutzername)}!</div>
           <p class="sektion-untertitel">Sende Nachrichten direkt an den Poke KI-Assistenten.</p>
 
-          <!-- Nachrichten-Kacheln -->
-          <div class="dashboard-grid">
-            <!-- Freie Nachricht -->
-            <div class="karte nachrichten-karte">
+            <!-- Kombiniertes Nachrichten-Formular -->
+            <div class="karte nachrichten-karte" id="kombi-karte">
               <div class="karte-header">
-                <div class="karte-icon karte-icon-primaer">💬</div>
+                <div class="karte-icon karte-icon-primaer" id="kombi-icon" style="transition: all 0.3s;">💬</div>
                 <div>
-                  <div class="karte-titel">Nachricht senden</div>
-                  <div class="karte-untertitel">Freie Nachricht an Poke</div>
+                  <div class="karte-titel">Nachricht an Poke</div>
+                  <div class="karte-untertitel">Wähle die Art deiner Nachricht</div>
                 </div>
               </div>
               <div class="karte-koerper">
-                <form id="nachricht-formular">
-                  <div class="formular-gruppe">
-                    <label class="formular-label" for="nachricht-inhalt">Deine Nachricht</label>
-                    <textarea
-                      class="formular-textarea"
-                      id="nachricht-inhalt"
-                      placeholder="Was möchtest du Poke mitteilen?"
-                      rows="5"
-                      maxlength="5000"
-                      required
-                    ></textarea>
-                    <div class="zeichen-zaehler" id="nachricht-zaehler">0 / 5000</div>
-                  </div>
-
-                  <button type="submit" class="btn btn-primaer btn-vollbreite" id="nachricht-btn">
-                    <span>📤</span> Nachricht senden
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            <!-- Notfallbenachrichtigung -->
-            <div class="karte nachrichten-karte notfall-karte">
-              <div class="karte-header">
-                <div class="karte-icon karte-icon-notfall">🚨</div>
-                <div>
-                  <div class="karte-titel">Notfallbenachrichtigung</div>
-                  <div class="karte-untertitel">Sofortige Benachrichtigung per Pushover</div>
-                </div>
-              </div>
-              <div class="karte-koerper">
-                <div class="info-box warnung" style="margin-bottom: 20px;">
+                
+                <div id="kombi-warnung" class="info-box warnung versteckt" style="margin-bottom: 20px;">
                   <span>⚡</span>
-                  <span>Nur für echte Notfälle! Poke leitet deine Nachricht sofort per Pushover an Ruwen weiter.</span>
+                  <span>Poke leitet diese Nachricht sofort per Pushover an Ruwen weiter.</span>
                 </div>
 
-                <form id="notfall-formular">
-                  <!-- Prioritäts-Auswahl -->
+                <form id="kombi-formular">
+                  <!-- Prioritäts-Auswahl (Art) -->
                   <div class="formular-gruppe">
-                    <label class="formular-label">Priorität</label>
-                    <div class="prioritaet-auswahl">
+                    <label class="formular-label">Art der Nachricht</label>
+                    <div class="prioritaet-auswahl" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
                       <div class="prioritaet-option">
-                        <input type="radio" id="prio-hoch" name="prioritaet" value="hoch" checked>
-                        <label class="prioritaet-label" for="prio-hoch">
+                        <input type="radio" id="typ-standard" name="nachricht_typ" value="standard" checked>
+                        <label class="prioritaet-label" for="typ-standard">
+                          <span class="prioritaet-emoji">💬</span>
+                          <span class="prioritaet-name">Standard</span>
+                          <span class="prioritaet-beschreibung">Normale Nachricht</span>
+                        </label>
+                      </div>
+                      <div class="prioritaet-option">
+                        <input type="radio" id="typ-hoch" name="nachricht_typ" value="hoch">
+                        <label class="prioritaet-label" for="typ-hoch">
                           <span class="prioritaet-emoji">⚠️</span>
-                          <span class="prioritaet-name">Hohe Priorität</span>
-                          <span class="prioritaet-beschreibung">Wichtig, aber kein Notfall</span>
+                          <span class="prioritaet-name">Wichtig</span>
+                          <span class="prioritaet-beschreibung">Pushover (Kein Notfall)</span>
                         </label>
                       </div>
                       <div class="prioritaet-option notfall-option">
-                        <input type="radio" id="prio-notfall" name="prioritaet" value="notfall">
-                        <label class="prioritaet-label" for="prio-notfall">
+                        <input type="radio" id="typ-notfall" name="nachricht_typ" value="notfall">
+                        <label class="prioritaet-label" for="typ-notfall">
                           <span class="prioritaet-emoji">🚨</span>
                           <span class="prioritaet-name">Notfall</span>
-                          <span class="prioritaet-beschreibung">Kritisch - sofort reagieren</span>
+                          <span class="prioritaet-beschreibung">Kritisch - Sofort pushen</span>
                         </label>
                       </div>
                     </div>
                   </div>
 
                   <div class="formular-gruppe">
-                    <label class="formular-label" for="notfall-inhalt">Beschreibung / Grund</label>
+                    <label class="formular-label" for="kombi-inhalt">Deine Nachricht</label>
                     <textarea
                       class="formular-textarea"
-                      id="notfall-inhalt"
-                      placeholder="Beschreibe kurz den Grund der Benachrichtigung..."
-                      rows="4"
-                      maxlength="2000"
+                      id="kombi-inhalt"
+                      placeholder="Was möchtest du Poke mitteilen?"
+                      rows="5"
+                      maxlength="5000"
                       required
                     ></textarea>
-                    <div class="zeichen-zaehler" id="notfall-zaehler">0 / 2000</div>
+                    <div class="zeichen-zaehler" id="kombi-zaehler">0 / 5000</div>
                   </div>
 
-                  <button type="submit" class="btn btn-notfall btn-vollbreite" id="notfall-btn">
-                    <span>🚨</span> Notfallbenachrichtigung senden
+                  <button type="submit" class="btn btn-primaer btn-vollbreite" id="kombi-btn" style="transition: all 0.3s;">
+                    <span>📤</span> Nachricht senden
                   </button>
                 </form>
               </div>
             </div>
-          </div>
 
           <!-- Nachrichten-Verlauf -->
           <div class="karte">
@@ -152,64 +127,78 @@ const DashboardView = {
       this.passwortAendernModal();
     });
 
-    // Freie Nachricht - Zeichenzähler
-    const nachrichtTextarea = document.getElementById('nachricht-inhalt');
-    const nachrichtZaehler = document.getElementById('nachricht-zaehler');
-    if (nachrichtTextarea && nachrichtZaehler) {
-      UI.zeichenZaehler(nachrichtTextarea, nachrichtZaehler, 5000);
+    // Kombiniertes Formular - Zeichenzähler
+    const kombiTextarea = document.getElementById('kombi-inhalt');
+    const kombiZaehler = document.getElementById('kombi-zaehler');
+    const kombiIcon = document.getElementById('kombi-icon');
+    const kombiWarnung = document.getElementById('kombi-warnung');
+    const kombiBtn = document.getElementById('kombi-btn');
+    const kombiKarte = document.getElementById('kombi-karte');
+    
+    if (kombiTextarea && kombiZaehler) {
+      UI.zeichenZaehler(kombiTextarea, kombiZaehler, 5000);
     }
 
-    // Notfall - Zeichenzähler
-    const notfallTextarea = document.getElementById('notfall-inhalt');
-    const notfallZaehler = document.getElementById('notfall-zaehler');
-    if (notfallTextarea && notfallZaehler) {
-      UI.zeichenZaehler(notfallTextarea, notfallZaehler, 2000);
-    }
-
-    // Freie Nachricht senden
-    document.getElementById('nachricht-formular')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('nachricht-btn');
-      const inhalt = document.getElementById('nachricht-inhalt').value.trim();
-      if (!inhalt) return;
-
-      UI.btnLaden(btn, true);
-      try {
-        await API.nachrichtSenden(inhalt);
-        UI.erfolg('Nachricht erfolgreich an Poke gesendet! ✅');
-        document.getElementById('nachricht-inhalt').value = '';
-        nachrichtZaehler.textContent = '0 / 5000';
-        await this.verlaufLaden();
-      } catch (err) {
-        UI.fehler(err.message);
-      } finally {
-        UI.btnLaden(btn, false);
-      }
+    // UI-Wechsel bei Auswahl der Art
+    document.querySelectorAll('input[name="nachricht_typ"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        const typ = e.target.value;
+        if (typ === 'standard') {
+          kombiIcon.textContent = '💬';
+          kombiIcon.className = 'karte-icon karte-icon-primaer';
+          kombiWarnung.classList.add('versteckt');
+          kombiBtn.className = 'btn btn-primaer btn-vollbreite';
+          kombiBtn.innerHTML = '<span>📤</span> Nachricht senden';
+          kombiKarte.classList.remove('notfall-karte');
+        } else if (typ === 'hoch') {
+          kombiIcon.textContent = '⚠️';
+          kombiIcon.className = 'karte-icon karte-icon-primaer';
+          kombiIcon.style.background = 'rgba(234, 179, 8, 0.1)';
+          kombiIcon.style.color = '#eab308';
+          kombiWarnung.classList.remove('versteckt');
+          kombiBtn.className = 'btn btn-primaer btn-vollbreite';
+          kombiBtn.style.background = '#eab308';
+          kombiBtn.innerHTML = '<span>⚠️</span> Wichtige Nachricht senden';
+          kombiKarte.classList.remove('notfall-karte');
+        } else if (typ === 'notfall') {
+          kombiIcon.textContent = '🚨';
+          kombiIcon.className = 'karte-icon karte-icon-notfall';
+          kombiWarnung.classList.remove('versteckt');
+          kombiBtn.className = 'btn btn-notfall btn-vollbreite';
+          kombiBtn.innerHTML = '<span>🚨</span> Notfall melden';
+          kombiKarte.classList.add('notfall-karte');
+        }
+      });
     });
 
-    // Notfall senden
-    document.getElementById('notfall-formular')?.addEventListener('submit', async (e) => {
+    // Formular absenden
+    document.getElementById('kombi-formular')?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const btn = document.getElementById('notfall-btn');
-      const inhalt = document.getElementById('notfall-inhalt').value.trim();
-      const prioritaet = document.querySelector('input[name="prioritaet"]:checked')?.value || 'hoch';
+      const inhalt = kombiTextarea.value.trim();
+      const typ = document.querySelector('input[name="nachricht_typ"]:checked').value;
       if (!inhalt) return;
 
-      const prioritaetLabel = prioritaet === 'notfall' ? 'Notfallbenachrichtigung' : 'Hohe-Priorität-Benachrichtigung';
+      if (typ !== 'standard') {
+        const prioritaetLabel = typ === 'notfall' ? 'Notfallbenachrichtigung' : 'Wichtige Benachrichtigung';
+        if (!confirm(`Möchtest du wirklich eine ${prioritaetLabel} senden?`)) return;
+      }
 
-      if (!confirm(`Möchtest du wirklich eine ${prioritaetLabel} senden?`)) return;
-
-      UI.btnLaden(btn, true);
+      UI.btnLaden(kombiBtn, true);
       try {
-        await API.notfallSenden(inhalt, prioritaet);
-        UI.erfolg(`${prioritaetLabel} erfolgreich gesendet! Poke wurde informiert. 🚨`);
-        document.getElementById('notfall-inhalt').value = '';
-        notfallZaehler.textContent = '0 / 2000';
+        if (typ === 'standard') {
+          await API.nachrichtSenden(inhalt);
+        } else {
+          await API.notfallSenden(inhalt, typ);
+        }
+        
+        UI.erfolg('Nachricht erfolgreich an Poke gesendet! ✅');
+        kombiTextarea.value = '';
+        kombiZaehler.textContent = '0 / 5000';
         await this.verlaufLaden();
       } catch (err) {
         UI.fehler(err.message);
       } finally {
-        UI.btnLaden(btn, false);
+        UI.btnLaden(kombiBtn, false);
       }
     });
 
