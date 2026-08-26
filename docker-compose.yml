@@ -1,0 +1,77 @@
+# yRelay - Docker Compose
+# Für Cosmos Cloud: Kein Port-Expose nötig (Cosmos routet intern)
+#
+# Quickstart:
+#   1. Kopiere diese Datei auf deinen Server
+#   2. Passe die Umgebungsvariablen an
+#   3. Führe aus: docker compose up -d
+
+services:
+  yrelay:
+    image: ghcr.io/einfachruwen/yrelay:latest
+    container_name: yrelay
+    restart: unless-stopped
+
+    # ─── Umgebungsvariablen ──────────────────────────────────────────────
+    environment:
+      # Node.js
+      NODE_ENV: production
+      PORT: 3000
+
+      # Sicherheit - UNBEDINGT ändern!
+      JWT_SECRET: "bitte-einen-langen-zufaelligen-string-hier-eintragen"
+
+      # Admin-Konto (wird beim ersten Start automatisch erstellt)
+      ADMIN_USERNAME: "admin"
+      ADMIN_EMAIL: "admin@example.com"
+      ADMIN_PASSWORD: "Admin1234!"
+
+      # Poke API
+      POKE_WEBHOOK_URL: "https://poke.com/api/v1/inbound/api-message"
+      POKE_API_KEY: "dein-poke-v2-api-key"
+
+      # SMTP (optional - für Einladungsmails per E-Mail)
+      # Auskommentiert lassen falls nicht benötigt
+      # SMTP_HOST: "smtp.example.com"
+      # SMTP_PORT: "587"
+      # SMTP_USER: "yrelay@example.com"
+      # SMTP_PASS: "dein-smtp-passwort"
+      # SMTP_FROM: "yrelay@example.com"
+
+      # Öffentliche App-URL (für Einladungslinks in E-Mails)
+      APP_URL: "https://yrelay.deinedomain.de"
+
+    # ─── Datenpersistenz ─────────────────────────────────────────────────
+    volumes:
+      - yrelay_data:/app/data
+
+    # ─── Netzwerk ────────────────────────────────────────────────────────
+    # Kein ports: - Cosmos Cloud routet über internes Docker-Netzwerk
+    networks:
+      - yrelay_netz
+
+    # ─── Healthcheck ─────────────────────────────────────────────────────
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/gesundheit"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    # ─── Ressourcen-Limits ────────────────────────────────────────────────
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+
+# ─── Volumes ─────────────────────────────────────────────────────────────────
+volumes:
+  yrelay_data:
+    driver: local
+
+# ─── Netzwerk ─────────────────────────────────────────────────────────────────
+networks:
+  yrelay_netz:
+    driver: bridge
