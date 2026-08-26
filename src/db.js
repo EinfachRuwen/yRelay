@@ -57,6 +57,18 @@ db.exec(`
   );
 `);
 
+// Migrationen für bestehende Tabellen
+try {
+  db.exec('ALTER TABLE users ADD COLUMN reset_token TEXT;');
+} catch (e) {
+  // Spalte existiert bereits
+}
+try {
+  db.exec('ALTER TABLE users ADD COLUMN reset_expires_at DATETIME;');
+} catch (e) {
+  // Spalte existiert bereits
+}
+
 // Initialen Admin-Nutzer anlegen falls noch keiner existiert
 function initAdminUser() {
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@yrelay.local';
