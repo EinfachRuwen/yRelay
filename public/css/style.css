@@ -308,6 +308,7 @@ body {
 
 .karte-icon-primaer { background: rgba(99, 102, 241, 0.15); }
 .karte-icon-notfall { background: rgba(239, 68, 68, 0.15); }
+.karte-icon-warnung { background: rgba(234, 179, 8, 0.15); color: #eab308; }
 .karte-icon-erfolg { background: rgba(16, 185, 129, 0.15); }
 .karte-icon-info { background: rgba(59, 130, 246, 0.15); }
 
@@ -560,6 +561,18 @@ body {
 
 .btn-notfall:hover:not(:disabled) {
   box-shadow: 0 6px 24px rgba(239, 68, 68, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-warnung {
+  background: linear-gradient(135deg, #eab308, #ca8a04);
+  color: #1a1000;
+  box-shadow: 0 4px 16px rgba(234, 179, 8, 0.35);
+  font-weight: 700;
+}
+
+.btn-warnung:hover:not(:disabled) {
+  box-shadow: 0 6px 24px rgba(234, 179, 8, 0.5);
   transform: translateY(-1px);
 }
 

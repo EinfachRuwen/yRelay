@@ -162,6 +162,12 @@ const DashboardView = {
     document.querySelectorAll('input[name="nachricht_typ"]').forEach(radio => {
       radio.addEventListener('change', (e) => {
         const typ = e.target.value;
+        // Immer zuerst alle Zustände zurücksetzen
+        kombiBtn.style.background = '';
+        kombiBtn.style.color = '';
+        kombiIcon.style.background = '';
+        kombiIcon.style.color = '';
+
         if (typ === 'standard') {
           kombiIcon.textContent = '💬';
           kombiIcon.className = 'karte-icon karte-icon-primaer';
@@ -171,12 +177,9 @@ const DashboardView = {
           kombiKarte.classList.remove('notfall-karte');
         } else if (typ === 'hoch') {
           kombiIcon.textContent = '⚠️';
-          kombiIcon.className = 'karte-icon karte-icon-primaer';
-          kombiIcon.style.background = 'rgba(234, 179, 8, 0.1)';
-          kombiIcon.style.color = '#eab308';
+          kombiIcon.className = 'karte-icon karte-icon-warnung';
           kombiWarnung.classList.remove('versteckt');
-          kombiBtn.className = 'btn btn-primaer btn-vollbreite';
-          kombiBtn.style.background = '#eab308';
+          kombiBtn.className = 'btn btn-warnung btn-vollbreite';
           kombiBtn.innerHTML = '<span>⚠️</span> Wichtige Nachricht senden';
           kombiKarte.classList.remove('notfall-karte');
         } else if (typ === 'notfall') {

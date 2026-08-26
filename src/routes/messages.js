@@ -148,6 +148,7 @@ router.post('/notfall', async (req, res) => {
 
 // GET /api/nachrichten/meine - Eigene gesendete Nachrichten
 router.get('/meine', (req, res) => {
+  const fixTZ = (d) => d ? d.replace(' ', 'T') + 'Z' : null;
   const nachrichten = db.prepare(`
     SELECT id, type, priority, content, status, error_message, reply_content, replied_at, created_at
     FROM messages
@@ -164,8 +165,8 @@ router.get('/meine', (req, res) => {
     status: n.status,
     fehler: n.error_message,
     antwortText: n.reply_content,
-    antwortDatum: n.replied_at,
-    gesendetAm: n.created_at,
+    antwortDatum: fixTZ(n.replied_at),
+    gesendetAm: fixTZ(n.created_at),
   })));
 });
 
