@@ -189,12 +189,23 @@ const AdminView = {
                                   ↩️
                                 </button>
                               ` : ''}
+                              <button class="btn btn-sekundaer btn-klein"
+                                onclick="AdminView.passwortReset(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
+                                title="Passwort zurücksetzen (E-Mail senden)">
+                                🔑
+                              </button>
                               <button class="btn btn-gefahr btn-klein"
                                 onclick="AdminView.nutzerLoeschen(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
                                 title="Nutzer löschen">
                                 🗑️
                               </button>
-                            ` : '<span style="font-size: 12px; color: var(--farbe-text-schwach);">-</span>'}
+                            ` : `
+                              <button class="btn btn-sekundaer btn-klein"
+                                onclick="AdminView.passwortReset(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
+                                title="Eigenes Passwort zurücksetzen">
+                                🔑
+                              </button>
+                            `}
                           </div>
                         </td>
                       </tr>
@@ -233,6 +244,16 @@ const AdminView = {
       await API.adminNutzerLoeschen(id);
       UI.erfolg(`Nutzer "${name}" wurde gelöscht.`);
       await this.tabLaden('nutzer');
+    } catch (err) {
+      UI.fehler(err.message);
+    }
+  },
+
+  async passwortReset(id, name) {
+    if (!confirm(`Möchtest du wirklich eine E-Mail zum Zurücksetzen des Passworts an "${name}" senden?`)) return;
+    try {
+      const antwort = await API.adminNutzerPasswortReset(id);
+      UI.erfolg(antwort.nachricht);
     } catch (err) {
       UI.fehler(err.message);
     }

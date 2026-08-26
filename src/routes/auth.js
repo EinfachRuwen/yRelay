@@ -123,4 +123,57 @@ router.post('/passwort-aendern', requireAuth, (req, res) => {
   res.json({ nachricht: 'Passwort erfolgreich geändert.' });
 });
 
+// POST /api/auth/passwort-vergessen - Reset-E-Mail anfordern
+router.post('/passwort-vergessen', async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ fehler: 'E-Mail ist erforderlich.' });
+  }
+
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  if (!user) {
+    // Generische Antwort aus Sicherheitsgründen
+    return res.json({ nachricht: 'Falls diese E-Mail existiert, wurde ein Reset-Link gesendet.' });
+  }
+
+  const { v4: uuidv4 } = require('uuid');
+  const resetToken = uuidv4();
+  const ablaufDatum = new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString(); // 1 Stunde
+
+  db.prepare('UPDATE users SET reset_token = ?, reset_expires_at = ? WHERE id = ?').run(resetToken, ablaufDatum, user.id);
+
+  const { sendePasswortResetMail } = require('../services/email');
+  await sendePasswortResetMail(user.email, user.username, resetToken);
+
+  res.json({ nachricht: 'Falls diese E-Mail existiert, wurde ein Reset-Link gesendet.' });
+});
+
+// POST /api/auth/passwort-zuruecksetzen - Neues Passwort setzen
+router.post('/passwort-zuruecksetzen', (req, res) => {
+  const { token, passwort } = req.body;
+
+  if (!token || !passwort) {
+    return res.status(400).json({ fehler: 'Token und Passwort sind erforderlich.' });
+  }
+
+  if (passwort.length < 8) {
+    return res.status(400).json({ fehler: 'Das Passwort muss mindestens 8 Zeichen lang sein.' });
+  }
+
+  const user = db.prepare('SELECT * FROM users WHERE reset_token = ?').get(token);
+  if (!user) {
+    return res.status(400).json({ fehler: 'Dieser Link ist ungültig oder wurde bereits verwendet.' });
+  }
+
+  if (new Date() > new Date(user.reset_expires_at)) {
+    return res.status(400).json({ fehler: 'Dieser Link ist abgelaufen. Bitte fordere einen neuen an.' });
+  }
+
+  const hash = bcrypt.hashSync(passwort, 12);
+  db.prepare('UPDATE users SET password_hash = ?, reset_token = NULL, reset_expires_at = NULL WHERE id = ?').run(hash, user.id);
+
+  res.json({ nachricht: 'Passwort erfolgreich zurückgesetzt. Du kannst dich jetzt einloggen.' });
+});
+
 module.exports = router;

@@ -206,4 +206,93 @@ async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachric
   }
 }
 
-module.exports = { sendeEinladungsmail, testeSMTP, sendeAntwortMail };
+/**
+ * Sendet einen Passwort-Zurücksetzen-Link.
+ */
+async function sendePasswortResetMail(empfaengerEmail, empfaengerName, resetToken) {
+  const transporter = erstelleTransporter();
+  if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
+
+  const absender = getSetting('smtp_from') || getSetting('smtp_user');
+  const appUrl = getSetting('app_url') || 'http://localhost:3000';
+  const resetLink = `${appUrl}/#reset/${resetToken}`;
+
+  const mailOptionen = {
+    from: `"yRelay" <${absender}>`,
+    to: empfaengerEmail,
+    subject: 'Passwort zurücksetzen 🔑',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>Hallo ${empfaengerName},</h2>
+        <p>Jemand hat angefragt, dein yRelay-Passwort zurückzusetzen. Falls du das warst, klicke auf den Button:</p>
+        <a href="${resetLink}" style="display:inline-block; padding:12px 24px; background:#6366f1; color:#fff; text-decoration:none; border-radius:6px; margin: 20px 0;">Neues Passwort vergeben</a>
+        <p>Dieser Link ist für <strong>1 Stunde</strong> gültig.</p>
+        <p style="font-size: 12px; color: #666; margin-top: 40px;">Falls du das nicht warst, kannst du diese E-Mail einfach ignorieren.</p>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptionen);
+    return { erfolg: true };
+  } catch (err) {
+    return { erfolg: false, fehler: err.message };
+  }
+}
+
+/**
+ * Sendet eine Benachrichtigung, wenn ein Konto gesperrt wurde.
+ */
+async function sendeKontoGesperrtMail(empfaengerEmail, empfaengerName) {
+  const transporter = erstelleTransporter();
+  if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
+
+  const absender = getSetting('smtp_from') || getSetting('smtp_user');
+
+  const mailOptionen = {
+    from: `"yRelay" <${absender}>`,
+    to: empfaengerEmail,
+    subject: 'Dein yRelay-Konto wurde gesperrt 🔒',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>Hallo ${empfaengerName},</h2>
+        <p>Dein Konto bei yRelay wurde soeben von einem Administrator gesperrt.</p>
+        <p>Du kannst dich aktuell nicht mehr einloggen und keine Nachrichten senden.</p>
+        <p style="font-size: 12px; color: #666; margin-top: 40px;">Bitte wende dich an den Administrator, falls du Fragen hast.</p>
+      </div>
+    `
+  };
+
+  transporter.sendMail(mailOptionen).catch(() => {});
+  return { erfolg: true };
+}
+
+/**
+ * Sendet eine Benachrichtigung, wenn ein Konto reaktiviert wurde.
+ */
+async function sendeKontoAktiviertMail(empfaengerEmail, empfaengerName) {
+  const transporter = erstelleTransporter();
+  if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
+
+  const absender = getSetting('smtp_from') || getSetting('smtp_user');
+  const appUrl = getSetting('app_url') || 'http://localhost:3000';
+
+  const mailOptionen = {
+    from: `"yRelay" <${absender}>`,
+    to: empfaengerEmail,
+    subject: 'Dein yRelay-Konto ist wieder aktiv! 🎉',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>Hallo ${empfaengerName},</h2>
+        <p>Dein Konto bei yRelay wurde soeben von einem Administrator wieder entsperrt.</p>
+        <p>Du kannst dich nun wieder wie gewohnt einloggen:</p>
+        <a href="${appUrl}" style="display:inline-block; padding:12px 24px; background:#10b981; color:#fff; text-decoration:none; border-radius:6px; margin: 20px 0;">Zum Login</a>
+      </div>
+    `
+  };
+
+  transporter.sendMail(mailOptionen).catch(() => {});
+  return { erfolg: true };
+}
+
+module.exports = { sendeEinladungsmail, testeSMTP, sendeAntwortMail, sendePasswortResetMail, sendeKontoGesperrtMail, sendeKontoAktiviertMail };

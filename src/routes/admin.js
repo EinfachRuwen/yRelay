@@ -104,7 +104,7 @@ router.post('/nutzer/einladen', async (req, res) => {
 });
 
 // PATCH /api/admin/nutzer/:id - Nutzer aktivieren/deaktivieren
-router.patch('/nutzer/:id', (req, res) => {
+router.patch('/nutzer/:id', async (req, res) => {
   const { id } = req.params;
   const { aktiv } = req.body;
 
@@ -119,6 +119,14 @@ router.patch('/nutzer/:id', (req, res) => {
   }
 
   db.prepare('UPDATE users SET is_active = ? WHERE id = ?').run(aktiv ? 1 : 0, id);
+
+  const { sendeKontoGesperrtMail, sendeKontoAktiviertMail } = require('../services/email');
+  if (aktiv) {
+    sendeKontoAktiviertMail(user.email, user.username).catch(() => {});
+  } else {
+    sendeKontoGesperrtMail(user.email, user.username).catch(() => {});
+  }
+
   res.json({ nachricht: `Nutzer ${aktiv ? 'aktiviert' : 'deaktiviert'}.` });
 });
 
@@ -166,6 +174,30 @@ router.post('/nutzer/:id/einladung-neu', async (req, res) => {
   }
 
   res.json({ nachricht: 'Einladungslink neu generiert und per E-Mail gesendet.' });
+});
+
+// POST /api/admin/nutzer/:id/passwort-reset - Admin triggert Reset-Mail
+router.post('/nutzer/:id/passwort-reset', async (req, res) => {
+  const { id } = req.params;
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+
+  if (!user) {
+    return res.status(404).json({ fehler: 'Nutzer nicht gefunden.' });
+  }
+
+  const { sendePasswortResetMail } = require('../services/email');
+  const resetToken = uuidv4();
+  const ablaufDatum = new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString();
+
+  db.prepare('UPDATE users SET reset_token = ?, reset_expires_at = ? WHERE id = ?').run(resetToken, ablaufDatum, id);
+
+  const mailErgebnis = await sendePasswortResetMail(user.email, user.username, resetToken);
+
+  if (!mailErgebnis.erfolg) {
+    return res.status(502).json({ fehler: `Fehler beim E-Mail-Versand: ${mailErgebnis.fehler}` });
+  }
+
+  res.json({ nachricht: 'Passwort-Reset-E-Mail erfolgreich gesendet.' });
 });
 
 // ─── Nachrichten-Übersicht ──────────────────────────────────────────────────

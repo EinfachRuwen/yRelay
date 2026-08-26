@@ -71,6 +71,14 @@ const API = {
     return this.anfrage('POST', '/auth/passwort-aendern', { altesPasswort, neuesPasswort });
   },
 
+  async passwortVergessen(email) {
+    return this.anfrage('POST', '/auth/passwort-vergessen', { email });
+  },
+
+  async passwortZuruecksetzen(token, passwort) {
+    return this.anfrage('POST', '/auth/passwort-zuruecksetzen', { token, passwort });
+  },
+
   // Nachrichten
   async nachrichtSenden(inhalt) {
     return this.anfrage('POST', '/nachrichten/senden', { inhalt });
@@ -107,6 +115,10 @@ const API = {
 
   async adminEinladungNeu(id) {
     return this.anfrage('POST', `/admin/nutzer/${id}/einladung-neu`);
+  },
+
+  async adminNutzerPasswortReset(id) {
+    return this.anfrage('POST', `/admin/nutzer/${id}/passwort-reset`);
   },
 
   // Admin - Nachrichten

@@ -26,6 +26,14 @@ const App = {
     const app = document.getElementById('app');
     if (!app) return;
 
+    // Reset-Passwort-Route
+    if (hash.startsWith('#reset/')) {
+      const token = hash.slice('#reset/'.length);
+      app.innerHTML = ResetView.rendern(token);
+      ResetView.initialisieren(token);
+      return;
+    }
+
     // Einladungs-Route (auch ohne Login erreichbar)
     if (hash.startsWith('#einladung/')) {
       const token = hash.slice('#einladung/'.length);

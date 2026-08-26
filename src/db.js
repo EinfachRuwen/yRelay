@@ -29,6 +29,8 @@ db.exec(`
     is_active INTEGER NOT NULL DEFAULT 1,
     invite_token TEXT,
     invite_expires_at DATETIME,
+    reset_token TEXT,
+    reset_expires_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_login DATETIME
   );
