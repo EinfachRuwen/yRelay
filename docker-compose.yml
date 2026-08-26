@@ -30,6 +30,9 @@ services:
       POKE_WEBHOOK_URL: "https://poke.com/api/v1/inbound/api-message"
       POKE_API_KEY: "dein-poke-v2-api-key"
 
+      # Deepgram (für Spracheingabe / Voice-to-Text)
+      DEEPGRAM_API_KEY: "dein-deepgram-api-key"
+
       # SMTP (optional - für Einladungsmails per E-Mail)
       # Auskommentiert lassen falls nicht benötigt
       # SMTP_HOST: "smtp.example.com"
@@ -62,9 +65,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
         reservations:
-          memory: 64M
+          memory: 128M
 
 # ─── Volumes ─────────────────────────────────────────────────────────────────
 volumes:

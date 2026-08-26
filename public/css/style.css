@@ -753,6 +753,11 @@ body {
   color: var(--farbe-notfall-hell);
 }
 
+.verlauf-typ-badge.warnung {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+}
+
 .verlauf-inhalt {
   font-size: 13px;
   color: var(--farbe-text-gedaempft);

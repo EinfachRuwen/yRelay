@@ -283,6 +283,8 @@ const AdminView = {
             </button>
           </div>
         `);
+        // Nutzerliste im Hintergrund aktualisieren (ohne das Modal zu schließen)
+        await this.tabLaden('nutzer');
       } else {
         UI.erfolg('Neue Einladung gesendet.');
         await this.tabLaden('nutzer');
@@ -450,7 +452,7 @@ const AdminView = {
                 ${nachrichten.map(n => `
                   <div class="verlauf-eintrag">
                     <div>
-                      ${UI.typBadge(n.typ)}
+                      ${UI.typBadge(n.typ, n.prioritaet)}
                       ${n.prioritaet ? `<div style="margin-top: 4px; font-size: 11px; color: var(--farbe-text-schwach);">${UI.prioritaetText(n.prioritaet)}</div>` : ''}
                     </div>
                     <div>

@@ -338,7 +338,7 @@ const DashboardView = {
         UI.erfolg('Nachricht erfolgreich an Poke gesendet! ✅');
         kombiTextarea.value = '';
         originalTranskript = null;
-        kombiZaehler.textContent = '0 / 5000';
+        kombiTextarea.dispatchEvent(new Event('input')); // Zeichenzähler zurücksetzen
         await this.verlaufLaden();
       } catch (err) {
         UI.fehler(err.message);
@@ -367,7 +367,7 @@ const DashboardView = {
           ${nachrichten.map(n => `
             <div class="verlauf-eintrag">
               <div>
-                ${UI.typBadge(n.typ)}
+                ${UI.typBadge(n.typ, n.prioritaet)}
                 ${n.prioritaet ? `<div style="margin-top: 4px; font-size: 11px; color: var(--farbe-text-schwach);">${UI.prioritaetText(n.prioritaet)}</div>` : ''}
               </div>
               <div>

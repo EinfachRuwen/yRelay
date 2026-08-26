@@ -96,6 +96,12 @@ initSettings();
 initAdminUser();
 console.log('[yRelay] Datenbank bereit.');
 
+// Sicherheitswarnung wenn Standard-JWT-Secret verwendet wird
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'yrelay-geheimnis-bitte-aendern') {
+  console.warn('\n⚠️  [yRelay] SICHERHEITSWARNUNG: JWT_SECRET ist nicht gesetzt oder verwendet den Standard-Wert!');
+  console.warn('⚠️  [yRelay] Bitte setze JWT_SECRET auf einen langen, zufälligen String in der docker-compose.yml!\n');
+}
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[yRelay] Server läuft auf Port ${PORT}`);
   console.log(`[yRelay] Dashboard: http://localhost:${PORT}`);

@@ -87,7 +87,7 @@ router.post('/senden', async (req, res) => {
 
   if (!ergebnis.erfolg) {
     return res.status(502).json({
-      fehler: `Nachricht konnte nicht an Poke gesendet werden: ${ergebnis.fehler}`,
+      fehler: 'Poke konnte die Nachricht nicht empfangen. Bitte versuche es später erneut oder kontaktiere den Administrator.',
     });
   }
 
@@ -139,7 +139,7 @@ router.post('/notfall', async (req, res) => {
 
   if (!ergebnis.erfolg) {
     return res.status(502).json({
-      fehler: `Notfallbenachrichtigung konnte nicht gesendet werden: ${ergebnis.fehler}`,
+      fehler: 'Poke konnte die Notfallbenachrichtigung nicht empfangen. Bitte versuche es später erneut oder kontaktiere den Administrator.',
     });
   }
 

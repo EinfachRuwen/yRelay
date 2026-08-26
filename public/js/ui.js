@@ -133,7 +133,10 @@ const UI = {
   },
 
   // ─── Nachrichtentyp-Badge ─────────────────────────────────────────────
-  typBadge(typ) {
+  typBadge(typ, prioritaet) {
+    if (typ === 'emergency' && prioritaet === 'hoch') {
+      return '<span class="verlauf-typ-badge warnung">⚠️ Wichtig</span>';
+    }
     if (typ === 'emergency') {
       return '<span class="verlauf-typ-badge notfall">🚨 Notfall</span>';
     }
