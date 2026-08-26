@@ -78,7 +78,7 @@ const DashboardView = {
 
                   <div class="formular-gruppe">
                     <label class="formular-label" for="kombi-inhalt">Deine Nachricht</label>
-                    <div style="position: relative;">
+                    <div class="textarea-wrapper">
                       <textarea
                         class="formular-textarea"
                         id="kombi-inhalt"
@@ -86,17 +86,18 @@ const DashboardView = {
                         rows="5"
                         maxlength="5000"
                         required
-                        style="padding-bottom: 40px;"
                       ></textarea>
-                      <button type="button" id="clear-btn" title="Textfeld leeren" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.05); border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
-                        🗑️ Leeren
-                      </button>
-                      <button type="button" id="retranscribe-btn" class="versteckt" title="Letzte Audioaufnahme erneut transkribieren" style="position: absolute; bottom: 8px; right: 48px; background: rgba(0,0,0,0.05); border: none; border-radius: 4px; padding: 6px 10px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
-                        🔄 Aufnahme nochmal transkribieren
-                      </button>
-                      <button type="button" id="mic-btn" class="btn-icon" title="Spracheingabe (Diktieren)" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.05); border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.2s;">
-                        🎤
-                      </button>
+                      <div class="textarea-aktionen">
+                        <button type="button" id="retranscribe-btn" class="textarea-aktion-btn versteckt" title="Letzte Aufnahme erneut transkribieren">
+                          🔄 Nochmal transkribieren
+                        </button>
+                        <button type="button" id="clear-btn" class="textarea-aktion-btn" title="Textfeld leeren">
+                          Leeren
+                        </button>
+                        <button type="button" id="mic-btn" class="mic-btn" title="Spracheingabe starten">
+                          🎤
+                        </button>
+                      </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-top: 4px;">
                       <div id="mic-status" class="versteckt" style="font-size: 12px; color: var(--farbe-notfall); font-weight: 600; display: flex; align-items: center; gap: 6px;">
@@ -250,7 +251,7 @@ const DashboardView = {
       }
       clearInterval(recordInterval);
       micStatus.classList.add('versteckt');
-      micBtn.style.background = 'rgba(0,0,0,0.05)';
+      micBtn.classList.remove('aufnahme-aktiv');
       micBtn.innerHTML = '🎤';
     };
 
@@ -298,7 +299,7 @@ const DashboardView = {
         recordTime = 0;
         updateMicTimer();
         micStatus.classList.remove('versteckt');
-        micBtn.style.background = 'rgba(239, 68, 68, 0.2)';
+        micBtn.classList.add('aufnahme-aktiv');
         micBtn.innerHTML = '⏹️';
 
         recordInterval = setInterval(() => {

@@ -146,46 +146,6 @@ router.post('/notfall', async (req, res) => {
   res.json({ nachricht: 'Notfallbenachrichtigung erfolgreich an Poke gesendet.' });
 });
 
-// POST /api/nachrichten/transkribieren - Audio an Deepgram senden
-router.post('/transkribieren', express.raw({ type: 'audio/*', limit: '50mb' }), async (req, res) => {
-  if (!req.body || !Buffer.isBuffer(req.body)) {
-    return res.status(400).json({ fehler: 'Keine gültigen Audiodaten empfangen.' });
-  }
-
-  const apiKey = getSetting('deepgram_api_key');
-  if (!apiKey) {
-    return res.status(500).json({ fehler: 'Deepgram API-Key ist nicht konfiguriert.' });
-  }
-
-  try {
-    const contentType = req.headers['content-type'] || 'audio/webm';
-    
-    // Deepgram API Aufruf
-    const response = await fetch('https://api.deepgram.com/v1/listen?punctuate=true&smart_format=true&language=de&model=whisper', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': contentType,
-      },
-      body: req.body
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.err_msg || 'Deepgram API Fehler');
-    }
-
-    // Transkript extrahieren
-    const transcript = result.results?.channels[0]?.alternatives[0]?.transcript || '';
-    
-    res.json({ transkript: transcript });
-  } catch (error) {
-    console.error('[Deepgram Error]', error);
-    res.status(502).json({ fehler: 'Transkription fehlgeschlagen: ' + error.message });
-  }
-});
-
 // GET /api/nachrichten/meine - Eigene gesendete Nachrichten
 router.get('/meine', (req, res) => {
   const nachrichten = db.prepare(`
