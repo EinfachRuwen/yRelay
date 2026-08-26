@@ -91,6 +91,7 @@ function initSettings() {
   const defaults = [
     ['poke_webhook_url', process.env.POKE_WEBHOOK_URL || ''],
     ['poke_api_key', process.env.POKE_API_KEY || ''],
+    ['deepgram_api_key', process.env.DEEPGRAM_API_KEY || ''],
     ['smtp_host', process.env.SMTP_HOST || ''],
     ['smtp_port', process.env.SMTP_PORT || '587'],
     ['smtp_user', process.env.SMTP_USER || ''],

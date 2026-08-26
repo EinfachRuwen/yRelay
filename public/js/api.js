@@ -80,12 +80,42 @@ const API = {
   },
 
   // Nachrichten
-  async nachrichtSenden(inhalt) {
-    return this.anfrage('POST', '/nachrichten/senden', { inhalt });
+  async nachrichtSenden(inhalt, originalTranskript = null) {
+    return this.anfrage('POST', '/nachrichten/senden', { inhalt, originalTranskript });
   },
 
-  async notfallSenden(inhalt, prioritaet) {
-    return this.anfrage('POST', '/nachrichten/notfall', { inhalt, prioritaet });
+  async notfallSenden(inhalt, prioritaet, originalTranskript = null) {
+    return this.anfrage('POST', '/nachrichten/notfall', { inhalt, prioritaet, originalTranskript });
+  },
+
+  async audioTranskribieren(audioBlob) {
+    const optionen = {
+      method: 'POST',
+      headers: {
+        'Content-Type': audioBlob.type || 'audio/webm',
+      },
+      body: audioBlob
+    };
+
+    const token = this.getToken();
+    if (token) {
+      optionen.headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const antwort = await fetch('/api/nachrichten/transkribieren', optionen);
+      const json = await antwort.json();
+
+      if (!antwort.ok) {
+        throw new Error(json.fehler || `Serverfehler ${antwort.status}`);
+      }
+      return json;
+    } catch (err) {
+      if (err.name === 'TypeError') {
+        throw new Error('Verbindungsfehler. Server nicht erreichbar.');
+      }
+      throw err;
+    }
   },
 
   async meineNachrichten() {

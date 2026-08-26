@@ -1,8 +1,43 @@
 // Nachrichten-Routes für yRelay
 const express = require('express');
-const { db } = require('../db');
+const { db, getSetting } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { sendeFreieNachricht, sendeNotfallbenachrichtigung } = require('../services/poke');
+
+// Levenshtein-Distanz berechnen
+function calculateLevenshteinDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+// Prüfen ob Text zu >= 50% ähnlich ist
+function isMostlyOriginal(original, edited) {
+  if (!original) return false;
+  const distance = calculateLevenshteinDistance(original, edited);
+  const maxLength = Math.max(original.length, edited.length);
+  if (maxLength === 0) return false;
+  
+  const similarity = 1 - (distance / maxLength);
+  return similarity >= 0.5;
+}
 
 const router = express.Router();
 
@@ -11,7 +46,7 @@ router.use(requireAuth);
 
 // POST /api/nachrichten/senden - Freie Nachricht an Poke senden
 router.post('/senden', async (req, res) => {
-  const { inhalt } = req.body;
+  const { inhalt, originalTranskript } = req.body;
 
   if (!inhalt || !inhalt.trim()) {
     return res.status(400).json({ fehler: 'Die Nachricht darf nicht leer sein.' });
@@ -30,8 +65,13 @@ router.post('/senden', async (req, res) => {
 
   const messageId = insertErgebnis.lastInsertRowid;
 
+  let pokeInhalt = inhalt.trim();
+  if (isMostlyOriginal(originalTranskript, pokeInhalt)) {
+    pokeInhalt += '\n\n[System-Hinweis: Diese Nachricht wurde per Spracheingabe diktiert und von einer KI transkribiert. Sie wurde zu mehr als 50% im Original belassen, weshalb sie Fehler enthalten kann. Bitte bei der Bearbeitung auf Kontext/Rechtschreibung achten.]';
+  }
+
   // Nachricht an Poke senden
-  const ergebnis = await sendeFreieNachricht(req.user, inhalt.trim(), messageId, replyToken);
+  const ergebnis = await sendeFreieNachricht(req.user, pokeInhalt, messageId, replyToken);
 
   // Status in Datenbank aktualisieren
   db.prepare(`
@@ -56,7 +96,7 @@ router.post('/senden', async (req, res) => {
 
 // POST /api/nachrichten/notfall - Notfallbenachrichtigung senden
 router.post('/notfall', async (req, res) => {
-  const { inhalt, prioritaet } = req.body;
+  const { inhalt, prioritaet, originalTranskript } = req.body;
 
   if (!inhalt || !inhalt.trim()) {
     return res.status(400).json({ fehler: 'Die Nachricht darf nicht leer sein.' });
@@ -78,7 +118,12 @@ router.post('/notfall', async (req, res) => {
 
   const messageId = insertErgebnis.lastInsertRowid;
 
-  const ergebnis = await sendeNotfallbenachrichtigung(req.user, inhalt.trim(), prioritaet, messageId, replyToken);
+  let pokeInhalt = inhalt.trim();
+  if (isMostlyOriginal(originalTranskript, pokeInhalt)) {
+    pokeInhalt += '\n\n[System-Hinweis: Diese Nachricht wurde per Spracheingabe diktiert und von einer KI transkribiert. Sie wurde zu mehr als 50% im Original belassen, weshalb sie Fehler enthalten kann. Bitte bei der Bearbeitung auf Kontext/Rechtschreibung achten.]';
+  }
+
+  const ergebnis = await sendeNotfallbenachrichtigung(req.user, pokeInhalt, prioritaet, messageId, replyToken);
 
   // Status in Datenbank aktualisieren
   db.prepare(`
@@ -99,6 +144,46 @@ router.post('/notfall', async (req, res) => {
   }
 
   res.json({ nachricht: 'Notfallbenachrichtigung erfolgreich an Poke gesendet.' });
+});
+
+// POST /api/nachrichten/transkribieren - Audio an Deepgram senden
+router.post('/transkribieren', express.raw({ type: 'audio/*', limit: '50mb' }), async (req, res) => {
+  if (!req.body || !Buffer.isBuffer(req.body)) {
+    return res.status(400).json({ fehler: 'Keine gültigen Audiodaten empfangen.' });
+  }
+
+  const apiKey = getSetting('deepgram_api_key');
+  if (!apiKey) {
+    return res.status(500).json({ fehler: 'Deepgram API-Key ist nicht konfiguriert.' });
+  }
+
+  try {
+    const contentType = req.headers['content-type'] || 'audio/webm';
+    
+    // Deepgram API Aufruf
+    const response = await fetch('https://api.deepgram.com/v1/listen?punctuate=true&smart_format=true&language=de&model=whisper', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': contentType,
+      },
+      body: req.body
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.err_msg || 'Deepgram API Fehler');
+    }
+
+    // Transkript extrahieren
+    const transcript = result.results?.channels[0]?.alternatives[0]?.transcript || '';
+    
+    res.json({ transkript: transcript });
+  } catch (error) {
+    console.error('[Deepgram Error]', error);
+    res.status(502).json({ fehler: 'Transkription fehlgeschlagen: ' + error.message });
+  }
 });
 
 // GET /api/nachrichten/meine - Eigene gesendete Nachrichten

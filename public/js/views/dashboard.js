@@ -78,15 +78,27 @@ const DashboardView = {
 
                   <div class="formular-gruppe">
                     <label class="formular-label" for="kombi-inhalt">Deine Nachricht</label>
-                    <textarea
-                      class="formular-textarea"
-                      id="kombi-inhalt"
-                      placeholder="Was möchtest du Poke mitteilen?"
-                      rows="5"
-                      maxlength="5000"
-                      required
-                    ></textarea>
-                    <div class="zeichen-zaehler" id="kombi-zaehler">0 / 5000</div>
+                    <div style="position: relative;">
+                      <textarea
+                        class="formular-textarea"
+                        id="kombi-inhalt"
+                        placeholder="Was möchtest du Poke mitteilen?"
+                        rows="5"
+                        maxlength="5000"
+                        required
+                        style="padding-bottom: 40px;"
+                      ></textarea>
+                      <button type="button" id="mic-btn" class="btn-icon" title="Spracheingabe (Diktieren)" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.05); border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.2s;">
+                        🎤
+                      </button>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+                      <div id="mic-status" class="versteckt" style="font-size: 12px; color: var(--farbe-notfall); font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                        <span class="pulsing-dot" style="width: 8px; height: 8px; background: var(--farbe-notfall); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite;"></span>
+                        <span id="mic-timer">00:00</span> / 30:00
+                      </div>
+                      <div class="zeichen-zaehler" id="kombi-zaehler" style="margin-left: auto;">0 / 5000</div>
+                    </div>
                   </div>
 
                   <button type="submit" class="btn btn-primaer btn-vollbreite" id="kombi-btn" style="transition: all 0.3s;">
@@ -172,6 +184,91 @@ const DashboardView = {
     });
 
     // Formular absenden
+    let originalTranskript = null;
+    
+    // Mikrofon-Logik
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordInterval = null;
+    let recordTime = 0;
+
+    const micBtn = document.getElementById('mic-btn');
+    const micStatus = document.getElementById('mic-status');
+    const micTimer = document.getElementById('mic-timer');
+
+    const updateMicTimer = () => {
+      const m = Math.floor(recordTime / 60).toString().padStart(2, '0');
+      const s = (recordTime % 60).toString().padStart(2, '0');
+      micTimer.textContent = `${m}:${s}`;
+    };
+
+    const stopRecording = () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+      }
+      clearInterval(recordInterval);
+      micStatus.classList.add('versteckt');
+      micBtn.style.background = 'rgba(0,0,0,0.05)';
+      micBtn.innerHTML = '🎤';
+    };
+
+    micBtn?.addEventListener('click', async () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        stopRecording();
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.addEventListener('dataavailable', event => {
+          if (event.data.size > 0) audioChunks.push(event.data);
+        });
+
+        mediaRecorder.addEventListener('stop', async () => {
+          const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+          UI.btnLaden(kombiBtn, true);
+          const alterPlaceholder = kombiTextarea.placeholder;
+          kombiTextarea.placeholder = "Transkribiere Audio (Deepgram)...";
+          
+          try {
+            const antwort = await API.audioTranskribieren(audioBlob);
+            if (antwort.transkript) {
+              const prev = kombiTextarea.value.trim();
+              kombiTextarea.value = prev ? prev + '\n' + antwort.transkript : antwort.transkript;
+              originalTranskript = antwort.transkript;
+              kombiTextarea.dispatchEvent(new Event('input'));
+              UI.erfolg('Spracheingabe erfolgreich transkribiert.');
+            }
+          } catch (err) {
+            UI.fehler('Transkription fehlgeschlagen: ' + err.message);
+          } finally {
+            kombiTextarea.placeholder = alterPlaceholder;
+            UI.btnLaden(kombiBtn, false);
+          }
+        });
+
+        mediaRecorder.start();
+        recordTime = 0;
+        updateMicTimer();
+        micStatus.classList.remove('versteckt');
+        micBtn.style.background = 'rgba(239, 68, 68, 0.2)';
+        micBtn.innerHTML = '⏹️';
+
+        recordInterval = setInterval(() => {
+          recordTime++;
+          updateMicTimer();
+          if (recordTime >= 1800) stopRecording(); // Max 30 Min
+        }, 1000);
+
+      } catch (err) {
+        UI.fehler('Mikrofon-Zugriff verweigert oder nicht möglich.');
+      }
+    });
+
     document.getElementById('kombi-formular')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const inhalt = kombiTextarea.value.trim();
@@ -186,13 +283,14 @@ const DashboardView = {
       UI.btnLaden(kombiBtn, true);
       try {
         if (typ === 'standard') {
-          await API.nachrichtSenden(inhalt);
+          await API.nachrichtSenden(inhalt, originalTranskript);
         } else {
-          await API.notfallSenden(inhalt, typ);
+          await API.notfallSenden(inhalt, typ, originalTranskript);
         }
         
         UI.erfolg('Nachricht erfolgreich an Poke gesendet! ✅');
         kombiTextarea.value = '';
+        originalTranskript = null;
         kombiZaehler.textContent = '0 / 5000';
         await this.verlaufLaden();
       } catch (err) {
