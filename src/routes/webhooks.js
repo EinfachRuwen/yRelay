@@ -11,7 +11,6 @@ function leseAntworten(replyContent) {
     const parsed = JSON.parse(replyContent);
     return Array.isArray(parsed) ? parsed : [{ text: replyContent, time: null }];
   } catch {
-    // Legacy: plain text aus alter Version
     return [{ text: replyContent, time: null }];
   }
 }
@@ -25,37 +24,49 @@ router.post('/poke-reply/:id/:token', (req, res) => {
     return res.status(400).json({ fehler: 'Feld "message" fehlt im JSON-Body.' });
   }
 
-  // Nachricht prüfen und zugehörige Nutzer-Daten holen
+  // Nachricht prüfen und zugehörige Nutzer-Daten holen (inkl. user_replies)
   const msg = db.prepare(`
-    SELECT m.id, m.content, m.reply_content, u.email, u.username
+    SELECT m.id, m.content, m.reply_content, m.user_replies, u.email, u.username
     FROM messages m
     JOIN users u ON m.user_id = u.id
     WHERE m.id = ? AND m.reply_token = ?
   `).get(id, token);
-  
+
   if (!msg) {
     return res.status(404).json({ fehler: 'Nachricht nicht gefunden oder Token ungültig.' });
   }
 
-  // Bestehende Antworten laden und neue anhängen
-  const bestehendeAntworten = leseAntworten(msg.reply_content);
-  const istErstantwort = bestehendeAntworten.length === 0;
+  // Bestehende Poke-Antworten laden und neue anhängen
+  const bestehendePokeAntworten = leseAntworten(msg.reply_content);
+  const istErstantwort = bestehendePokeAntworten.length === 0;
 
-  bestehendeAntworten.push({
+  bestehendePokeAntworten.push({
     text: message,
     time: new Date().toISOString(),
   });
 
   // Als JSON speichern
   db.prepare(`
-    UPDATE messages 
-    SET reply_content = ?, replied_at = CURRENT_TIMESTAMP 
+    UPDATE messages
+    SET reply_content = ?, replied_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(JSON.stringify(bestehendeAntworten), id);
+  `).run(JSON.stringify(bestehendePokeAntworten), id);
+
+  // Nutzer-Antworten laden (für vollständigen Verlauf in der Mail)
+  let nutzerAntworten = [];
+  try {
+    if (msg.user_replies) nutzerAntworten = JSON.parse(msg.user_replies);
+  } catch {}
+
+  // Gemischten Verlauf (chronologisch: Poke & Nutzer) für die Mail aufbauen
+  const gemischterVerlauf = [
+    ...bestehendePokeAntworten.map(a => ({ ...a, von: 'poke' })),
+    ...nutzerAntworten.map(a => ({ ...a, von: 'nutzer', name: msg.username })),
+  ].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
 
   // E-Mail-Benachrichtigung senden (asynchron im Hintergrund)
   if (msg.email) {
-    sendeAntwortMail(msg.email, msg.username, msg.content, message, !istErstantwort, bestehendeAntworten).catch(err => {
+    sendeAntwortMail(msg.email, msg.username, msg.content, message, !istErstantwort, gemischterVerlauf).catch(err => {
       console.error('[yRelay] Fehler beim Senden der Antwort-Mail:', err);
     });
   }

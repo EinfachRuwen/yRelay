@@ -1188,14 +1188,115 @@ body {
 }
 
 /* ─── Responsive ────────────────────────────────────────────── */
-@media (max-width: 640px) {
-  .navbar { padding: 0 16px; }
-  .nav-info { display: none; }
+
+/* Tablet */
+@media (max-width: 768px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .statistik-grid { grid-template-columns: 1fr 1fr; }
   .hauptinhalt { padding: 20px 16px; }
-  .karte-koerper { padding: 20px; }
-  .karte-header { padding: 20px 20px 0; }
-  .admin-tabs { flex-wrap: wrap; }
-  .toast-container { right: 12px; left: 12px; bottom: 12px; max-width: unset; }
+}
+
+/* Mobil */
+@media (max-width: 640px) {
+  /* Navbar */
+  .navbar {
+    padding: 0 14px;
+    height: 56px;
+  }
+  .navbar-logo { font-size: 18px; }
+  .nav-info { display: none; }
+  .nav-avatar { width: 30px; height: 30px; font-size: 12px; }
+  .navbar-nav { gap: 6px; }
+  .btn.btn-klein { padding: 7px 10px; font-size: 12px; }
+
+  /* Hauptinhalt */
+  .hauptinhalt { padding: 16px 12px; }
+  .sektion-titel { font-size: 18px; }
+
+  /* Karten */
+  .karte-header {
+    padding: 16px 16px 0;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .karte-icon { width: 36px; height: 36px; font-size: 16px; }
+  .karte-titel { font-size: 15px; }
+  .karte-untertitel { font-size: 12px; }
+  .karte-koerper { padding: 16px; }
+
+  /* Login */
+  .login-karte { max-width: 100%; }
+  .login-logo-bereich { padding: 28px 20px 0; }
+  .login-logo { font-size: 32px; }
+
+  /* Formular - 16px verhindert iOS Auto-Zoom */
+  .formular-eingabe,
+  .formular-textarea,
+  .formular-select { font-size: 16px; padding: 12px 14px; }
+  .formular-textarea { min-height: 100px; }
+
+  /* Prioritaets-Auswahl */
+  .prioritaet-auswahl {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+  }
+  .prioritaet-label { padding: 12px 16px; flex-direction: row; gap: 12px; text-align: left; }
+  .prioritaet-emoji { font-size: 22px; }
+
+  /* Verlauf-Eintraege */
+  .verlauf-eintrag {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+  }
+  .verlauf-eintrag > div:last-child {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 8px;
+  }
+
+  /* Special Actions Grid */
+  .special-actions-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn-special { font-size: 11px; padding: 8px 10px; }
+  .btn-template { font-size: 11px; padding: 5px 10px; }
+
+  /* Admin-Tabs */
+  .admin-tabs { flex-wrap: wrap; gap: 6px; }
+  .admin-tab {
+    flex: 1 1 auto;
+    min-width: calc(50% - 6px);
+    text-align: center;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+
+  /* Statistik-Grid */
+  .statistik-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .statistik-kachel { padding: 16px; }
+  .statistik-wert { font-size: 28px; }
+
+  /* Tabelle */
+  .tabelle-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tabelle { min-width: 600px; }
+
+  /* Toast */
+  .toast-container { right: 8px; left: 8px; bottom: 8px; max-width: unset; }
+  .toast { font-size: 13px; padding: 10px 14px; }
+
+  /* Textarea Aktionen */
+  .textarea-aktionen { flex-wrap: wrap; gap: 4px; }
+  .textarea-aktion-btn { font-size: 11px; padding: 3px 8px; }
+}
+
+/* iPhone SE und sehr kleine Screens */
+@media (max-width: 380px) {
+  .special-actions-grid { grid-template-columns: 1fr; }
+  .statistik-grid { grid-template-columns: 1fr; }
+  .navbar-logo { font-size: 16px; }
 }
 
 /* ─── Templates & Special Actions ────────────────────────────────── */
