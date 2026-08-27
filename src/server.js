@@ -5,6 +5,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { initAdminUser, initSettings } = require('./db');
+const { starteReminderService } = require('./services/reminder');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -127,4 +128,5 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'yrelay-geheimnis-bitt
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[yRelay] Server läuft auf Port ${PORT}`);
   console.log(`[yRelay] Dashboard: http://localhost:${PORT}`);
+  starteReminderService();
 });

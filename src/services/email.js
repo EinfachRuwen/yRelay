@@ -338,4 +338,53 @@ async function sendeKontoAktiviertMail(empfaengerEmail, empfaengerName) {
   return { erfolg: true };
 }
 
-module.exports = { sendeEinladungsmail, testeSMTP, sendeAntwortMail, sendePasswortResetMail, sendeKontoGesperrtMail, sendeKontoAktiviertMail };
+/**
+ * Benachrichtigt den Nutzer, dass Poke noch nicht geantwortet hat.
+ */
+async function sendeAusstehendeAntwortMail(empfaengerEmail, empfaengerName, originalNachricht) {
+  const transporter = erstelleTransporter();
+  if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
+
+  const absender = getSetting('smtp_from') || getSetting('smtp_user');
+  const appUrl = getSetting('app_url') || 'http://localhost:3000';
+
+  // Nachrichtenvorschau kürzen und Poke-Hints entfernen
+  const vorschau = originalNachricht
+    .replace(/\[SPECIAL:[A-Z_]+\]\s*/g, '')
+    .split('\n\nHinweis für Poke:')[0]
+    .slice(0, 200);
+
+  const body = `
+    <p style="margin:0 0 20px;font-size:17px;font-weight:600;color:#f1f5f9;">Hallo ${empfaengerName},</p>
+    <div style="padding:20px;background:rgba(245,158,11,0.08);border-left:4px solid #f59e0b;border-radius:8px;margin-bottom:20px;">
+      <p style="margin:0 0 8px;font-weight:700;color:#fbbf24;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">⚠️ Ausstehende Antwort</p>
+      <p style="margin:0;color:#f8fafc;font-size:15px;line-height:1.7;">Poke hat auf deine Nachricht bisher <strong>noch nicht geantwortet</strong>. Das ist ungewöhnlich - schau gerne kurz nach oder sende die Nachricht erneut.</p>
+    </div>
+    <div style="padding:16px;background:rgba(255,255,255,0.03);border-left:4px solid #334155;border-radius:8px;margin-bottom:24px;">
+      <p style="margin:0 0 8px;font-weight:600;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Deine Nachricht</p>
+      <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.6;white-space:pre-wrap;">${vorschau}${originalNachricht.length > 200 ? ' ...' : ''}</p>
+    </div>
+    <div style="text-align:center;">
+      <a href="${appUrl}" style="display:inline-block;padding:12px 28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;border-radius:8px;box-shadow:0 4px 12px rgba(99,102,241,0.35);">Zum Dashboard →</a>
+    </div>
+  `;
+
+  const mailOptionen = {
+    from: `"yRelay" <${absender}>`,
+    to: empfaengerEmail,
+    subject: '⚠️ Poke hat noch nicht geantwortet',
+    html: emailTemplate('⏳', 'Ausstehende Antwort', 'Poke hat sich noch nicht gemeldet', '#f59e0b, #d97706', body),
+  };
+
+  try {
+    await transporter.sendMail(mailOptionen);
+    return { erfolg: true };
+  } catch (err) {
+    console.error('[yRelay] E-Mail-Fehler (ausstehende Antwort):', err.message);
+    return { erfolg: false, fehler: err.message };
+  }
+}
+
+module.exports = { sendeEinladungsmail, testeSMTP, sendeAntwortMail, sendePasswortResetMail, sendeKontoGesperrtMail, sendeKontoAktiviertMail, sendeAusstehendeAntwortMail };
+
+

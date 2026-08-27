@@ -68,6 +68,14 @@ try {
   // Nutzer-Gegenantworten auf Poke-Antworten (JSON-Array)
   db.exec('ALTER TABLE messages ADD COLUMN user_replies TEXT;');
 } catch (e) {}
+try {
+  // Zeitstempel: Wann wurde Poke erinnert (Idempotenz)
+  db.exec('ALTER TABLE messages ADD COLUMN reminder_sent_at DATETIME;');
+} catch (e) {}
+try {
+  // Zeitstempel: Wann wurde der Nutzer per Mail benachrichtigt (Idempotenz)
+  db.exec('ALTER TABLE messages ADD COLUMN user_notified_at DATETIME;');
+} catch (e) {}
 
 // Initialen Admin-Nutzer anlegen falls noch keiner existiert
 function initAdminUser() {
