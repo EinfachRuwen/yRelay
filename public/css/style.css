@@ -1644,3 +1644,14 @@ body {
   50% { transform: translateY(-10px); }
   100% { transform: translateY(0px); }
 }
+
+@media (max-width: 640px) {
+  .onboarding-overlay { padding: 12px; }
+  .onboarding-slide { padding: 24px 16px; }
+  .onboarding-icon { font-size: 48px; margin-bottom: 12px; }
+  .onboarding-titel { font-size: 22px; margin-bottom: 12px; }
+  .onboarding-text { font-size: 14px; margin-bottom: 24px; }
+  .onboarding-text ul { padding-left: 20px; }
+  .onboarding-actions { flex-direction: column-reverse; gap: 8px; }
+  .onboarding-actions .btn { width: 100%; }
+}
