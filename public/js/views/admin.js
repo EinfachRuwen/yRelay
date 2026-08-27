@@ -132,9 +132,9 @@ const AdminView = {
       </div>
 
       <div class="karte" style="margin-top: 20px;">
-        <div class="karte-header">
+        <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
           <div class="karte-icon karte-icon-primaer">📝</div>
-          <div style="flex: 1;">
+          <div style="flex: 1; min-width: 200px;">
             <div class="karte-titel">Admin-Notiz</div>
             <div class="karte-untertitel">Ein persönliches Notizfeld für dich</div>
           </div>
@@ -183,9 +183,9 @@ const AdminView = {
 
       <!-- Broadcast-Karte -->
       <div class="karte" style="margin-top: 20px;">
-        <div class="karte-header">
+        <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
           <div class="karte-icon karte-icon-warnung">📢</div>
-          <div style="flex: 1;">
+          <div style="flex: 1; min-width: 200px;">
             <div class="karte-titel">Broadcast-Mail</div>
             <div class="karte-untertitel">E-Mail an alle aktiven Nutzer senden</div>
           </div>
@@ -318,9 +318,9 @@ const AdminView = {
 
     container.innerHTML = `
       <div class="karte">
-        <div class="karte-header">
+        <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
           <div class="karte-icon karte-icon-primaer">🏷️</div>
-          <div style="flex: 1;">
+          <div style="flex: 1; min-width: 200px;">
             <div class="karte-titel">Labels verwalten</div>
             <div class="karte-untertitel">${labels.length} Labels erstellt</div>
           </div>
@@ -397,13 +397,13 @@ const AdminView = {
 
     container.innerHTML = `
       <div class="karte">
-        <div class="karte-header" style="padding-bottom: 20px;">
+        <div class="karte-header" style="padding-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
           <div class="karte-icon karte-icon-primaer">👥</div>
-          <div style="flex: 1;">
+          <div style="flex: 1; min-width: 200px;">
             <div class="karte-titel">Nutzer-Verwaltung</div>
             <div class="karte-untertitel">${nutzer.length} Nutzer insgesamt</div>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <select id="nutzer-label-filter" class="formular-select" style="min-width: 150px; padding: 4px 8px; font-size: 13px;">
               <option value="all">Alle Labels</option>
               ${labels.map(l => `<option value="${l.id}">${UI.escapeHtml(l.name)}</option>`).join('')}
@@ -877,9 +877,9 @@ const AdminView = {
 
     container.innerHTML = `
       <div class="karte">
-        <div class="karte-header" style="padding-bottom: 20px;">
+        <div class="karte-header" style="padding-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
           <div class="karte-icon karte-icon-info">📨</div>
-          <div>
+          <div style="flex: 1; min-width: 200px;">
             <div class="karte-titel">Alle gesendeten Nachrichten</div>
             <div class="karte-untertitel">${nachrichten.length} Nachrichten</div>
           </div>
@@ -926,9 +926,9 @@ const AdminView = {
 
     container.innerHTML = `
       <div class="karte">
-        <div class="karte-header">
+        <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
           <div class="karte-icon karte-icon-primaer">🔗</div>
-          <div>
+          <div style="flex: 1; min-width: 200px;">
             <div class="karte-titel">Poke-Webhook</div>
             <div class="karte-untertitel">Verbindung zu deinem Poke KI-Assistenten</div>
           </div>
@@ -1001,13 +1001,13 @@ const AdminView = {
 
       <!-- Backup Verwaltung -->
       <div class="karte" style="margin-top: 20px;">
-        <div class="karte-header">
+        <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
           <div class="karte-icon karte-icon-warnung">🛡️</div>
-          <div style="flex: 1;">
+          <div style="flex: 1; min-width: 200px;">
             <div class="karte-titel">Backups (Sicherungen)</div>
             <div class="karte-untertitel">Datenbank-Backups verwalten und wiederherstellen</div>
           </div>
-          <div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <button class="btn btn-primaer btn-klein" id="backup-erstellen-btn">Backup jetzt erstellen</button>
           </div>
         </div>

@@ -1200,13 +1200,16 @@ body {
 @media (max-width: 640px) {
   /* Navbar */
   .navbar {
-    padding: 0 14px;
-    height: 56px;
+    padding: 10px 14px;
+    height: auto;
+    min-height: 56px;
+    flex-wrap: wrap;
+    gap: 10px;
   }
   .navbar-logo { font-size: 18px; }
   .nav-info { display: none; }
   .nav-avatar { width: 30px; height: 30px; font-size: 12px; }
-  .navbar-nav { gap: 6px; }
+  .navbar-nav { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .btn.btn-klein { padding: 7px 10px; font-size: 12px; }
 
   /* Hauptinhalt */
