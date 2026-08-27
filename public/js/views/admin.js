@@ -450,6 +450,11 @@ const AdminView = {
                                 </button>
                               ` : ''}
                               <button class="btn btn-sekundaer btn-klein"
+                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}')"
+                                title="Nutzer bearbeiten">
+                                ✏️
+                              </button>
+                              <button class="btn btn-sekundaer btn-klein"
                                 onclick="AdminView.nutzerLabelsBearbeiten(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
                                 title="Labels zuweisen">
                                 🏷️
@@ -465,6 +470,11 @@ const AdminView = {
                                 🗑️
                               </button>
                             ` : `
+                              <button class="btn btn-sekundaer btn-klein"
+                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}')"
+                                title="Profil bearbeiten">
+                                ✏️
+                              </button>
                               <button class="btn btn-sekundaer btn-klein"
                                 onclick="AdminView.passwortReset(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
                                 title="Eigenes Passwort zurücksetzen">
@@ -632,6 +642,63 @@ const AdminView = {
     } catch (err) {
       UI.fehler(err.message);
     }
+  },
+
+  nutzerBearbeitenModal(id, benutzername, email, anzeigename) {
+    UI.modalZeigen(`
+      <div class="modal-header">
+        <span class="modal-titel">✏️ Nutzer bearbeiten</span>
+        <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+      </div>
+      <div class="modal-koerper">
+        <form id="bearbeiten-formular">
+          <div class="formular-gruppe">
+            <label class="formular-label" for="bearbeiten-benutzername">Benutzername</label>
+            <input class="formular-eingabe" type="text" id="bearbeiten-benutzername" required value="${benutzername}">
+          </div>
+          <div class="formular-gruppe">
+            <label class="formular-label" for="bearbeiten-anzeigename">Anzeigename (optional)</label>
+            <input class="formular-eingabe" type="text" id="bearbeiten-anzeigename" value="${anzeigename}">
+          </div>
+          <div class="formular-gruppe">
+            <label class="formular-label" for="bearbeiten-email">E-Mail (optional)</label>
+            <input class="formular-eingabe" type="email" id="bearbeiten-email" value="${email}">
+          </div>
+          <div id="bearbeiten-fehler" class="info-box fehler versteckt" style="margin-bottom: 12px;">
+            <span>⚠️</span><span id="bearbeiten-fehler-text"></span>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn btn-ghost" onclick="UI.modalSchliessen()">Abbrechen</button>
+            <button type="submit" class="btn btn-primaer" style="flex: 1;" id="bearbeiten-submit-btn">Speichern</button>
+          </div>
+        </form>
+      </div>
+    `);
+
+    document.getElementById('bearbeiten-formular')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('bearbeiten-submit-btn');
+      const fehlerBox = document.getElementById('bearbeiten-fehler');
+      const fehlerText = document.getElementById('bearbeiten-fehler-text');
+      fehlerBox.classList.add('versteckt');
+
+      UI.btnLaden(btn, true);
+      try {
+        await API.adminNutzerBearbeiten(
+          id,
+          document.getElementById('bearbeiten-benutzername').value.trim(),
+          document.getElementById('bearbeiten-email').value.trim(),
+          document.getElementById('bearbeiten-anzeigename').value.trim()
+        );
+        UI.modalSchliessen();
+        UI.erfolg('Nutzerdaten erfolgreich aktualisiert.');
+        await this.tabLaden('nutzer');
+      } catch (err) {
+        fehlerText.textContent = err.message;
+        fehlerBox.classList.remove('versteckt');
+        UI.btnLaden(btn, false);
+      }
+    });
   },
 
   nutzerErstellenModal() {

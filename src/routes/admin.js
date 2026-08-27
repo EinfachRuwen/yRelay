@@ -143,6 +143,34 @@ router.patch('/nutzer/:id', async (req, res) => {
   res.json({ nachricht: `Nutzer ${aktiv ? 'aktiviert' : 'deaktiviert'}.` });
 });
 
+// PUT /api/admin/nutzer/:id - Nutzer bearbeiten
+router.put('/nutzer/:id', (req, res) => {
+  const { id } = req.params;
+  const { benutzername, email, anzeigename } = req.body;
+
+  if (!benutzername) {
+    return res.status(400).json({ fehler: 'Benutzername ist erforderlich.' });
+  }
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+  if (!user) {
+    return res.status(404).json({ fehler: 'Nutzer nicht gefunden.' });
+  }
+
+  const emailVal = email && email.trim() !== '' ? email.trim() : null;
+
+  const vorhanden = db.prepare('SELECT id FROM users WHERE (username = ? OR (email = ? AND email IS NOT NULL)) AND id != ?').get(benutzername, emailVal, id);
+  if (vorhanden) {
+    return res.status(409).json({ fehler: 'Benutzername oder E-Mail wird bereits von einem anderen Nutzer verwendet.' });
+  }
+
+  db.prepare(`
+    UPDATE users SET username = ?, email = ?, display_name = ? WHERE id = ?
+  `).run(benutzername, emailVal, anzeigename || null, id);
+
+  res.json({ nachricht: 'Nutzerdaten erfolgreich aktualisiert.' });
+});
+
 // DELETE /api/admin/nutzer/:id - Nutzer löschen
 router.delete('/nutzer/:id', (req, res) => {
   const { id } = req.params;

@@ -139,6 +139,10 @@ const API = {
     return this.anfrage('POST', '/admin/nutzer/einladen', { benutzername, email, anzeigename });
   },
 
+  async adminNutzerBearbeiten(id, benutzername, email, anzeigename) {
+    return this.anfrage('PUT', `/admin/nutzer/${id}`, { benutzername, email, anzeigename });
+  },
+
   async adminNutzerStatus(id, aktiv) {
     return this.anfrage('PATCH', `/admin/nutzer/${id}`, { aktiv });
   },
