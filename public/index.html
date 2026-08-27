@@ -6,6 +6,16 @@
   <meta name="description" content="yRelay - Sicheres Messaging-Portal für den Poke KI-Assistenten. Sende Nachrichten und Notfallbenachrichtigungen direkt an Poke.">
   <title>yRelay</title>
 
+  <!-- PWA & Web App Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#080c14">
+  
+  <!-- iOS Support -->
+  <link rel="apple-touch-icon" href="/img/logo.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="yRelay">
+
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -54,5 +64,16 @@
   <script src="/js/views/dashboard.js"></script>
   <script src="/js/views/admin.js"></script>
   <script src="/js/app.js"></script>
+
+  <!-- Service Worker Registrierung -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => {
+          console.error('ServiceWorker Registrierung fehlgeschlagen:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
