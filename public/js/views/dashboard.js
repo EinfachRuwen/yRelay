@@ -478,9 +478,6 @@ const DashboardView = {
           `).join('')}
         </div>
       `;
-    } catch (err) {
-      container.innerHTML = `<div class="info-box fehler"><span>⚠️</span><span>Verlauf konnte nicht geladen werden: ${UI.escapeHtml(err.message)}</span></div>`;
-    }
   },
 
   antwortfeldToggle(id) {
