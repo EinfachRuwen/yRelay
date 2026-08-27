@@ -38,6 +38,7 @@ router.post('/login', (req, res) => {
     nutzer: {
       id: user.id,
       benutzername: user.username,
+      anzeigename: user.display_name,
       email: user.email,
       rolle: user.role,
     },
@@ -93,9 +94,19 @@ router.get('/ich', requireAuth, (req, res) => {
   res.json({
     id: req.user.id,
     benutzername: req.user.username,
+    anzeigename: req.user.display_name,
     email: req.user.email,
     rolle: req.user.role,
   });
+});
+
+// PUT /api/auth/profil - Eigenes Profil aktualisieren
+router.put('/profil', requireAuth, (req, res) => {
+  const { anzeigename } = req.body;
+  
+  db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(anzeigename || null, req.user.id);
+  
+  res.json({ nachricht: 'Profil erfolgreich aktualisiert.' });
 });
 
 // POST /api/auth/passwort-aendern - Passwort ändern

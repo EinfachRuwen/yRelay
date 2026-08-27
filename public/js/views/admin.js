@@ -420,7 +420,8 @@ const AdminView = {
                     ${nutzer.map(n => `
                       <tr>
                         <td>
-                          <strong>${UI.escapeHtml(n.benutzername)}</strong>
+                          <strong>${UI.escapeHtml(n.anzeigename || n.benutzername)}</strong>
+                          ${n.anzeigename ? `<span style="font-size: 12px; color: var(--farbe-text-gedaempft); margin-left: 6px;">@${UI.escapeHtml(n.benutzername)}</span>` : ''}
                           ${n.rolle === 'admin' ? '<span style="font-size: 11px; color: var(--farbe-warnung); margin-left: 6px;">Admin</span>' : ''}
                         </td>
                         <td style="color: var(--farbe-text-gedaempft);">${UI.escapeHtml(n.email)}</td>
@@ -603,6 +604,27 @@ const AdminView = {
         `);
         // Nutzerliste im Hintergrund aktualisieren (ohne das Modal zu schließen)
         await this.tabLaden('nutzer');
+      } else if (ergebnis.inviteUrl) {
+        const url = ergebnis.inviteUrl;
+        UI.modalZeigen(`
+          <div class="modal-header">
+            <span class="modal-titel">Einladungslink</span>
+            <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+          </div>
+          <div class="modal-koerper">
+            <div class="info-box info" style="margin-bottom: 16px;">
+              <span>ℹ️</span>
+              <span>${ergebnis.nachricht} Teile diesen Link manuell mit dem Nutzer:</span>
+            </div>
+            <div class="formular-gruppe">
+              <input class="formular-eingabe" type="text" value="${url}" readonly onclick="this.select()">
+            </div>
+            <button class="btn btn-primaer btn-vollbreite" onclick="navigator.clipboard.writeText('${url}'); UI.erfolg('Link kopiert!'); UI.modalSchliessen();">
+              📋 Link kopieren
+            </button>
+          </div>
+        `);
+        await this.tabLaden('nutzer');
       } else {
         UI.erfolg('Neue Einladung gesendet.');
         await this.tabLaden('nutzer');
@@ -625,8 +647,12 @@ const AdminView = {
             <input class="formular-eingabe" type="text" id="erstellen-benutzername" required autocomplete="off">
           </div>
           <div class="formular-gruppe">
-            <label class="formular-label" for="erstellen-email">E-Mail</label>
-            <input class="formular-eingabe" type="email" id="erstellen-email" required autocomplete="off">
+            <label class="formular-label" for="erstellen-anzeigename">Anzeigename (optional)</label>
+            <input class="formular-eingabe" type="text" id="erstellen-anzeigename" autocomplete="off" placeholder="z.B. Max Mustermann">
+          </div>
+          <div class="formular-gruppe">
+            <label class="formular-label" for="erstellen-email">E-Mail (optional)</label>
+            <input class="formular-eingabe" type="email" id="erstellen-email" autocomplete="off">
           </div>
           <div class="formular-gruppe">
             <label class="formular-label" for="erstellen-passwort">Passwort</label>
@@ -656,6 +682,7 @@ const AdminView = {
           document.getElementById('erstellen-benutzername').value.trim(),
           document.getElementById('erstellen-email').value.trim(),
           document.getElementById('erstellen-passwort').value,
+          document.getElementById('erstellen-anzeigename').value.trim()
         );
         UI.modalSchliessen();
         UI.erfolg('Nutzer erfolgreich erstellt.');
@@ -685,8 +712,12 @@ const AdminView = {
             <input class="formular-eingabe" type="text" id="einladen-benutzername" required autocomplete="off">
           </div>
           <div class="formular-gruppe">
-            <label class="formular-label" for="einladen-email">E-Mail-Adresse</label>
-            <input class="formular-eingabe" type="email" id="einladen-email" required autocomplete="off">
+            <label class="formular-label" for="einladen-anzeigename">Anzeigename (optional)</label>
+            <input class="formular-eingabe" type="text" id="einladen-anzeigename" autocomplete="off" placeholder="z.B. Max Mustermann">
+          </div>
+          <div class="formular-gruppe">
+            <label class="formular-label" for="einladen-email">E-Mail-Adresse (optional)</label>
+            <input class="formular-eingabe" type="email" id="einladen-email" autocomplete="off">
           </div>
           <div id="einladen-fehler" class="info-box fehler versteckt" style="margin-bottom: 12px;">
             <span>⚠️</span><span id="einladen-fehler-text"></span>
@@ -711,26 +742,27 @@ const AdminView = {
         const ergebnis = await API.adminNutzerEinladen(
           document.getElementById('einladen-benutzername').value.trim(),
           document.getElementById('einladen-email').value.trim(),
+          document.getElementById('einladen-anzeigename').value.trim()
         );
 
-        if (ergebnis.mailFehler && ergebnis.einladungsToken) {
+        if (ergebnis.inviteUrl) {
           UI.modalSchliessen();
-          const appUrl = window.location.origin;
+          const url = ergebnis.inviteUrl;
           UI.modalZeigen(`
             <div class="modal-header">
               <span class="modal-titel">Einladungslink</span>
               <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
             </div>
             <div class="modal-koerper">
-              <div class="info-box warnung" style="margin-bottom: 16px;">
-                <span>⚠️</span>
-                <span>Nutzer angelegt, aber E-Mail konnte nicht gesendet werden. Teile diesen Link:</span>
+              <div class="info-box info" style="margin-bottom: 16px;">
+                <span>ℹ️</span>
+                <span>${ergebnis.nachricht}</span>
               </div>
               <div class="formular-gruppe">
-                <input class="formular-eingabe" type="text" value="${appUrl}/#einladung/${ergebnis.einladungsToken}" readonly onclick="this.select()">
+                <input class="formular-eingabe" type="text" value="${url}" readonly onclick="this.select()">
               </div>
               <button class="btn btn-primaer btn-vollbreite"
-                onclick="navigator.clipboard.writeText('${appUrl}/#einladung/${ergebnis.einladungsToken}'); UI.erfolg('Link kopiert!'); UI.modalSchliessen();">
+                onclick="navigator.clipboard.writeText('${url}'); UI.erfolg('Link kopiert!'); UI.modalSchliessen();">
                 📋 Link kopieren
               </button>
             </div>

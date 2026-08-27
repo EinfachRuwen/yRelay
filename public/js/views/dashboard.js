@@ -1,23 +1,25 @@
 // yRelay - Dashboard-View (Nutzeransicht)
 const DashboardView = {
   rendern(nutzer) {
-    const avatarBuchstabe = (nutzer.benutzername || 'U')[0].toUpperCase();
+    const nameToDisplay = nutzer.anzeigename || nutzer.benutzername;
+    const avatarBuchstabe = (nameToDisplay || 'U')[0].toUpperCase();
 
     return `
       <div class="seite haupt-seite">
         <!-- Navigation -->
         <nav class="navbar">
-          <span class="navbar-logo">
+          <span class="navbar-logo" id="header-logo" style="cursor: pointer; user-select: none;">
             <span class="logo-y">y</span><span class="logo-relay">Relay</span>
           </span>
           <div class="navbar-nav">
             <div class="nav-nutzer">
               <div class="nav-avatar">${UI.escapeHtml(avatarBuchstabe)}</div>
               <div class="nav-info">
-                <span class="nav-name">${UI.escapeHtml(nutzer.benutzername)}</span>
+                <span class="nav-name">${UI.escapeHtml(nameToDisplay)}</span>
                 <span class="nav-rolle">Nutzer</span>
               </div>
             </div>
+            <button class="btn btn-ghost btn-klein" id="profil-btn" title="Profil bearbeiten">👤</button>
             <button class="btn btn-ghost btn-klein" id="passwort-btn" title="Passwort ändern">🔒</button>
             <button class="btn btn-ghost btn-klein" id="abmelden-btn">Abmelden</button>
           </div>
@@ -25,7 +27,7 @@ const DashboardView = {
 
         <!-- Hauptinhalt -->
         <main class="hauptinhalt">
-          <div class="sektion-titel">👋 Hallo, ${UI.escapeHtml(nutzer.benutzername)}!</div>
+          <div class="sektion-titel">👋 Hallo, ${UI.escapeHtml(nameToDisplay)}!</div>
           <p class="sektion-untertitel">Sende Nachrichten direkt an den Poke KI-Assistenten.</p>
 
             <!-- Kombiniertes Nachrichten-Formular -->
@@ -174,10 +176,68 @@ const DashboardView = {
   async initialisieren(nutzer) {
     // Abmelden
     document.getElementById('abmelden-btn')?.addEventListener('click', () => {
-      App.abmelden();
+      UI.ausloggen();
     });
 
-    // Passwort ändern
+    document.getElementById('profil-btn')?.addEventListener('click', () => {
+      UI.modalZeigen(`
+        <div class="modal-header">
+          <span class="modal-titel">👤 Profil bearbeiten</span>
+          <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+        </div>
+        <div class="modal-koerper">
+          <form id="profil-formular">
+            <div class="formular-gruppe">
+              <label class="formular-label" for="profil-anzeigename">Anzeigename</label>
+              <input class="formular-eingabe" type="text" id="profil-anzeigename" value="${nutzer.anzeigename || ''}" placeholder="Dein Name, wie er anderen angezeigt wird">
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button type="button" class="btn btn-ghost" onclick="UI.modalSchliessen()">Abbrechen</button>
+              <button type="submit" class="btn btn-primaer" style="flex: 1;" id="profil-speichern">Speichern</button>
+            </div>
+          </form>
+        </div>
+      `);
+      document.getElementById('profil-formular')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('profil-speichern');
+        UI.btnLaden(btn, true);
+        try {
+          await fetch('/api/auth/profil', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('yrelay_token') },
+            body: JSON.stringify({ anzeigename: document.getElementById('profil-anzeigename').value.trim() })
+          });
+          UI.modalSchliessen();
+          UI.erfolg('Profil gespeichert. Lade neu...');
+          setTimeout(() => window.location.reload(), 1000);
+        } catch (err) {
+          UI.fehler(err.message);
+          UI.btnLaden(btn, false);
+        }
+      });
+    });
+
+    // 🥚 Easter Egg 2: Konfetti auf Logo
+    let logoClicks = 0;
+    let logoClickTimer;
+    document.getElementById('header-logo')?.addEventListener('click', () => {
+      logoClicks++;
+      clearTimeout(logoClickTimer);
+      if (logoClicks >= 7) {
+        logoClicks = 0;
+        if (!window.confetti) {
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+          script.onload = () => confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
+          document.body.appendChild(script);
+        } else {
+          confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
+        }
+      }
+      logoClickTimer = setTimeout(() => logoClicks = 0, 1500);
+    });
+
     document.getElementById('passwort-btn')?.addEventListener('click', () => {
       this.passwortAendernModal();
     });
@@ -188,6 +248,43 @@ const DashboardView = {
     const kombiIcon = document.getElementById('kombi-icon');
     const kombiWarnung = document.getElementById('kombi-warnung');
     const kombiBtn = document.getElementById('kombi-btn');
+
+    // 🥚 Easter Egg 3: Flüchtender Button
+    const checkFleeMode = () => {
+      const val = kombiTextarea.value.trim().toLowerCase();
+      if (val === '/catchme') {
+        if (!kombiBtn.dataset.fleeing) {
+          kombiBtn.dataset.fleeing = 'true';
+          kombiBtn.style.position = 'fixed';
+          kombiBtn.style.zIndex = '9999';
+          kombiBtn.innerText = 'Catch me if you can! 🏃';
+          
+          const moveBtn = () => {
+            const maxX = window.innerWidth - kombiBtn.offsetWidth;
+            const maxY = window.innerHeight - kombiBtn.offsetHeight;
+            const randX = Math.max(0, Math.floor(Math.random() * maxX));
+            const randY = Math.max(0, Math.floor(Math.random() * maxY));
+            kombiBtn.style.left = randX + 'px';
+            kombiBtn.style.top = randY + 'px';
+          };
+          
+          kombiBtn.addEventListener('mouseover', moveBtn);
+          moveBtn();
+          
+          setTimeout(() => {
+            kombiBtn.removeEventListener('mouseover', moveBtn);
+            kombiBtn.dataset.fleeing = '';
+            kombiBtn.style.position = '';
+            kombiBtn.style.zIndex = '';
+            kombiBtn.style.left = '';
+            kombiBtn.style.top = '';
+            kombiBtn.innerHTML = '📨 Senden';
+            kombiTextarea.value = '';
+          }, 10000);
+        }
+      }
+    };
+    kombiTextarea.addEventListener('input', checkFleeMode);
     const kombiKarte = document.getElementById('kombi-karte');
     
     if (kombiTextarea && kombiZaehler) {

@@ -131,12 +131,12 @@ const API = {
     return this.anfrage('GET', '/admin/nutzer');
   },
 
-  async adminNutzerErstellen(benutzername, email, passwort) {
-    return this.anfrage('POST', '/admin/nutzer', { benutzername, email, passwort });
+  async adminNutzerErstellen(benutzername, email, passwort, anzeigename) {
+    return this.anfrage('POST', '/admin/nutzer', { benutzername, email, passwort, anzeigename });
   },
 
-  async adminNutzerEinladen(benutzername, email) {
-    return this.anfrage('POST', '/admin/nutzer/einladen', { benutzername, email });
+  async adminNutzerEinladen(benutzername, email, anzeigename) {
+    return this.anfrage('POST', '/admin/nutzer/einladen', { benutzername, email, anzeigename });
   },
 
   async adminNutzerStatus(id, aktiv) {

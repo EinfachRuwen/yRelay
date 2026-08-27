@@ -23,7 +23,8 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE,
+    display_name TEXT,
     password_hash TEXT,
     role TEXT NOT NULL DEFAULT 'user',
     is_active INTEGER NOT NULL DEFAULT 1,
@@ -58,6 +59,40 @@ db.exec(`
 `);
 
 // Migrationen für bestehende Tabellen
+try {
+  db.exec('ALTER TABLE users ADD COLUMN display_name TEXT;');
+} catch (e) {}
+
+// E-Mail optional machen (NOT NULL entfernen benötigt Table Rebuild)
+const emailInfo = db.prepare("PRAGMA table_info(users)").all().find(c => c.name === 'email');
+if (emailInfo && emailInfo.notnull === 1) {
+  console.log('[yRelay] Führe Datenbank-Migration durch: E-Mail optional machen...');
+  db.exec(`
+    CREATE TABLE users_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      email TEXT UNIQUE,
+      display_name TEXT,
+      password_hash TEXT,
+      role TEXT NOT NULL DEFAULT 'user',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      invite_token TEXT,
+      invite_expires_at DATETIME,
+      reset_token TEXT,
+      reset_expires_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      last_login DATETIME
+    );
+    INSERT INTO users_new (id, username, email, display_name, password_hash, role, is_active, invite_token, invite_expires_at, reset_token, reset_expires_at, created_at, last_login)
+    SELECT id, username, email, display_name, password_hash, role, is_active, invite_token, invite_expires_at, reset_token, reset_expires_at, created_at, last_login
+    FROM users;
+    
+    DROP TABLE users;
+    ALTER TABLE users_new RENAME TO users;
+  `);
+  console.log('[yRelay] Migration abgeschlossen.');
+}
+
 try {
   db.exec('ALTER TABLE users ADD COLUMN reset_token TEXT;');
 } catch (e) {}

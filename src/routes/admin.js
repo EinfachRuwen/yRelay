@@ -16,7 +16,7 @@ router.use(requireAdmin);
 // GET /api/admin/nutzer - Alle Nutzer auflisten
 router.get('/nutzer', (req, res) => {
   const nutzer = db.prepare(`
-    SELECT id, username, email, role, is_active, invite_token,
+    SELECT id, username, email, display_name, role, is_active, invite_token,
            created_at, last_login
     FROM users
     ORDER BY created_at DESC
@@ -25,6 +25,7 @@ router.get('/nutzer', (req, res) => {
   res.json(nutzer.map(n => ({
     id: n.id,
     benutzername: n.username,
+    anzeigename: n.display_name,
     email: n.email,
     rolle: n.role,
     aktiv: !!n.is_active,
@@ -36,26 +37,28 @@ router.get('/nutzer', (req, res) => {
 
 // POST /api/admin/nutzer - Nutzer manuell anlegen
 router.post('/nutzer', (req, res) => {
-  const { benutzername, email, passwort } = req.body;
+  const { benutzername, email, passwort, anzeigename } = req.body;
 
-  if (!benutzername || !email || !passwort) {
-    return res.status(400).json({ fehler: 'Benutzername, E-Mail und Passwort sind erforderlich.' });
+  if (!benutzername || !passwort) {
+    return res.status(400).json({ fehler: 'Benutzername und Passwort sind erforderlich.' });
   }
 
   if (passwort.length < 8) {
     return res.status(400).json({ fehler: 'Das Passwort muss mindestens 8 Zeichen lang sein.' });
   }
 
-  const vorhanden = db.prepare('SELECT id FROM users WHERE username = ? OR email = ?').get(benutzername, email);
+  const emailVal = email && email.trim() !== '' ? email.trim() : null;
+
+  const vorhanden = db.prepare('SELECT id FROM users WHERE username = ? OR (email = ? AND email IS NOT NULL)').get(benutzername, emailVal);
   if (vorhanden) {
     return res.status(409).json({ fehler: 'Benutzername oder E-Mail bereits vergeben.' });
   }
 
   const hash = bcrypt.hashSync(passwort, 12);
   const ergebnis = db.prepare(`
-    INSERT INTO users (username, email, password_hash, role, is_active)
-    VALUES (?, ?, ?, 'user', 1)
-  `).run(benutzername, email, hash);
+    INSERT INTO users (username, email, display_name, password_hash, role, is_active)
+    VALUES (?, ?, ?, ?, 'user', 1)
+  `).run(benutzername, emailVal, anzeigename || null, hash);
 
   res.status(201).json({
     nachricht: `Nutzer "${benutzername}" erfolgreich erstellt.`,
@@ -63,15 +66,17 @@ router.post('/nutzer', (req, res) => {
   });
 });
 
-// POST /api/admin/nutzer/einladen - Nutzer per E-Mail einladen
+// POST /api/admin/nutzer/einladen - Nutzer per E-Mail/Link einladen
 router.post('/nutzer/einladen', async (req, res) => {
-  const { benutzername, email } = req.body;
+  const { benutzername, email, anzeigename } = req.body;
 
-  if (!benutzername || !email) {
-    return res.status(400).json({ fehler: 'Benutzername und E-Mail sind erforderlich.' });
+  if (!benutzername) {
+    return res.status(400).json({ fehler: 'Benutzername ist erforderlich.' });
   }
 
-  const vorhanden = db.prepare('SELECT id FROM users WHERE username = ? OR email = ?').get(benutzername, email);
+  const emailVal = email && email.trim() !== '' ? email.trim() : null;
+
+  const vorhanden = db.prepare('SELECT id FROM users WHERE username = ? OR (email = ? AND email IS NOT NULL)').get(benutzername, emailVal);
   if (vorhanden) {
     return res.status(409).json({ fehler: 'Benutzername oder E-Mail bereits vergeben.' });
   }
@@ -80,26 +85,34 @@ router.post('/nutzer/einladen', async (req, res) => {
   const ablaufDatum = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
   const ergebnis = db.prepare(`
-    INSERT INTO users (username, email, role, is_active, invite_token, invite_expires_at)
-    VALUES (?, ?, 'user', 1, ?, ?)
-  `).run(benutzername, email, einladungsToken, ablaufDatum);
+    INSERT INTO users (username, email, display_name, role, is_active, invite_token, invite_expires_at)
+    VALUES (?, ?, ?, 'user', 1, ?, ?)
+  `).run(benutzername, emailVal, anzeigename || null, einladungsToken, ablaufDatum);
 
-  // Einladungsmail versenden
-  const mailErgebnis = await sendeEinladungsmail(email, benutzername, einladungsToken);
+  const appUrl = getSetting('app_url') || 'http://localhost:3000';
+  const inviteUrl = `${appUrl}/#register?token=${einladungsToken}`;
+
+  // Einladungsmail versenden (falls Mail vorhanden)
+  let mailErgebnis = { erfolg: true };
+  if (emailVal) {
+    mailErgebnis = await sendeEinladungsmail(emailVal, benutzername, einladungsToken);
+  }
 
   if (!mailErgebnis.erfolg) {
     // Nutzer trotzdem angelegt, aber Mail fehlgeschlagen
     return res.status(201).json({
       nachricht: `Nutzer "${benutzername}" angelegt, aber E-Mail konnte nicht gesendet werden: ${mailErgebnis.fehler}`,
       id: ergebnis.lastInsertRowid,
-      einladungsToken, // Token zurückgeben damit der Admin es manuell teilen kann
+      einladungsToken,
+      inviteUrl,
       mailFehler: true,
     });
   }
 
   res.status(201).json({
-    nachricht: `Einladung an "${email}" erfolgreich gesendet.`,
+    nachricht: emailVal ? `Einladung an "${emailVal}" erfolgreich gesendet.` : `Nutzer "${benutzername}" erstellt. Einladungslink generiert.`,
     id: ergebnis.lastInsertRowid,
+    inviteUrl,
   });
 });
 
@@ -163,17 +176,27 @@ router.post('/nutzer/:id/einladung-neu', async (req, res) => {
     UPDATE users SET invite_token = ?, invite_expires_at = ?, password_hash = NULL WHERE id = ?
   `).run(neuerToken, ablaufDatum, id);
 
-  const mailErgebnis = await sendeEinladungsmail(user.email, user.username, neuerToken);
+  const appUrl = getSetting('app_url') || 'http://localhost:3000';
+  const inviteUrl = `${appUrl}/#register?token=${neuerToken}`;
+
+  let mailErgebnis = { erfolg: true };
+  if (user.email) {
+    mailErgebnis = await sendeEinladungsmail(user.email, user.username, neuerToken);
+  }
 
   if (!mailErgebnis.erfolg) {
     return res.json({
       nachricht: 'Einladungslink neu generiert, aber E-Mail konnte nicht gesendet werden.',
       einladungsToken: neuerToken,
+      inviteUrl,
       mailFehler: true,
     });
   }
 
-  res.json({ nachricht: 'Einladungslink neu generiert und per E-Mail gesendet.' });
+  res.json({ 
+    nachricht: user.email ? 'Einladungslink neu generiert und per E-Mail gesendet.' : 'Einladungslink neu generiert.',
+    inviteUrl 
+  });
 });
 
 // POST /api/admin/nutzer/:id/passwort-reset - Admin triggert Reset-Mail
