@@ -88,6 +88,7 @@ const AdminView = {
   async uebersichtRendern(container) {
     const stats = await API.adminStatistiken();
     const notiz = await API.adminNotizLaden();
+    const labels = await API.adminLabelsLaden();
 
     container.innerHTML = `
       <div class="statistik-grid">
@@ -185,9 +186,18 @@ const AdminView = {
           </div>
         </div>
         <div class="karte-koerper">
-          <div class="formular-gruppe">
-            <label class="formular-label" for="broadcast-betreff">Betreff</label>
-            <input class="formular-eingabe" type="text" id="broadcast-betreff" placeholder="Wichtige Mitteilung">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="formular-gruppe">
+              <label class="formular-label" for="broadcast-betreff">Betreff</label>
+              <input class="formular-eingabe" type="text" id="broadcast-betreff" placeholder="Wichtige Mitteilung">
+            </div>
+            <div class="formular-gruppe">
+              <label class="formular-label" for="broadcast-label">Empfänger-Label (optional)</label>
+              <select class="formular-select" id="broadcast-label">
+                <option value="">Alle aktiven Nutzer</option>
+                ${labels.map(l => `<option value="${l.id}">${UI.escapeHtml(l.name)}</option>`).join('')}
+              </select>
+            </div>
           </div>
           <div class="formular-gruppe">
             <label class="formular-label" for="broadcast-nachricht">Nachricht</label>
@@ -228,11 +238,13 @@ const AdminView = {
       const btn = e.target;
       const betreff = document.getElementById('broadcast-betreff').value.trim();
       const nachricht = document.getElementById('broadcast-nachricht').value.trim();
+      const labelId = document.getElementById('broadcast-label').value;
+      
       if (!betreff || !nachricht) { UI.fehler('Betreff und Nachricht bitte ausfüllen.'); return; }
-      if (!confirm(`Broadcast an alle aktiven Nutzer senden?`)) return;
+      if (!confirm(`Broadcast wirklich senden?`)) return;
       UI.btnLaden(btn, true);
       try {
-        const result = await API.adminBroadcastSenden(betreff, nachricht);
+        const result = await API.adminBroadcastSenden(betreff, nachricht, labelId || null);
         UI.erfolg(result.nachricht);
         document.getElementById('broadcast-betreff').value = '';
         document.getElementById('broadcast-nachricht').value = '';
@@ -437,6 +449,11 @@ const AdminView = {
                                 </button>
                               ` : ''}
                               <button class="btn btn-sekundaer btn-klein"
+                                onclick="AdminView.nutzerLabelsBearbeiten(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
+                                title="Labels zuweisen">
+                                🏷️
+                              </button>
+                              <button class="btn btn-sekundaer btn-klein"
                                 onclick="AdminView.passwortReset(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
                                 title="Passwort zurücksetzen (E-Mail senden)">
                                 🔑
@@ -482,6 +499,60 @@ const AdminView = {
       await this.tabLaden('nutzer');
     } catch (err) {
       UI.fehler(err.message);
+    }
+  },
+
+  async nutzerLabelsBearbeiten(nutzerId, name) {
+    try {
+      const allLabels = await API.adminLabelsLaden();
+      const nutzerLabels = await API.adminNutzerLabelsLaden(nutzerId);
+      const nutzerLabelIds = nutzerLabels.map(l => l.id);
+
+      UI.modalZeigen(`
+        <div class="modal-header">
+          <span class="modal-titel">🏷️ Labels für ${UI.escapeHtml(name)}</span>
+          <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+        </div>
+        <div class="modal-koerper">
+          <form id="nutzer-labels-formular">
+            <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
+              ${allLabels.length === 0 ? '<p>Noch keine Labels erstellt.</p>' : allLabels.map(l => `
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                  <input type="checkbox" name="nutzer-label-checkbox" value="${l.id}" id="label-${l.id}" ${nutzerLabelIds.includes(l.id) ? 'checked' : ''} style="width: 18px; height: 18px;">
+                  <label for="label-${l.id}" style="display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1;">
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background: ${l.farbe}; display: inline-block;"></span>
+                    <span>${UI.escapeHtml(l.name)}</span>
+                  </label>
+                </div>
+              `).join('')}
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button type="button" class="btn btn-ghost" onclick="UI.modalSchliessen()">Abbrechen</button>
+              <button type="submit" class="btn btn-primaer" style="flex: 1;" id="nutzer-labels-speichern">Speichern</button>
+            </div>
+          </form>
+        </div>
+      `);
+
+      document.getElementById('nutzer-labels-formular')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('nutzer-labels-speichern');
+        const checkboxes = document.querySelectorAll('input[name="nutzer-label-checkbox"]:checked');
+        const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value, 10));
+        
+        UI.btnLaden(btn, true);
+        try {
+          await API.adminNutzerLabelsSetzen(nutzerId, selectedIds);
+          UI.modalSchliessen();
+          UI.erfolg('Labels erfolgreich zugewiesen.');
+          await this.tabLaden('nutzer');
+        } catch (err) {
+          UI.fehler(err.message);
+          UI.btnLaden(btn, false);
+        }
+      });
+    } catch (err) {
+      UI.fehler('Fehler beim Laden der Labels: ' + err.message);
     }
   },
 

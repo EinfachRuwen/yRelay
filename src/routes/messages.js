@@ -190,10 +190,12 @@ router.post('/planen', async (req, res) => {
   const replyToken = require('crypto').randomBytes(16).toString('hex');
   const typ = prioritaet && ['hoch', 'notfall'].includes(prioritaet) ? 'emergency' : 'free';
 
+  const sendeZeitDb = sendeZeit.toISOString().replace('T', ' ').substring(0, 19);
+
   const insertErgebnis = db.prepare(`
     INSERT INTO messages (user_id, type, priority, content, poke_payload, status, reply_token, send_at)
     VALUES (?, ?, ?, ?, '', 'geplant', ?, ?)
-  `).run(req.user.id, typ, prioritaet || null, inhalt.trim(), replyToken, sendeZeit.toISOString());
+  `).run(req.user.id, typ, prioritaet || null, inhalt.trim(), replyToken, sendeZeitDb);
 
   res.json({ nachricht: 'Nachricht geplant.', id: insertErgebnis.lastInsertRowid, sendetAm: sendeZeit.toISOString() });
 });
