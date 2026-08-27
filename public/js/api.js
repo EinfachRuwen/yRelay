@@ -176,4 +176,13 @@ const API = {
   async adminStatistiken() {
     return this.anfrage('GET', '/admin/statistiken');
   },
+
+  // Admin - Notiz
+  async adminNotizLaden() {
+    return this.anfrage('GET', '/admin/notiz');
+  },
+
+  async adminNotizSpeichern(text) {
+    return this.anfrage('POST', '/admin/notiz', { text });
+  },
 };

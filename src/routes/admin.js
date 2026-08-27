@@ -299,6 +299,20 @@ router.post('/einstellungen/smtp-test', async (req, res) => {
   }
 });
 
+// ─── Admin-Notiz ────────────────────────────────────────────────────────────
+
+// GET /api/admin/notiz - Notiz abrufen
+router.get('/notiz', (req, res) => {
+  res.json({ text: getSetting('admin_notes') || '' });
+});
+
+// POST /api/admin/notiz - Notiz speichern
+router.post('/notiz', (req, res) => {
+  const { text } = req.body;
+  setSetting('admin_notes', text || '');
+  res.json({ nachricht: 'Notiz gespeichert.' });
+});
+
 // GET /api/admin/statistiken - Übersichts-Statistiken
 router.get('/statistiken', (req, res) => {
   const gesamtNutzer = db.prepare('SELECT COUNT(*) as count FROM users WHERE role = ?').get('user').count;

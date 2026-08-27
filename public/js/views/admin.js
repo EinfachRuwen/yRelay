@@ -85,6 +85,7 @@ const AdminView = {
 
   async uebersichtRendern(container) {
     const stats = await API.adminStatistiken();
+    const notiz = await API.adminNotizLaden();
 
     container.innerHTML = `
       <div class="statistik-grid">
@@ -121,7 +122,40 @@ const AdminView = {
           }
         </div>
       </div>
+
+      <div class="karte" style="margin-top: 20px;">
+        <div class="karte-header">
+          <div class="karte-icon karte-icon-primaer">📝</div>
+          <div style="flex: 1;">
+            <div class="karte-titel">Admin-Notiz</div>
+            <div class="karte-untertitel">Ein persönliches Notizfeld für dich</div>
+          </div>
+          <div>
+            <button class="btn btn-sekundaer btn-klein" id="admin-notiz-speichern">Speichern</button>
+          </div>
+        </div>
+        <div class="karte-koerper">
+          <div class="textarea-wrapper">
+            <textarea id="admin-notiz-feld" class="formular-textarea" rows="6" placeholder="Hier kannst du eine Notiz hinterlegen...">${UI.escapeHtml(notiz.text)}</textarea>
+          </div>
+        </div>
+      </div>
     `;
+
+    document.getElementById('admin-notiz-speichern')?.addEventListener('click', async (e) => {
+      const btn = e.target;
+      const text = document.getElementById('admin-notiz-feld').value;
+      
+      UI.btnLaden(btn, true);
+      try {
+        await API.adminNotizSpeichern(text);
+        UI.erfolg('Notiz erfolgreich gespeichert.');
+      } catch (err) {
+        UI.fehler('Fehler beim Speichern der Notiz: ' + err.message);
+      } finally {
+        UI.btnLaden(btn, false);
+      }
+    });
   },
 
   // ─── Nutzer-Verwaltung ──────────────────────────────────────────────────
