@@ -122,6 +122,10 @@ const API = {
     return this.anfrage('GET', '/nachrichten/meine');
   },
 
+  async nachrichtAntworten(id, inhalt) {
+    return this.anfrage('POST', `/nachrichten/${id}/antworten`, { inhalt });
+  },
+
   // Admin - Nutzer
   async adminNutzerLaden() {
     return this.anfrage('GET', '/admin/nutzer');

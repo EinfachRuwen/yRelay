@@ -151,31 +151,59 @@ const UI = {
   },
 
   // ─── Poke-Antworten rendern (mehrere möglich) ────────────────────────
-  renderAntworten(replyContent) {
+  renderAntworten(replyContent, userRepliesContent = null) {
     if (!replyContent) return '';
 
-    // Rückwärtskompatibel: JSON-Array oder Plain-Text
-    let antworten = [];
+    // Rückwärtskompatibel: JSON-Array oder Plain-Text für Poke-Antworten
+    let pokeAntworten = [];
     try {
       const parsed = JSON.parse(replyContent);
-      antworten = Array.isArray(parsed) ? parsed : [{ text: replyContent, time: null }];
+      pokeAntworten = Array.isArray(parsed) ? parsed : [{ text: replyContent, time: null }];
     } catch {
-      antworten = [{ text: replyContent, time: null }];
+      pokeAntworten = [{ text: replyContent, time: null }];
+    }
+    pokeAntworten = pokeAntworten.map(a => ({ ...a, absender: 'poke' }));
+
+    // Nutzer-Antworten (Gegenantworten)
+    let nutzerAntworten = [];
+    if (userRepliesContent) {
+      try {
+        const parsed = JSON.parse(userRepliesContent);
+        if (Array.isArray(parsed)) {
+          nutzerAntworten = parsed.map(a => ({ ...a, absender: 'nutzer' }));
+        }
+      } catch {}
     }
 
-    const gesamt = antworten.length;
-    return antworten.map((a, i) => {
-      const label = gesamt > 1
-        ? `🤖 Poke – Antwort ${i + 1} von ${gesamt} ${a.time ? `(${this.datumFormatieren(a.time)})` : ''}`
-        : `🤖 Poke hat geantwortet${a.time ? ` (${this.datumFormatieren(a.time)})` : ''}`;
-      return `
-        <div style="margin-top: ${i > 0 ? '8px' : '12px'}; padding: 12px 16px; background: rgba(6, 182, 212, 0.08); border-left: 3px solid var(--farbe-akzent); border-radius: 4px;">
-          <div style="font-size: 11px; color: var(--farbe-akzent); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-            ${this.escapeHtml(label)}
+    // Beide Arrays zusammenführen und nach Zeit sortieren
+    const alle = [...pokeAntworten, ...nutzerAntworten].sort((a, b) => {
+      if (!a.time) return -1;
+      if (!b.time) return 1;
+      return new Date(a.time) - new Date(b.time);
+    });
+
+    return alle.map(a => {
+      const datumTxt = a.time ? ` (${this.datumFormatieren(a.time)})` : '';
+      
+      if (a.absender === 'poke') {
+        return `
+          <div style="margin-top: 12px; padding: 12px 16px; background: rgba(6, 182, 212, 0.08); border-left: 3px solid var(--farbe-akzent); border-radius: 4px;">
+            <div style="font-size: 11px; color: var(--farbe-akzent); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+              🤖 Poke hat geantwortet${this.escapeHtml(datumTxt)}
+            </div>
+            <div style="font-size: 13px; color: var(--farbe-text); line-height: 1.5; white-space: pre-wrap;">${this.escapeHtml(a.text)}</div>
           </div>
-          <div style="font-size: 13px; color: var(--farbe-text); line-height: 1.5; white-space: pre-wrap;">${this.escapeHtml(a.text)}</div>
-        </div>
-      `;
+        `;
+      } else {
+        return `
+          <div style="margin-top: 8px; margin-left: 20px; padding: 12px 16px; background: rgba(99, 102, 241, 0.08); border-left: 3px solid var(--farbe-primaer); border-radius: 4px;">
+            <div style="font-size: 11px; color: var(--farbe-primaer-hell); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+              👤 Deine Antwort${this.escapeHtml(datumTxt)}
+            </div>
+            <div style="font-size: 13px; color: var(--farbe-text); line-height: 1.5; white-space: pre-wrap;">${this.escapeHtml(a.text)}</div>
+          </div>
+        `;
+      }
     }).join('');
   },
 

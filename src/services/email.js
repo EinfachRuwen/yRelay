@@ -134,8 +134,9 @@ async function testeSMTP() {
  * @param {string} originalNachricht - Der ursprüngliche Text
  * @param {string} antwortText - Pokes neue Antwort
  * @param {boolean} istFolgeantwort - Ist dies eine Folgeantwort?
+ * @param {Array} alleAntworten - Alle Antworten (inkl. der neuen)
  */
-async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachricht, antwortText, istFolgeantwort = false) {
+async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachricht, antwortText, istFolgeantwort = false, alleAntworten = []) {
   const transporter = erstelleTransporter();
   if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
 
@@ -150,6 +151,20 @@ async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachric
     ? 'rgba(139, 92, 246, 0.2), rgba(99, 102, 241, 0.1)'
     : 'rgba(6, 182, 212, 0.2), rgba(56, 189, 248, 0.1)';
   const headerTextGradient = istFolgeantwort ? '#8b5cf6, #6366f1' : '#06b6d4, #38bdf8';
+
+  // Verlauf der bisherigen Antworten (ohne die neue) für Follow-Up-Mails
+  const bisherige = alleAntworten.slice(0, -1);
+  const verlaufHtml = istFolgeantwort && bisherige.length > 0
+    ? `<div style="margin:16px 0;padding:16px;background:rgba(255,255,255,0.03);border-radius:6px;">
+        <p style="margin:0 0 12px;font-weight:600;color:#64748b;font-size:12px;text-transform:uppercase;">📜 Bisheriger Verlauf:</p>
+        ${bisherige.map((a, i) => `
+          <div style="margin-bottom:10px;padding:12px;background:rgba(6,182,212,0.06);border-left:3px solid #0e7490;border-radius:4px;">
+            <p style="margin:0 0 4px;font-size:11px;color:#94a3b8;">Pokes Antwort ${i + 1}${a.time ? ' · ' + new Date(a.time).toLocaleString('de-DE') : ''}</p>
+            <p style="margin:0;color:#cbd5e1;font-size:13px;line-height:1.5;white-space:pre-wrap;">${a.text}</p>
+          </div>
+        `).join('')}
+      </div>`
+    : '';
 
   const mailOptionen = {
     from: `"yRelay" <${absender}>`,
@@ -179,9 +194,11 @@ async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachric
               <h2 style="margin:0 0 16px;color:#f1f5f9;font-size:20px;font-weight:600;">Hallo ${empfaengerName},</h2>
               
               <div style="margin:24px 0;padding:20px;background:rgba(6,182,212,0.1);border-left:4px solid #06b6d4;border-radius:6px;">
-                <p style="margin:0 0 8px;font-weight:700;color:#22d3ee;font-size:13px;text-transform:uppercase;">🤖 Pokes Antwort:</p>
+                <p style="margin:0 0 8px;font-weight:700;color:#22d3ee;font-size:13px;text-transform:uppercase;">🤖 Pokes ${istFolgeantwort ? 'neue ' : ''}Antwort:</p>
                 <p style="margin:0;color:#f8fafc;font-size:15px;line-height:1.6;white-space:pre-wrap;">${antwortText}</p>
               </div>
+
+              ${verlaufHtml}
 
               <div style="margin:24px 0;padding:16px;background:rgba(148,163,184,0.05);border-left:4px solid #64748b;border-radius:6px;">
                 <p style="margin:0 0 8px;font-weight:600;color:#94a3b8;font-size:12px;text-transform:uppercase;">Deine ursprüngliche Nachricht:</p>
@@ -189,7 +206,7 @@ async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachric
               </div>
 
               <div style="text-align:center;margin-top:32px;">
-                <a href="${appUrl}" style="display:inline-block;padding:12px 28px;background:rgba(255,255,255,0.1);color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:8px;border:1px solid rgba(255,255,255,0.2);">Zum Dashboard</a>
+                <a href="${appUrl}" style="display:inline-block;padding:12px 28px;background:rgba(255,255,255,0.1);color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:8px;border:1px solid rgba(255,255,255,0.2);">Zum Dashboard & Antworten</a>
               </div>
             </td>
           </tr>

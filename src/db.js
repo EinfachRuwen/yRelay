@@ -60,14 +60,14 @@ db.exec(`
 // Migrationen für bestehende Tabellen
 try {
   db.exec('ALTER TABLE users ADD COLUMN reset_token TEXT;');
-} catch (e) {
-  // Spalte existiert bereits
-}
+} catch (e) {}
 try {
   db.exec('ALTER TABLE users ADD COLUMN reset_expires_at DATETIME;');
-} catch (e) {
-  // Spalte existiert bereits
-}
+} catch (e) {}
+try {
+  // Nutzer-Gegenantworten auf Poke-Antworten (JSON-Array)
+  db.exec('ALTER TABLE messages ADD COLUMN user_replies TEXT;');
+} catch (e) {}
 
 // Initialen Admin-Nutzer anlegen falls noch keiner existiert
 function initAdminUser() {

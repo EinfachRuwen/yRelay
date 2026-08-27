@@ -365,17 +365,33 @@ const DashboardView = {
       container.innerHTML = `
         <div class="verlauf-liste">
           ${nachrichten.map(n => `
-            <div class="verlauf-eintrag">
+            <div class="verlauf-eintrag" id="eintrag-${n.id}">
               <div>
                 ${UI.typBadge(n.typ, n.prioritaet)}
                 ${n.prioritaet ? `<div style="margin-top: 4px; font-size: 11px; color: var(--farbe-text-schwach);">${UI.prioritaetText(n.prioritaet)}</div>` : ''}
               </div>
-              <div>
+              <div style="min-width: 0; flex: 1;">
                 <div class="verlauf-inhalt">${UI.escapeHtml(n.inhalt)}</div>
                 ${n.fehler ? `<div style="font-size: 12px; color: var(--farbe-notfall); margin-top: 4px;">⚠️ ${UI.escapeHtml(n.fehler)}</div>` : ''}
-                ${UI.renderAntworten(n.antwortText)}
+                ${UI.renderAntworten(n.antwortText, n.nutzerAntworten)}
+                ${n.antwortText ? `
+                  <div style="margin-top: 8px;">
+                    <button class="textarea-aktion-btn" onclick="DashboardView.antwortfeldToggle(${n.id})" id="antwort-toggle-${n.id}">
+                      ↩️ Auf Pokes Antwort reagieren
+                    </button>
+                    <div id="antwortfeld-${n.id}" class="versteckt" style="margin-top: 8px;">
+                      <div class="textarea-wrapper">
+                        <textarea class="formular-textarea" id="antworttext-${n.id}" placeholder="Deine Reaktion an Poke..." rows="3" maxlength="2000" style="font-size: 13px;"></textarea>
+                      </div>
+                      <div style="display: flex; gap: 8px; margin-top: 6px; justify-content: flex-end;">
+                        <button class="textarea-aktion-btn" onclick="DashboardView.antwortfeldToggle(${n.id})">Abbrechen</button>
+                        <button class="btn btn-primaer btn-klein" id="antwort-senden-${n.id}" onclick="DashboardView.antwortSenden(${n.id})">Senden</button>
+                      </div>
+                    </div>
+                  </div>
+                ` : '<div style="margin-top: 8px; font-size: 12px; color: var(--farbe-text-schwach); font-style: italic;">⏳ Warte auf Pokes Antwort...</div>'}
               </div>
-              <div style="text-align: right;">
+              <div style="text-align: right; flex-shrink: 0;">
                 <div class="verlauf-datum">${UI.datumFormatieren(n.gesendetAm)}</div>
                 <div class="verlauf-status ${n.status === 'gesendet' ? 'gesendet' : 'fehlgeschlagen'}" style="margin-top: 4px;">
                   ${n.status === 'gesendet' ? '✓ Gesendet' : '✗ Fehlgeschlagen'}
@@ -387,6 +403,34 @@ const DashboardView = {
       `;
     } catch (err) {
       container.innerHTML = `<div class="info-box fehler"><span>⚠️</span><span>Verlauf konnte nicht geladen werden: ${UI.escapeHtml(err.message)}</span></div>`;
+    }
+  },
+
+  antwortfeldToggle(id) {
+    const feld = document.getElementById(`antwortfeld-${id}`);
+    const btn = document.getElementById(`antwort-toggle-${id}`);
+    if (!feld) return;
+    const offen = !feld.classList.contains('versteckt');
+    feld.classList.toggle('versteckt', offen);
+    if (!offen) {
+      document.getElementById(`antworttext-${id}`)?.focus();
+    }
+  },
+
+  async antwortSenden(id) {
+    const textarea = document.getElementById(`antworttext-${id}`);
+    const btn = document.getElementById(`antwort-senden-${id}`);
+    const inhalt = textarea?.value.trim();
+    if (!inhalt) return;
+
+    UI.btnLaden(btn, true);
+    try {
+      await API.nachrichtAntworten(id, inhalt);
+      UI.erfolg('Deine Antwort wurde an Poke gesendet! ↩️');
+      await this.verlaufLaden();
+    } catch (err) {
+      UI.fehler(err.message);
+      UI.btnLaden(btn, false);
     }
   },
 

@@ -55,7 +55,7 @@ router.post('/poke-reply/:id/:token', (req, res) => {
 
   // E-Mail-Benachrichtigung senden (asynchron im Hintergrund)
   if (msg.email) {
-    sendeAntwortMail(msg.email, msg.username, msg.content, message, !istErstantwort).catch(err => {
+    sendeAntwortMail(msg.email, msg.username, msg.content, message, !istErstantwort, bestehendeAntworten).catch(err => {
       console.error('[yRelay] Fehler beim Senden der Antwort-Mail:', err);
     });
   }

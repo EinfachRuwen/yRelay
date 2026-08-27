@@ -207,7 +207,7 @@ router.get('/nachrichten', (req, res) => {
   const fixTZ = (d) => d ? d.replace(' ', 'T') + 'Z' : null;
   const nachrichten = db.prepare(`
     SELECT m.id, m.type, m.priority, m.content, m.status, m.error_message,
-           m.reply_content, m.replied_at, m.created_at, u.username, u.email
+           m.reply_content, m.replied_at, m.user_replies, m.created_at, u.username, u.email
     FROM messages m
     JOIN users u ON m.user_id = u.id
     ORDER BY m.created_at DESC
@@ -222,6 +222,7 @@ router.get('/nachrichten', (req, res) => {
     status: n.status,
     fehler: n.error_message,
     antwortText: n.reply_content,
+    nutzerAntworten: n.user_replies || null,
     antwortDatum: fixTZ(n.replied_at),
     gesendetAm: fixTZ(n.created_at),
     von: { benutzername: n.username, email: n.email },
