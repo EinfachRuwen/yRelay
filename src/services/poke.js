@@ -20,6 +20,7 @@ async function sendeFreieNachricht(user, inhalt, messageId, replyToken) {
   }
 
   const antwortLink = `${appUrl}/api/webhooks/poke-reply/${messageId}/${replyToken}`;
+  const actionLink = `${appUrl}/api/webhooks/poke-action/${messageId}/${replyToken}`;
 
   const nachrichtentext = `[yRelay] Externe Nachricht von ${user.username} (${user.email}):
 
@@ -32,7 +33,11 @@ WICHTIG: Du MUSST auf diese Nachricht antworten - mindestens einmal! Der Absende
 Du kannst auch mehrfach antworten, z.B. zuerst eine kurze Eingangsbestätigung, dann später eine ausführliche Antwort.
 Jede Antwort wird separat gespeichert und dem Absender per E-Mail und im Dashboard angezeigt.
 Um zu antworten, sende einen POST-Request mit dem JSON-Body {"message": "Deine Antwort"} an:
-${antwortLink}`;
+${antwortLink}
+
+Du kannst diese Nachricht auch mit einem Status markieren (optional aber hilfreich):
+POST {"action": "erledigt", "notiz": "Optional: Was du getan hast"} an: ${actionLink}
+Verfügbare Aktionen: erledigt, in_bearbeitung, offen, pin, unpin`;
 
   const payload = { message: nachrichtentext };
 
@@ -81,6 +86,7 @@ async function sendeNotfallbenachrichtigung(user, grund, prioritaet, messageId, 
   }
 
   const antwortLink = `${appUrl}/api/webhooks/poke-reply/${messageId}/${replyToken}`;
+  const actionLink = `${appUrl}/api/webhooks/poke-action/${messageId}/${replyToken}`;
   const prioritaetText = prioritaet === 'notfall'
     ? 'NOTFALL (Emergency) - höchste Priorität'
     : 'Hohe Priorität (High Priority)';
@@ -99,7 +105,11 @@ WICHTIG: Du MUSST auf diese Nachricht antworten - mindestens einmal! Der Absende
 Du kannst auch mehrfach antworten, z.B. zuerst eine Eingangsbestätigung, dann die tatsächliche Reaktion.
 Jede Antwort wird separat gespeichert und dem Absender per E-Mail und im Dashboard angezeigt.
 Um zu antworten, sende einen POST-Request mit dem JSON-Body {"message": "Deine Antwort"} an:
-${antwortLink}`;
+${antwortLink}
+
+Du kannst diese Nachricht auch mit einem Status markieren:
+POST {"action": "erledigt", "notiz": "Optional"} an: ${actionLink}
+Verfügbare Aktionen: erledigt, in_bearbeitung, offen, pin, unpin`;
 
   const payload = { message: nachrichtentext };
 

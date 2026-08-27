@@ -69,13 +69,42 @@ try {
   db.exec('ALTER TABLE messages ADD COLUMN user_replies TEXT;');
 } catch (e) {}
 try {
-  // Zeitstempel: Wann wurde Poke erinnert (Idempotenz)
   db.exec('ALTER TABLE messages ADD COLUMN reminder_sent_at DATETIME;');
 } catch (e) {}
 try {
-  // Zeitstempel: Wann wurde der Nutzer per Mail benachrichtigt (Idempotenz)
   db.exec('ALTER TABLE messages ADD COLUMN user_notified_at DATETIME;');
 } catch (e) {}
+try {
+  // Feature: Geplante Nachrichten
+  db.exec('ALTER TABLE messages ADD COLUMN send_at DATETIME;');
+} catch (e) {}
+try {
+  // Feature: Nachrichten pinnen
+  db.exec('ALTER TABLE messages ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0;');
+} catch (e) {}
+try {
+  // Feature: Status-Label von Poke (z.B. "erledigt", "in_bearbeitung")
+  db.exec('ALTER TABLE messages ADD COLUMN status_label TEXT;');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE messages ADD COLUMN status_label_notiz TEXT;');
+} catch (e) {}
+
+// Feature: Nutzer Labels
+db.exec(`
+  CREATE TABLE IF NOT EXISTS labels (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    farbe TEXT NOT NULL DEFAULT '#6366f1',
+    erstellt_am DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS nutzer_labels (
+    nutzer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    label_id INTEGER NOT NULL REFERENCES labels(id) ON DELETE CASCADE,
+    PRIMARY KEY (nutzer_id, label_id)
+  );
+`);
 
 // Initialen Admin-Nutzer anlegen falls noch keiner existiert
 function initAdminUser() {

@@ -1299,6 +1299,13 @@ body {
   .navbar-logo { font-size: 16px; }
 }
 
+/* ─── Gepinnte Nachrichten ─────────────────────────────────── */
+.verlauf-eintrag.gepinnt {
+  border-left: 3px solid #6366f1;
+  background: rgba(99, 102, 241, 0.05);
+}
+
+
 /* ─── Templates & Special Actions ────────────────────────────────── */
 .templates-container {
   margin-bottom: 16px;

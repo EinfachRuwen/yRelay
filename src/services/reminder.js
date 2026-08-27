@@ -46,6 +46,38 @@ async function pruefe() {
   const zehnMinutenMs = 10 * 60 * 1000;
 
   try {
+    // ─── Geplante Nachrichten versenden ──────────────────────────────────────
+    const zuSenden = db.prepare(`
+      SELECT m.id, m.content, m.type, m.priority, m.reply_token,
+             u.email, u.username, u.id as user_id
+      FROM messages m
+      JOIN users u ON m.user_id = u.id
+      WHERE m.status = 'geplant'
+        AND m.send_at <= datetime('now')
+    `).all();
+
+    for (const msg of zuSenden) {
+      console.log(`[yRelay Reminder] Sende geplante Nachricht ${msg.id} für ${msg.username}`);
+      try {
+        const { sendeFreieNachricht, sendeNotfallbenachrichtigung } = require('./poke');
+        const nutzer = { username: msg.username, email: msg.email };
+        let ergebnis;
+        if (msg.type === 'emergency') {
+          ergebnis = await sendeNotfallbenachrichtigung(nutzer, msg.content, msg.priority || 'hoch', msg.id, msg.reply_token);
+        } else {
+          ergebnis = await sendeFreieNachricht(nutzer, msg.content, msg.id, msg.reply_token);
+        }
+        db.prepare(`
+          UPDATE messages
+          SET poke_payload = ?, status = ?, error_message = ?
+          WHERE id = ?
+        `).run(ergebnis.payload, ergebnis.erfolg ? 'gesendet' : 'fehlgeschlagen', ergebnis.fehler || null, msg.id);
+        console.log(`[yRelay Reminder] Geplante Nachricht ${msg.id}: ${ergebnis.erfolg ? 'gesendet' : 'fehlgeschlagen'}`);
+      } catch (err) {
+        db.prepare("UPDATE messages SET status = 'fehlgeschlagen', error_message = ? WHERE id = ?").run(err.message, msg.id);
+        console.error(`[yRelay Reminder] Fehler bei gepl. Nachricht ${msg.id}:`, err.message);
+      }
+    }
     // Nachrichten holen, die:
     // - Status 'gesendet' haben
     // - Noch KEINE Poke-Antwort haben (reply_content IS NULL)

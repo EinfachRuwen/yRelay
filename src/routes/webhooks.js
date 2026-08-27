@@ -74,4 +74,35 @@ router.post('/poke-reply/:id/:token', (req, res) => {
   res.json({ success: true, message: 'Antwort erfolgreich gespeichert.' });
 });
 
+// POST /api/webhooks/poke-action/:id/:token - Poke markiert Nachricht als erledigt/pinnt sie
+router.post('/poke-action/:id/:token', (req, res) => {
+  const { id, token } = req.params;
+  const { action, notiz } = req.body; // action: 'erledigt' | 'in_bearbeitung' | 'pin'
+
+  if (!action) return res.status(400).json({ fehler: 'Feld "action" fehlt.' });
+
+  const msg = db.prepare(`
+    SELECT id FROM messages WHERE id = ? AND reply_token = ?
+  `).get(id, token);
+
+  if (!msg) return res.status(404).json({ fehler: 'Nachricht nicht gefunden oder Token ungültig.' });
+
+  const erlaubteActions = ['erledigt', 'in_bearbeitung', 'offen', 'pin', 'unpin'];
+  if (!erlaubteActions.includes(action)) {
+    return res.status(400).json({ fehler: `Action muss eine von ${erlaubteActions.join(', ')} sein.` });
+  }
+
+  if (action === 'pin') {
+    db.prepare('UPDATE messages SET is_pinned = 1 WHERE id = ?').run(id);
+  } else if (action === 'unpin') {
+    db.prepare('UPDATE messages SET is_pinned = 0 WHERE id = ?').run(id);
+  } else {
+    db.prepare('UPDATE messages SET status_label = ?, status_label_notiz = ? WHERE id = ?')
+      .run(action, notiz || null, id);
+  }
+
+  console.log(`[yRelay] Poke hat Nachricht ${id} mit Action "${action}" markiert.`);
+  res.json({ success: true });
+});
+
 module.exports = router;

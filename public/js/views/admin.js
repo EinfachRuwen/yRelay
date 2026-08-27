@@ -34,6 +34,7 @@ const AdminView = {
             <button class="admin-tab aktiv" data-tab="uebersicht" role="tab">📊 Übersicht</button>
             <button class="admin-tab" data-tab="nutzer" role="tab">👥 Nutzer</button>
             <button class="admin-tab" data-tab="nachrichten" role="tab">📨 Nachrichten</button>
+            <button class="admin-tab" data-tab="labels" role="tab">🏷️ Labels</button>
             <button class="admin-tab" data-tab="einstellungen" role="tab">🔧 Einstellungen</button>
           </div>
 
@@ -71,9 +72,10 @@ const AdminView = {
 
     try {
       switch (tab) {
-        case 'uebersicht': await this.uebersichtRendern(container); break;
+              case 'uebersicht': await this.uebersichtRendern(container); break;
         case 'nutzer': await this.nutzerRendern(container); break;
         case 'nachrichten': await this.nachrichtenRendern(container); break;
+        case 'labels': await this.labelsRendern(container); break;
         case 'einstellungen': await this.einstellungenRendern(container); break;
       }
     } catch (err) {
@@ -140,12 +142,67 @@ const AdminView = {
           </div>
         </div>
       </div>
+
+      <!-- Charts Section -->
+      <div class="karte" style="margin-top: 20px;">
+        <div class="karte-header">
+          <div class="karte-icon karte-icon-primaer">📈</div>
+          <div><div class="karte-titel">Nachrichten (30 Tage)</div></div>
+        </div>
+        <div class="karte-koerper">
+          <canvas id="chart-verlauf" height="100"></canvas>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+        <div class="karte">
+          <div class="karte-header">
+            <div class="karte-icon karte-icon-erfolg">🎯</div>
+            <div><div class="karte-titel">Antwortrate</div></div>
+          </div>
+          <div class="karte-koerper" style="display: flex; justify-content: center;">
+            <div style="max-width: 200px;"><canvas id="chart-antwortrate"></canvas></div>
+          </div>
+        </div>
+        <div class="karte">
+          <div class="karte-header">
+            <div class="karte-icon karte-icon-primaer">🏆</div>
+            <div><div class="karte-titel">Top Nutzer</div></div>
+          </div>
+          <div class="karte-koerper">
+            <canvas id="chart-top-nutzer" height="140"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Broadcast-Karte -->
+      <div class="karte" style="margin-top: 20px;">
+        <div class="karte-header">
+          <div class="karte-icon karte-icon-warnung">📢</div>
+          <div style="flex: 1;">
+            <div class="karte-titel">Broadcast-Mail</div>
+            <div class="karte-untertitel">E-Mail an alle aktiven Nutzer senden</div>
+          </div>
+        </div>
+        <div class="karte-koerper">
+          <div class="formular-gruppe">
+            <label class="formular-label" for="broadcast-betreff">Betreff</label>
+            <input class="formular-eingabe" type="text" id="broadcast-betreff" placeholder="Wichtige Mitteilung">
+          </div>
+          <div class="formular-gruppe">
+            <label class="formular-label" for="broadcast-nachricht">Nachricht</label>
+            <textarea class="formular-textarea" id="broadcast-nachricht" rows="4" placeholder="Deine Nachricht an alle Nutzer..."></textarea>
+          </div>
+          <div style="display: flex; justify-content: flex-end;">
+            <button class="btn btn-warnung btn-klein" id="broadcast-senden-btn">📢 An alle senden</button>
+          </div>
+        </div>
+      </div>
     `;
 
     document.getElementById('admin-notiz-speichern')?.addEventListener('click', async (e) => {
       const btn = e.target;
       const text = document.getElementById('admin-notiz-feld').value;
-      
       UI.btnLaden(btn, true);
       try {
         await API.adminNotizSpeichern(text);
@@ -156,9 +213,165 @@ const AdminView = {
         UI.btnLaden(btn, false);
       }
     });
+
+    // Chart.js laden und Charts rendern
+    if (!window.Chart) {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js';
+      document.head.appendChild(s);
+      await new Promise(r => s.onload = r);
+    }
+    this._renderCharts(stats);
+
+    // Broadcast-Karte Event
+    document.getElementById('broadcast-senden-btn')?.addEventListener('click', async (e) => {
+      const btn = e.target;
+      const betreff = document.getElementById('broadcast-betreff').value.trim();
+      const nachricht = document.getElementById('broadcast-nachricht').value.trim();
+      if (!betreff || !nachricht) { UI.fehler('Betreff und Nachricht bitte ausfüllen.'); return; }
+      if (!confirm(`Broadcast an alle aktiven Nutzer senden?`)) return;
+      UI.btnLaden(btn, true);
+      try {
+        const result = await API.adminBroadcastSenden(betreff, nachricht);
+        UI.erfolg(result.nachricht);
+        document.getElementById('broadcast-betreff').value = '';
+        document.getElementById('broadcast-nachricht').value = '';
+      } catch (err) {
+        UI.fehler(err.message);
+      } finally {
+        UI.btnLaden(btn, false);
+      }
+    });
   },
 
-  // ─── Nutzer-Verwaltung ──────────────────────────────────────────────────
+  _renderCharts(stats) {
+    // Nachrichten-Verlauf Chart
+    const verlaufCtx = document.getElementById('chart-verlauf')?.getContext('2d');
+    if (verlaufCtx && stats.nachrichtenProTag?.length > 0) {
+      new Chart(verlaufCtx, {
+        type: 'line',
+        data: {
+          labels: stats.nachrichtenProTag.map(d => {
+            const [y, m, day] = d.tag.split('-');
+            return `${day}.${m}.`;
+          }),
+          datasets: [{ label: 'Nachrichten', data: stats.nachrichtenProTag.map(d => d.anzahl), borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4, pointBackgroundColor: '#6366f1' }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 } } }
+      });
+    }
+
+    // Antwortrate Donut
+    const antwortrateCtx = document.getElementById('chart-antwortrate')?.getContext('2d');
+    if (antwortrateCtx) {
+      new Chart(antwortrateCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Beantwortet', 'Offen'],
+          datasets: [{ data: [stats.antwortrate?.beantwortet || 0, stats.antwortrate?.offen || 0], backgroundColor: ['#10b981', '#1e293b'], borderColor: ['#059669', '#334155'], borderWidth: 2 }]
+        },
+        options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, cutout: '65%' }
+      });
+    }
+
+    // Top Nutzer Bar Chart
+    const topNutzerCtx = document.getElementById('chart-top-nutzer')?.getContext('2d');
+    if (topNutzerCtx && stats.topNutzer?.length > 0) {
+      new Chart(topNutzerCtx, {
+        type: 'bar',
+        data: {
+          labels: stats.topNutzer.map(n => n.username),
+          datasets: [{ label: 'Nachrichten', data: stats.topNutzer.map(n => n.anzahl), backgroundColor: 'rgba(99,102,241,0.6)', borderColor: '#6366f1', borderWidth: 1, borderRadius: 6 }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8' }, grid: { display: false } }, y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 } } }
+      });
+    }
+  },
+
+  // ─── Labels-Verwaltung ──────────────────────────────────────────────────
+
+  async labelsRendern(container) {
+    const labels = await API.adminLabelsLaden();
+    const farbOptionen = [
+      { hex: '#6366f1', name: 'Indigo' }, { hex: '#8b5cf6', name: 'Violett' },
+      { hex: '#10b981', name: 'Grün' }, { hex: '#f59e0b', name: 'Gelb' },
+      { hex: '#ef4444', name: 'Rot' }, { hex: '#06b6d4', name: 'Cyan' },
+      { hex: '#ec4899', name: 'Pink' }, { hex: '#64748b', name: 'Grau' },
+    ];
+
+    container.innerHTML = `
+      <div class="karte">
+        <div class="karte-header">
+          <div class="karte-icon karte-icon-primaer">🏷️</div>
+          <div style="flex: 1;">
+            <div class="karte-titel">Labels verwalten</div>
+            <div class="karte-untertitel">${labels.length} Labels erstellt</div>
+          </div>
+        </div>
+        <div class="karte-koerper">
+          <!-- Neues Label -->
+          <div style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap;">
+            <div class="formular-gruppe" style="flex: 1; min-width: 200px; margin: 0;">
+              <label class="formular-label">Label-Name</label>
+              <input class="formular-eingabe" type="text" id="label-name" placeholder="z.B. Familie, Freunde, Arbeit">
+            </div>
+            <div class="formular-gruppe" style="margin: 0;">
+              <label class="formular-label">Farbe</label>
+              <select class="formular-select" id="label-farbe" style="width: 140px;">
+                ${farbOptionen.map(f => `<option value="${f.hex}">${f.name}</option>`).join('')}
+              </select>
+            </div>
+            <button class="btn btn-primaer btn-klein" id="label-erstellen-btn">+ Erstellen</button>
+          </div>
+
+          <!-- Label-Liste -->
+          <div id="label-liste">
+            ${labels.length === 0 ? UI.leereListeHtml('🏷️', 'Noch keine Labels erstellt.') : `
+              <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                ${labels.map(l => `
+                  <div style="display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px;">
+                    <span style="width: 10px; height: 10px; border-radius: 50%; background: ${l.farbe}; display: inline-block;"></span>
+                    <span style="font-size: 13px; font-weight: 600; color: var(--farbe-text);">${UI.escapeHtml(l.name)}</span>
+                    <span style="font-size: 11px; color: var(--farbe-text-gedaempft);">(${l.nutzerAnzahl})</span>
+                    <button onclick="AdminView._labelLoeschen(${l.id})" style="background: none; border: none; color: var(--farbe-text-schwach); cursor: pointer; font-size: 14px;" title="Label löschen">×</button>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('label-erstellen-btn')?.addEventListener('click', async (e) => {
+      const btn = e.target;
+      const name = document.getElementById('label-name').value.trim();
+      const farbe = document.getElementById('label-farbe').value;
+      if (!name) { UI.fehler('Bitte einen Label-Namen eingeben.'); return; }
+      UI.btnLaden(btn, true);
+      try {
+        await API.adminLabelErstellen(name, farbe);
+        UI.erfolg(`Label "${name}" erstellt.`);
+        await this.labelsRendern(container);
+      } catch (err) {
+        UI.fehler(err.message);
+      } finally {
+        UI.btnLaden(btn, false);
+      }
+    });
+  },
+
+  async _labelLoeschen(id) {
+    if (!confirm('Label wirklich löschen? Es wird von allen Nutzern entfernt.')) return;
+    try {
+      await API.adminLabelLoeschen(id);
+      UI.erfolg('Label gelöscht.');
+      await this.tabLaden('labels');
+    } catch (err) {
+      UI.fehler(err.message);
+    }
+  },
+
 
   async nutzerRendern(container) {
     const nutzer = await API.adminNutzerLaden();

@@ -313,15 +313,45 @@ router.post('/notiz', (req, res) => {
   res.json({ nachricht: 'Notiz gespeichert.' });
 });
 
-// GET /api/admin/statistiken - Übersichts-Statistiken
+// GET /api/admin/statistiken - Übersichts-Statistiken (erweitert)
 router.get('/statistiken', (req, res) => {
   const gesamtNutzer = db.prepare('SELECT COUNT(*) as count FROM users WHERE role = ?').get('user').count;
   const aktiveNutzer = db.prepare('SELECT COUNT(*) as count FROM users WHERE role = ? AND is_active = 1').get('user').count;
   const gesamtNachrichten = db.prepare('SELECT COUNT(*) as count FROM messages').get().count;
-  const heuteNachrichten = db.prepare(`
-    SELECT COUNT(*) as count FROM messages WHERE date(created_at) = date('now')
-  `).get().count;
+  const heuteNachrichten = db.prepare(`SELECT COUNT(*) as count FROM messages WHERE date(created_at) = date('now')`).get().count;
   const webhookKonfiguriert = !!(getSetting('poke_webhook_url') && getSetting('poke_api_key'));
+
+  // Neue Statistiken für Charts
+  // Nachrichten pro Tag (letzte 30 Tage)
+  const nachrichtenProTag = db.prepare(`
+    SELECT date(created_at) as tag, COUNT(*) as anzahl
+    FROM messages
+    WHERE created_at >= datetime('now', '-30 days')
+    GROUP BY date(created_at)
+    ORDER BY tag ASC
+  `).all();
+
+  // Nachrichten nach Typ
+  const nachrichtenNachTyp = db.prepare(`
+    SELECT type, COUNT(*) as anzahl FROM messages GROUP BY type
+  `).all();
+
+  // Antwortrate
+  const beantwortet = db.prepare(`SELECT COUNT(*) as count FROM messages WHERE reply_content IS NOT NULL`).get().count;
+  const offen = gesamtNachrichten - beantwortet;
+
+  // Top 5 aktivste Nutzer
+  const topNutzer = db.prepare(`
+    SELECT u.username, COUNT(m.id) as anzahl
+    FROM messages m JOIN users u ON m.user_id = u.id
+    GROUP BY m.user_id ORDER BY anzahl DESC LIMIT 5
+  `).all();
+
+  // Geplante Nachrichten
+  const geplantNachrichten = db.prepare(`SELECT COUNT(*) as count FROM messages WHERE status = 'geplant'`).get().count;
+
+  // Gepinnte Nachrichten
+  const gepinnteNachrichten = db.prepare(`SELECT COUNT(*) as count FROM messages WHERE is_pinned = 1`).get().count;
 
   res.json({
     gesamtNutzer,
@@ -329,7 +359,143 @@ router.get('/statistiken', (req, res) => {
     gesamtNachrichten,
     heuteNachrichten,
     webhookKonfiguriert,
+    nachrichtenProTag,
+    nachrichtenNachTyp,
+    antwortrate: { beantwortet, offen },
+    topNutzer,
+    geplantNachrichten,
+    gepinnteNachrichten,
   });
 });
 
+// ─── Broadcast-Mail ─────────────────────────────────────────────────────────
+
+// POST /api/admin/broadcast - Broadcast-Mail an alle (oder gefilterte) Nutzer
+router.post('/broadcast', async (req, res) => {
+  const { betreff, nachricht, labelId } = req.body;
+  if (!betreff || !nachricht) return res.status(400).json({ fehler: 'Betreff und Nachricht sind erforderlich.' });
+
+  const { sendeAusstehendeAntwortMail } = require('../services/email');
+  const nodemailer = require('nodemailer');
+
+  // Empfänger ermitteln
+  let nutzer;
+  if (labelId) {
+    nutzer = db.prepare(`
+      SELECT u.username, u.email FROM users u
+      JOIN nutzer_labels nl ON u.id = nl.nutzer_id
+      WHERE nl.label_id = ? AND u.is_active = 1 AND u.role = 'user'
+    `).all(labelId);
+  } else {
+    nutzer = db.prepare(`SELECT username, email FROM users WHERE is_active = 1 AND role = 'user'`).all();
+  }
+
+  if (nutzer.length === 0) return res.json({ nachricht: 'Keine Empfänger gefunden.', gesendet: 0 });
+
+  // Asynchron senden (nicht blockierend)
+  res.json({ nachricht: `Broadcast wird an ${nutzer.length} Nutzer gesendet.`, gesendet: nutzer.length });
+
+  const absender = getSetting('smtp_from') || getSetting('smtp_user');
+  const appUrl = getSetting('app_url') || 'http://localhost:3000';
+  const transporter = (() => {
+    const host = getSetting('smtp_host');
+    const port = parseInt(getSetting('smtp_port') || '587', 10);
+    const user = getSetting('smtp_user');
+    const pass = getSetting('smtp_pass');
+    if (!host || !user || !pass) return null;
+    return nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass }, tls: { rejectUnauthorized: false } });
+  })();
+
+  if (!transporter) return;
+
+
+  const broadcastBody = `
+    <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#f1f5f9;">📢 ${betreff}</p>
+    <div style="padding:20px;background:rgba(99,102,241,0.06);border-left:4px solid #6366f1;border-radius:8px;margin-bottom:24px;">
+      <p style="margin:0;color:#e2e8f0;font-size:15px;line-height:1.8;white-space:pre-wrap;">${nachricht}</p>
+    </div>
+    <div style="text-align:center;">
+      <a href="${appUrl}" style="display:inline-block;padding:12px 28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:14px;font-weight:700;text-decoration:none;border-radius:8px;">Zum Dashboard →</a>
+    </div>
+  `;
+
+  for (const nutzerItem of nutzer) {
+    try {
+      const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+      <body style="margin:0;padding:0;background:#080c14;font-family:'Segoe UI',system-ui,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(180deg,#080c14,#0f172a);padding:40px 16px;">
+      <tr><td align="center"><table width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;">
+      <tr><td style="padding-bottom:24px;text-align:center;"><span style="font-size:26px;font-weight:900;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">y</span><span style="font-size:26px;font-weight:900;color:#f1f5f9;">Relay</span></td></tr>
+      <tr><td style="background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid rgba(99,102,241,0.25);border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+      <tr><td style="padding:32px 36px 24px;text-align:center;background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(139,92,246,0.08));border-bottom:1px solid rgba(99,102,241,0.12);">
+      <div style="font-size:40px;margin-bottom:12px;">📢</div>
+      <h1 style="margin:0;font-size:22px;font-weight:800;color:#f1f5f9;">${betreff}</h1>
+      <p style="margin:8px 0 0;color:#64748b;font-size:13px;">Nachricht vom yRelay-Admin</p></td></tr>
+      <tr><td style="padding:32px 36px;">${broadcastBody}</td></tr>
+      <tr><td style="padding:16px 36px 24px;text-align:center;border-top:1px solid rgba(255,255,255,0.05);"><p style="margin:0;color:#334155;font-size:11px;">Diese E-Mail wurde automatisch von yRelay gesendet.</p></td></tr>
+      </td></tr></table></td></tr></table></body></html>`;
+      await transporter.sendMail({
+        from: `"yRelay" <${absender}>`,
+        to: nutzerItem.email,
+        subject: `📢 ${betreff}`,
+        html,
+      });
+      await new Promise(r => setTimeout(r, 150)); // Anti-Spam Delay
+    } catch (err) {
+      console.error(`[yRelay Broadcast] Fehler bei ${nutzerItem.email}:`, err.message);
+    }
+  }
+
+  console.log(`[yRelay] Broadcast an ${nutzer.length} Nutzer gesendet.`);
+});
+
+// ─── Labels ─────────────────────────────────────────────────────────────────
+
+// GET /api/admin/labels - Alle Labels
+router.get('/labels', (req, res) => {
+  const labels = db.prepare('SELECT * FROM labels ORDER BY name ASC').all();
+  const anzahl = db.prepare('SELECT label_id, COUNT(*) as count FROM nutzer_labels GROUP BY label_id').all();
+  const map = {};
+  anzahl.forEach(a => map[a.label_id] = a.count);
+  res.json(labels.map(l => ({ ...l, nutzerAnzahl: map[l.id] || 0 })));
+});
+
+// POST /api/admin/labels - Label erstellen
+router.post('/labels', (req, res) => {
+  const { name, farbe } = req.body;
+  if (!name) return res.status(400).json({ fehler: 'Name ist erforderlich.' });
+  try {
+    const result = db.prepare(`INSERT INTO labels (name, farbe) VALUES (?, ?)`).run(name.trim(), farbe || '#6366f1');
+    res.status(201).json({ id: result.lastInsertRowid, name: name.trim(), farbe: farbe || '#6366f1', nutzerAnzahl: 0 });
+  } catch {
+    res.status(409).json({ fehler: 'Label mit diesem Namen existiert bereits.' });
+  }
+});
+
+// DELETE /api/admin/labels/:id - Label löschen
+router.delete('/labels/:id', (req, res) => {
+  db.prepare('DELETE FROM labels WHERE id = ?').run(req.params.id);
+  res.json({ nachricht: 'Label gelöscht.' });
+});
+
+// PUT /api/admin/nutzer/:id/labels - Labels eines Nutzers setzen
+router.put('/nutzer/:id/labels', (req, res) => {
+  const { labelIds } = req.body; // Array von label IDs
+  if (!Array.isArray(labelIds)) return res.status(400).json({ fehler: 'labelIds muss ein Array sein.' });
+  db.prepare('DELETE FROM nutzer_labels WHERE nutzer_id = ?').run(req.params.id);
+  const insert = db.prepare('INSERT OR IGNORE INTO nutzer_labels (nutzer_id, label_id) VALUES (?, ?)');
+  const transaction = db.transaction((ids) => { for (const lid of ids) insert.run(req.params.id, lid); });
+  transaction(labelIds);
+  res.json({ nachricht: 'Labels aktualisiert.' });
+});
+
+// GET /api/admin/nutzer/:id/labels - Labels eines Nutzers
+router.get('/nutzer/:id/labels', (req, res) => {
+  const labels = db.prepare(`
+    SELECT l.* FROM labels l JOIN nutzer_labels nl ON l.id = nl.label_id WHERE nl.nutzer_id = ?
+  `).all(req.params.id);
+  res.json(labels);
+});
+
 module.exports = router;
+

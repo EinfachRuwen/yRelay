@@ -132,6 +132,21 @@ const DashboardView = {
                   <button type="submit" class="btn btn-primaer btn-vollbreite" id="kombi-btn" style="transition: all 0.3s;">
                     <span>📤</span> Nachricht senden
                   </button>
+                  <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                    <button type="button" class="btn btn-ghost btn-vollbreite btn-klein" id="planen-btn" style="border: 1px dashed rgba(99,102,241,0.4);">
+                      ⏰ Geplant senden
+                    </button>
+                  </div>
+                  <div id="plan-datum-feld" class="versteckt" style="margin-top: 10px;">
+                    <div class="formular-gruppe" style="margin: 0;">
+                      <label class="formular-label" for="plan-datum">Sendezeitpunkt</label>
+                      <input class="formular-eingabe" type="datetime-local" id="plan-datum" style="font-size: 14px;">
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                      <button type="button" class="btn btn-ghost btn-klein" id="plan-abbrechen">Abbrechen</button>
+                      <button type="button" class="btn btn-primaer btn-klein" id="plan-senden">Einplanen</button>
+                    </div>
+                  </div>
                 </form>
               </div>
             </div>
@@ -376,6 +391,43 @@ const DashboardView = {
     this._pollInterval = setInterval(async () => {
       await this.verlaufStummAktualisieren();
     }, 10000);
+
+    // Geplant-Senden Toggle
+    document.getElementById('planen-btn')?.addEventListener('click', () => {
+      const feld = document.getElementById('plan-datum-feld');
+      feld.classList.toggle('versteckt');
+      if (!feld.classList.contains('versteckt')) {
+        // Standardwert: in 1 Stunde
+        const in1h = new Date(Date.now() + 60 * 60 * 1000);
+        document.getElementById('plan-datum').value = in1h.toISOString().slice(0, 16);
+      }
+    });
+    document.getElementById('plan-abbrechen')?.addEventListener('click', () => {
+      document.getElementById('plan-datum-feld').classList.add('versteckt');
+    });
+    document.getElementById('plan-senden')?.addEventListener('click', async () => {
+      const inhalt = kombiTextarea.value.trim();
+      const sendAt = document.getElementById('plan-datum').value;
+      const typ = document.querySelector('input[name="nachricht_typ"]:checked').value;
+      if (!inhalt) { UI.fehler('Bitte eine Nachricht eingeben.'); return; }
+      if (!sendAt) { UI.fehler('Bitte einen Sendezeitpunkt wählen.'); return; }
+      const btn = document.getElementById('plan-senden');
+      UI.btnLaden(btn, true);
+      try {
+        const prio = typ !== 'standard' ? typ : null;
+        await API.nachrichtPlanen(inhalt, sendAt, prio);
+        const sendeZeit = new Date(sendAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        UI.erfolg(`Nachricht für ${sendeZeit} Uhr eingeplant! ⏰`);
+        kombiTextarea.value = '';
+        document.getElementById('plan-datum-feld').classList.add('versteckt');
+        kombiTextarea.dispatchEvent(new Event('input'));
+        await this.verlaufLaden();
+      } catch (err) {
+        UI.fehler(err.message);
+      } finally {
+        UI.btnLaden(btn, false);
+      }
+    });
   },
 
   setzeTemplate(text) {
@@ -434,51 +486,102 @@ const DashboardView = {
   rendereVerlauf(nachrichten) {
     const container = document.getElementById('verlauf-inhalt');
     if (!container) return;
-      if (nachrichten.length === 0) {
-        container.innerHTML = UI.leereListeHtml('📭', 'Noch keine Nachrichten gesendet.');
-        return;
-      }
+    if (nachrichten.length === 0) {
+      container.innerHTML = UI.leereListeHtml('📭', 'Noch keine Nachrichten gesendet.');
+      return;
+    }
 
-      container.innerHTML = `
-        <div class="verlauf-liste">
-          ${nachrichten.map(n => `
-            <div class="verlauf-eintrag" id="eintrag-${n.id}">
-              <div>
-                ${UI.typBadge(n.typ, n.prioritaet)}
-                ${n.prioritaet ? `<div style="margin-top: 4px; font-size: 11px; color: var(--farbe-text-schwach);">${UI.prioritaetText(n.prioritaet)}</div>` : ''}
-              </div>
-              <div style="min-width: 0; flex: 1;">
-                ${UI.renderInhalt(n.inhalt)}
-                ${n.fehler ? `<div style="font-size: 12px; color: var(--farbe-notfall); margin-top: 4px;">⚠️ ${UI.escapeHtml(n.fehler)}</div>` : ''}
-                ${UI.renderAntworten(n.antwortText, n.nutzerAntworten)}
-                ${n.antwortText ? `
-                  <div style="margin-top: 8px;">
-                    <button class="textarea-aktion-btn" onclick="DashboardView.antwortfeldToggle(${n.id})" id="antwort-toggle-${n.id}">
-                      ↩️ Auf Pokes Antwort reagieren
-                    </button>
-                    <div id="antwortfeld-${n.id}" class="versteckt" style="margin-top: 8px;">
-                      <div class="textarea-wrapper">
-                        <textarea class="formular-textarea" id="antworttext-${n.id}" placeholder="Deine Reaktion an Poke..." rows="3" maxlength="2000" style="font-size: 13px;"></textarea>
-                      </div>
-                      <div style="display: flex; gap: 8px; margin-top: 6px; justify-content: flex-end;">
-                        <button class="textarea-aktion-btn" onclick="DashboardView.antwortfeldToggle(${n.id})">Abbrechen</button>
-                        <button class="btn btn-primaer btn-klein" id="antwort-senden-${n.id}" onclick="DashboardView.antwortSenden(${n.id})">Senden</button>
-                      </div>
+    const statusBadge = (n) => {
+      if (n.statusLabel === 'erledigt') return '<span style="margin-left: 6px; font-size: 11px; background: rgba(16,185,129,0.15); color: #34d399; padding: 2px 8px; border-radius: 20px; font-weight: 600;">✅ Erledigt</span>';
+      if (n.statusLabel === 'in_bearbeitung') return '<span style="margin-left: 6px; font-size: 11px; background: rgba(245,158,11,0.15); color: #fbbf24; padding: 2px 8px; border-radius: 20px; font-weight: 600;">🔄 In Bearbeitung</span>';
+      return '';
+    };
+
+    const gepinntBadge = (n) => n.gepinnt
+      ? '<span title="Gepinnt" style="font-size: 14px;">📌</span>'
+      : '';
+
+    const geplanterStatus = (n) => {
+      if (n.status === 'geplant' && n.geplantesSenden) {
+        const t = new Date(n.geplantesSenden).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        return `<div style="margin-top: 6px; font-size: 12px; color: var(--farbe-warnung); display: flex; align-items: center; gap: 6px;">
+          ⏰ Geplant für ${t} Uhr
+          <button class="textarea-aktion-btn" style="font-size: 11px; padding: 2px 8px;" onclick="DashboardView.nachrichtAbbrechen(${n.id})">Abbrechen</button>
+        </div>`;
+      }
+      if (n.status === 'abgebrochen') return '<div style="margin-top: 4px; font-size: 12px; color: var(--farbe-text-schwach);">⛔ Abgebrochen</div>';
+      return '';
+    };
+
+    container.innerHTML = `
+      <div class="verlauf-liste">
+        ${nachrichten.map(n => `
+          <div class="verlauf-eintrag${n.gepinnt ? ' gepinnt' : ''}" id="eintrag-${n.id}">
+            <div>
+              ${gepinntBadge(n)}
+              ${UI.typBadge(n.typ, n.prioritaet)}
+              ${statusBadge(n)}
+              ${n.prioritaet ? `<div style="margin-top: 4px; font-size: 11px; color: var(--farbe-text-schwach);">${UI.prioritaetText(n.prioritaet)}</div>` : ''}
+            </div>
+            <div style="min-width: 0; flex: 1;">
+              ${UI.renderInhalt(n.inhalt)}
+              ${n.statusLabelNotiz ? `<div style="margin-top: 4px; font-size: 12px; color: var(--farbe-text-gedaempft); font-style: italic;">🤖 Poke: ${UI.escapeHtml(n.statusLabelNotiz)}</div>` : ''}
+              ${n.fehler ? `<div style="font-size: 12px; color: var(--farbe-notfall); margin-top: 4px;">⚠️ ${UI.escapeHtml(n.fehler)}</div>` : ''}
+              ${geplanterStatus(n)}
+              ${UI.renderAntworten(n.antwortText, n.nutzerAntworten)}
+              ${n.antwortText ? `
+                <div style="margin-top: 8px;">
+                  <button class="textarea-aktion-btn" onclick="DashboardView.antwortfeldToggle(${n.id})" id="antwort-toggle-${n.id}">
+                    ↩️ Auf Pokes Antwort reagieren
+                  </button>
+                  <div id="antwortfeld-${n.id}" class="versteckt" style="margin-top: 8px;">
+                    <div class="textarea-wrapper">
+                      <textarea class="formular-textarea" id="antworttext-${n.id}" placeholder="Deine Reaktion an Poke..." rows="3" maxlength="2000" style="font-size: 13px;"></textarea>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 6px; justify-content: flex-end;">
+                      <button class="textarea-aktion-btn" onclick="DashboardView.antwortfeldToggle(${n.id})">Abbrechen</button>
+                      <button class="btn btn-primaer btn-klein" id="antwort-senden-${n.id}" onclick="DashboardView.antwortSenden(${n.id})">Senden</button>
                     </div>
                   </div>
-                ` : '<div style="margin-top: 8px; font-size: 12px; color: var(--farbe-text-schwach); font-style: italic;">⏳ Warte auf Pokes Antwort...</div>'}
-              </div>
-              <div style="text-align: right; flex-shrink: 0;">
-                <div class="verlauf-datum">${UI.datumFormatieren(n.gesendetAm)}</div>
-                <div class="verlauf-status ${n.status === 'gesendet' ? 'gesendet' : 'fehlgeschlagen'}" style="margin-top: 4px;">
-                  ${n.status === 'gesendet' ? '✓ Gesendet' : '✗ Fehlgeschlagen'}
                 </div>
-              </div>
+              ` : (n.status === 'gesendet' ? '<div style="margin-top: 8px; font-size: 12px; color: var(--farbe-text-schwach); font-style: italic;">⏳ Warte auf Pokes Antwort...</div>' : '')}
             </div>
-          `).join('')}
-        </div>
-      `;
+            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+              <div class="verlauf-datum">${UI.datumFormatieren(n.gesendetAm)}</div>
+              <div class="verlauf-status ${n.status === 'gesendet' ? 'gesendet' : (n.status === 'geplant' ? '' : 'fehlgeschlagen')}" style="margin-top: 2px;">
+                ${n.status === 'gesendet' ? '✓ Gesendet' : (n.status === 'geplant' ? '⏰ Geplant' : (n.status === 'abgebrochen' ? '⛔ Abgebrochen' : '✗ Fehler'))}
+              </div>
+              <button class="textarea-aktion-btn" style="font-size: 11px; padding: 3px 8px;" onclick="DashboardView.pinnenToggle(${n.id})" title="${n.gepinnt ? 'Unpin' : 'Pin'}">
+                ${n.gepinnt ? '📌 Unpin' : '📌 Pinnen'}
+              </button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
   },
+
+  async nachrichtAbbrechen(id) {
+    if (!confirm('Geplante Nachricht wirklich abbrechen?')) return;
+    try {
+      await API.nachrichtAbbrechen(id);
+      UI.erfolg('Geplante Nachricht abgebrochen.');
+      await this.verlaufLaden();
+    } catch (err) {
+      UI.fehler(err.message);
+    }
+  },
+
+  async pinnenToggle(id) {
+    try {
+      const result = await API.nachrichtPinnen(id);
+      await this.verlaufLaden();
+      UI.erfolg(result.gepinnt ? '📌 Nachricht gepinnt!' : 'Nachricht aus Pins entfernt.');
+    } catch (err) {
+      UI.fehler(err.message);
+    }
+  },
+
 
   antwortfeldToggle(id) {
     const feld = document.getElementById(`antwortfeld-${id}`);

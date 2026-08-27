@@ -185,4 +185,44 @@ const API = {
   async adminNotizSpeichern(text) {
     return this.anfrage('POST', '/admin/notiz', { text });
   },
+
+  // Admin - Broadcast
+  async adminBroadcastSenden(betreff, nachricht, labelId = null) {
+    return this.anfrage('POST', '/admin/broadcast', { betreff, nachricht, labelId });
+  },
+
+  // Admin - Labels
+  async adminLabelsLaden() {
+    return this.anfrage('GET', '/admin/labels');
+  },
+
+  async adminLabelErstellen(name, farbe) {
+    return this.anfrage('POST', '/admin/labels', { name, farbe });
+  },
+
+  async adminLabelLoeschen(id) {
+    return this.anfrage('DELETE', `/admin/labels/${id}`);
+  },
+
+  async adminNutzerLabelsLaden(nutzerId) {
+    return this.anfrage('GET', `/admin/nutzer/${nutzerId}/labels`);
+  },
+
+  async adminNutzerLabelsSetzen(nutzerId, labelIds) {
+    return this.anfrage('PUT', `/admin/nutzer/${nutzerId}/labels`, { labelIds });
+  },
+
+  // Geplante Nachrichten
+  async nachrichtPlanen(inhalt, sendAt, prioritaet = null) {
+    return this.anfrage('POST', '/nachrichten/planen', { inhalt, sendAt, prioritaet });
+  },
+
+  async nachrichtAbbrechen(id) {
+    return this.anfrage('DELETE', `/nachrichten/${id}/abbrechen`);
+  },
+
+  // Pinnen
+  async nachrichtPinnen(id) {
+    return this.anfrage('POST', `/nachrichten/${id}/pinnen`);
+  },
 };

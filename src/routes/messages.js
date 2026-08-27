@@ -150,10 +150,11 @@ router.post('/notfall', async (req, res) => {
 router.get('/meine', (req, res) => {
   const fixTZ = (d) => d ? d.replace(' ', 'T') + 'Z' : null;
   const nachrichten = db.prepare(`
-    SELECT id, type, priority, content, status, error_message, reply_content, replied_at, user_replies, created_at
+    SELECT id, type, priority, content, status, error_message, reply_content,
+           replied_at, user_replies, created_at, is_pinned, status_label, status_label_notiz, send_at
     FROM messages
     WHERE user_id = ?
-    ORDER BY created_at DESC
+    ORDER BY is_pinned DESC, created_at DESC
     LIMIT 100
   `).all(req.user.id);
 
@@ -168,8 +169,53 @@ router.get('/meine', (req, res) => {
     antwortDatum: fixTZ(n.replied_at),
     nutzerAntworten: n.user_replies || null,
     gesendetAm: fixTZ(n.created_at),
+    gepinnt: !!n.is_pinned,
+    statusLabel: n.status_label || null,
+    statusLabelNotiz: n.status_label_notiz || null,
+    geplantesSenden: fixTZ(n.send_at),
   })));
 });
+
+// POST /api/nachrichten/planen - Geplante Nachricht erstellen
+router.post('/planen', async (req, res) => {
+  const { inhalt, sendAt, prioritaet } = req.body;
+  if (!inhalt || !inhalt.trim()) return res.status(400).json({ fehler: 'Die Nachricht darf nicht leer sein.' });
+  if (!sendAt) return res.status(400).json({ fehler: 'Sendezeitpunkt (sendAt) ist erforderlich.' });
+
+  const sendeZeit = new Date(sendAt);
+  if (isNaN(sendeZeit) || sendeZeit <= new Date()) {
+    return res.status(400).json({ fehler: 'Sendezeitpunkt muss in der Zukunft liegen.' });
+  }
+
+  const replyToken = require('crypto').randomBytes(16).toString('hex');
+  const typ = prioritaet && ['hoch', 'notfall'].includes(prioritaet) ? 'emergency' : 'free';
+
+  const insertErgebnis = db.prepare(`
+    INSERT INTO messages (user_id, type, priority, content, poke_payload, status, reply_token, send_at)
+    VALUES (?, ?, ?, ?, '', 'geplant', ?, ?)
+  `).run(req.user.id, typ, prioritaet || null, inhalt.trim(), replyToken, sendeZeit.toISOString());
+
+  res.json({ nachricht: 'Nachricht geplant.', id: insertErgebnis.lastInsertRowid, sendetAm: sendeZeit.toISOString() });
+});
+
+// DELETE /api/nachrichten/:id/abbrechen - Geplante Nachricht abbrechen
+router.delete('/:id/abbrechen', (req, res) => {
+  const nachricht = db.prepare(`SELECT id, status FROM messages WHERE id = ? AND user_id = ?`).get(req.params.id, req.user.id);
+  if (!nachricht) return res.status(404).json({ fehler: 'Nachricht nicht gefunden.' });
+  if (nachricht.status !== 'geplant') return res.status(400).json({ fehler: 'Nur geplante Nachrichten können abgebrochen werden.' });
+  db.prepare('UPDATE messages SET status = ? WHERE id = ?').run('abgebrochen', req.params.id);
+  res.json({ nachricht: 'Geplante Nachricht wurde abgebrochen.' });
+});
+
+// POST /api/nachrichten/:id/pinnen - Nachricht pinnen/unpinnen
+router.post('/:id/pinnen', (req, res) => {
+  const nachricht = db.prepare('SELECT id, is_pinned FROM messages WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!nachricht) return res.status(404).json({ fehler: 'Nachricht nicht gefunden.' });
+  const neuerWert = nachricht.is_pinned ? 0 : 1;
+  db.prepare('UPDATE messages SET is_pinned = ? WHERE id = ?').run(neuerWert, req.params.id);
+  res.json({ gepinnt: !!neuerWert });
+});
+
 
 // POST /api/nachrichten/:id/antworten - Nutzer antwortet auf Pokes Antwort
 router.post('/:id/antworten', async (req, res) => {
