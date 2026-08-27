@@ -1341,78 +1341,176 @@ body {
 }
 .special-actions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
 }
+
 .btn-special {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(185, 28, 28, 0.05));
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #f1f5f9;
   cursor: pointer;
-  transition: all 0.2s;
+  overflow: hidden;
+  text-align: left;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
+
+.special-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0.15;
+  transition: opacity 0.4s;
+  z-index: 0;
+}
+
+.special-glow-orb {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  filter: blur(25px);
+  opacity: 0;
+  top: 50%;
+  left: -20px;
+  transform: translateY(-50%);
+  transition: all 0.5s ease;
+  z-index: 0;
+}
+
 .btn-special:hover {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(185, 28, 28, 0.1));
-  border-color: rgba(239, 68, 68, 0.4);
-  transform: scale(1.02);
+  transform: translateY(-4px) scale(1.02);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
 }
-.btn-special.door { background: linear-gradient(135deg, rgba(234, 179, 8, 0.1), rgba(202, 138, 4, 0.05)); border-color: rgba(234, 179, 8, 0.2); color: #fde047; }
-.btn-special.deadline { background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(147, 51, 234, 0.05)); border-color: rgba(168, 85, 247, 0.2); color: #d8b4fe; }
-.btn-special.radar { background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(2, 132, 199, 0.05)); border-color: rgba(14, 165, 233, 0.2); color: #7dd3fc; }
+
+.btn-special:hover .special-bg {
+  opacity: 0.3;
+}
+
+.btn-special:hover .special-glow-orb {
+  opacity: 0.6;
+  left: 20%;
+}
+
+.special-icon {
+  position: relative;
+  font-size: 28px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+}
+
+.special-text {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.special-title {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.special-subtitle {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+/* ─── Spezifische Farben & Effekte ─────────────────────────────────── */
+
+/* DOORBELL */
+.btn-special-door .special-bg { background: linear-gradient(135deg, #eab308, #ca8a04); }
+.btn-special-door .special-glow-orb { background: #eab308; }
+.btn-special-door .special-title { color: #fef08a; }
+.btn-special-door:hover { border-color: rgba(234, 179, 8, 0.4); box-shadow: 0 10px 30px rgba(234, 179, 8, 0.2); }
+
+/* SOS */
+.btn-special-sos .special-bg { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+.btn-special-sos .special-glow-orb { background: #ef4444; }
+.btn-special-sos .special-title { color: #fca5a5; }
+.btn-special-sos { border-color: rgba(239, 68, 68, 0.3); animation: sos-border-pulse 2s infinite; }
+.btn-special-sos:hover { border-color: rgba(239, 68, 68, 0.6); box-shadow: 0 10px 40px rgba(239, 68, 68, 0.3); }
+
+@keyframes sos-border-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+}
+
+/* DEADLINE */
+.btn-special-deadline .special-bg { background: linear-gradient(135deg, #a855f7, #7e22ce); }
+.btn-special-deadline .special-glow-orb { background: #a855f7; }
+.btn-special-deadline .special-title { color: #e9d5ff; }
+.btn-special-deadline:hover { border-color: rgba(168, 85, 247, 0.4); box-shadow: 0 10px 30px rgba(168, 85, 247, 0.2); }
+
+/* WAKEUP */
+.btn-special-wakeup .special-bg { background: linear-gradient(135deg, #f97316, #c2410c); }
+.btn-special-wakeup .special-glow-orb { background: #f97316; }
+.btn-special-wakeup .special-title { color: #ffedd5; }
+.btn-special-wakeup:hover { border-color: rgba(249, 115, 22, 0.4); box-shadow: 0 10px 30px rgba(249, 115, 22, 0.2); }
+
+/* RADAR */
+.btn-special-radar .special-bg { background: linear-gradient(135deg, #0ea5e9, #0369a1); }
+.btn-special-radar .special-glow-orb { background: #0ea5e9; }
+.btn-special-radar .special-title { color: #bae6fd; }
+.btn-special-radar:hover { border-color: rgba(14, 165, 233, 0.4); box-shadow: 0 10px 30px rgba(14, 165, 233, 0.2); }
 
 /* ─── Special Animations ─────────────────────────────────────────── */
-.special-icon {
-  display: inline-block;
-  font-size: 24px;
-  margin-right: 12px;
-}
 
-.anim-doorbell { animation: shake-bell 0.5s cubic-bezier(.36,.07,.19,.97) both infinite; }
+.btn-special:hover .anim-doorbell { animation: shake-bell 0.5s cubic-bezier(.36,.07,.19,.97) both infinite; }
 @keyframes shake-bell {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(15deg); }
-  50% { transform: rotate(-15deg); }
-  75% { transform: rotate(10deg); }
+  0%, 100% { transform: rotate(0deg) scale(1.1); }
+  25% { transform: rotate(20deg) scale(1.1); }
+  50% { transform: rotate(-20deg) scale(1.1); }
+  75% { transform: rotate(15deg) scale(1.1); }
 }
 
-.anim-sos { animation: pulse-red 1s infinite alternate; }
-@keyframes pulse-red {
+.anim-sos { animation: pulse-red-icon 1s infinite alternate; }
+.btn-special:hover .anim-sos { animation: pulse-red-icon-fast 0.3s infinite alternate; }
+@keyframes pulse-red-icon {
   0% { transform: scale(1); filter: drop-shadow(0 0 5px red); }
-  100% { transform: scale(1.2); filter: drop-shadow(0 0 20px red); }
+  100% { transform: scale(1.1); filter: drop-shadow(0 0 15px red); }
+}
+@keyframes pulse-red-icon-fast {
+  0% { transform: scale(1.1); filter: drop-shadow(0 0 10px red); }
+  100% { transform: scale(1.3); filter: drop-shadow(0 0 25px red); }
 }
 
-.anim-deadline { animation: tick-tock 1s steps(2, end) infinite; }
+.btn-special:hover .anim-deadline { animation: tick-tock 0.5s steps(2, end) infinite; }
 @keyframes tick-tock {
-  0% { transform: rotate(-15deg); }
-  100% { transform: rotate(15deg); }
+  0% { transform: rotate(-20deg) scale(1.1); }
+  100% { transform: rotate(20deg) scale(1.1); }
 }
 
-.anim-wakeup { animation: ring-alarm 0.2s infinite; }
+.btn-special:hover .anim-wakeup { animation: ring-alarm 0.1s infinite; }
 @keyframes ring-alarm {
-  0% { transform: translate(1px, 1px) rotate(0deg); }
-  10% { transform: translate(-1px, -2px) rotate(-5deg); }
-  20% { transform: translate(-3px, 0px) rotate(5deg); }
-  30% { transform: translate(3px, 2px) rotate(0deg); }
-  40% { transform: translate(1px, -1px) rotate(5deg); }
-  50% { transform: translate(-1px, 2px) rotate(-5deg); }
-  60% { transform: translate(-3px, 1px) rotate(0deg); }
-  70% { transform: translate(3px, 1px) rotate(-5deg); }
-  80% { transform: translate(-1px, -1px) rotate(5deg); }
-  90% { transform: translate(1px, 2px) rotate(0deg); }
-  100% { transform: translate(1px, -2px) rotate(-5deg); }
+  0% { transform: translate(1px, 1px) rotate(0deg) scale(1.1); }
+  25% { transform: translate(-2px, -2px) rotate(-10deg) scale(1.1); }
+  50% { transform: translate(-3px, 0px) rotate(10deg) scale(1.1); }
+  75% { transform: translate(3px, 2px) rotate(0deg) scale(1.1); }
+  100% { transform: translate(1px, -2px) rotate(-10deg) scale(1.1); }
 }
 
-.anim-radar { animation: radar-pulse 2s infinite; border-radius: 50%; }
-@keyframes radar-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.7); transform: scale(1); }
-  70% { box-shadow: 0 0 0 15px rgba(14, 165, 233, 0); transform: scale(1.1); }
-  100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); transform: scale(1); }
+.anim-radar { animation: radar-sweep 3s infinite linear; display: inline-block; }
+.btn-special:hover .anim-radar { animation: radar-sweep 1s infinite linear; }
+@keyframes radar-sweep {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.1); filter: drop-shadow(0 0 10px #0ea5e9); }
+  100% { transform: rotate(360deg) scale(1); }
 }
 
