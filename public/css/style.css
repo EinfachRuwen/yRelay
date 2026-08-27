@@ -1341,176 +1341,222 @@ body {
 }
 .special-actions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 16px;
-  margin-top: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
 }
-
 .btn-special {
-  position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  color: #f1f5f9;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(185, 28, 28, 0.05));
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  overflow: hidden;
-  text-align: left;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s;
 }
-
-.special-bg {
-  position: absolute;
-  inset: 0;
-  opacity: 0.15;
-  transition: opacity 0.4s;
-  z-index: 0;
-}
-
-.special-glow-orb {
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  filter: blur(25px);
-  opacity: 0;
-  top: 50%;
-  left: -20px;
-  transform: translateY(-50%);
-  transition: all 0.5s ease;
-  z-index: 0;
-}
-
 .btn-special:hover {
-  transform: translateY(-4px) scale(1.02);
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(185, 28, 28, 0.1));
+  border-color: rgba(239, 68, 68, 0.4);
+  transform: scale(1.02);
 }
-
-.btn-special:hover .special-bg {
-  opacity: 0.3;
-}
-
-.btn-special:hover .special-glow-orb {
-  opacity: 0.6;
-  left: 20%;
-}
-
-.special-icon {
-  position: relative;
-  font-size: 28px;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
-}
-
-.special-text {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.special-title {
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 0.3px;
-}
-
-.special-subtitle {
-  font-size: 11px;
-  font-weight: 500;
-  opacity: 0.7;
-}
-
-/* ─── Spezifische Farben & Effekte ─────────────────────────────────── */
-
-/* DOORBELL */
-.btn-special-door .special-bg { background: linear-gradient(135deg, #eab308, #ca8a04); }
-.btn-special-door .special-glow-orb { background: #eab308; }
-.btn-special-door .special-title { color: #fef08a; }
-.btn-special-door:hover { border-color: rgba(234, 179, 8, 0.4); box-shadow: 0 10px 30px rgba(234, 179, 8, 0.2); }
-
-/* SOS */
-.btn-special-sos .special-bg { background: linear-gradient(135deg, #ef4444, #b91c1c); }
-.btn-special-sos .special-glow-orb { background: #ef4444; }
-.btn-special-sos .special-title { color: #fca5a5; }
-.btn-special-sos { border-color: rgba(239, 68, 68, 0.3); animation: sos-border-pulse 2s infinite; }
-.btn-special-sos:hover { border-color: rgba(239, 68, 68, 0.6); box-shadow: 0 10px 40px rgba(239, 68, 68, 0.3); }
-
-@keyframes sos-border-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-  50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
-}
-
-/* DEADLINE */
-.btn-special-deadline .special-bg { background: linear-gradient(135deg, #a855f7, #7e22ce); }
-.btn-special-deadline .special-glow-orb { background: #a855f7; }
-.btn-special-deadline .special-title { color: #e9d5ff; }
-.btn-special-deadline:hover { border-color: rgba(168, 85, 247, 0.4); box-shadow: 0 10px 30px rgba(168, 85, 247, 0.2); }
-
-/* WAKEUP */
-.btn-special-wakeup .special-bg { background: linear-gradient(135deg, #f97316, #c2410c); }
-.btn-special-wakeup .special-glow-orb { background: #f97316; }
-.btn-special-wakeup .special-title { color: #ffedd5; }
-.btn-special-wakeup:hover { border-color: rgba(249, 115, 22, 0.4); box-shadow: 0 10px 30px rgba(249, 115, 22, 0.2); }
-
-/* RADAR */
-.btn-special-radar .special-bg { background: linear-gradient(135deg, #0ea5e9, #0369a1); }
-.btn-special-radar .special-glow-orb { background: #0ea5e9; }
-.btn-special-radar .special-title { color: #bae6fd; }
-.btn-special-radar:hover { border-color: rgba(14, 165, 233, 0.4); box-shadow: 0 10px 30px rgba(14, 165, 233, 0.2); }
+.btn-special.door { background: linear-gradient(135deg, rgba(234, 179, 8, 0.1), rgba(202, 138, 4, 0.05)); border-color: rgba(234, 179, 8, 0.2); color: #fde047; }
+.btn-special.deadline { background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(147, 51, 234, 0.05)); border-color: rgba(168, 85, 247, 0.2); color: #d8b4fe; }
+.btn-special.radar { background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(2, 132, 199, 0.05)); border-color: rgba(14, 165, 233, 0.2); color: #7dd3fc; }
 
 /* ─── Special Animations ─────────────────────────────────────────── */
+.special-icon {
+  display: inline-block;
+  font-size: 24px;
+  margin-right: 12px;
+}
 
-.btn-special:hover .anim-doorbell { animation: shake-bell 0.5s cubic-bezier(.36,.07,.19,.97) both infinite; }
+.anim-doorbell { animation: shake-bell 0.5s cubic-bezier(.36,.07,.19,.97) both infinite; }
 @keyframes shake-bell {
-  0%, 100% { transform: rotate(0deg) scale(1.1); }
-  25% { transform: rotate(20deg) scale(1.1); }
-  50% { transform: rotate(-20deg) scale(1.1); }
-  75% { transform: rotate(15deg) scale(1.1); }
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(15deg); }
+  50% { transform: rotate(-15deg); }
+  75% { transform: rotate(10deg); }
 }
 
-.anim-sos { animation: pulse-red-icon 1s infinite alternate; }
-.btn-special:hover .anim-sos { animation: pulse-red-icon-fast 0.3s infinite alternate; }
-@keyframes pulse-red-icon {
+.anim-sos { animation: pulse-red 1s infinite alternate; }
+@keyframes pulse-red {
   0% { transform: scale(1); filter: drop-shadow(0 0 5px red); }
-  100% { transform: scale(1.1); filter: drop-shadow(0 0 15px red); }
-}
-@keyframes pulse-red-icon-fast {
-  0% { transform: scale(1.1); filter: drop-shadow(0 0 10px red); }
-  100% { transform: scale(1.3); filter: drop-shadow(0 0 25px red); }
+  100% { transform: scale(1.2); filter: drop-shadow(0 0 20px red); }
 }
 
-.btn-special:hover .anim-deadline { animation: tick-tock 0.5s steps(2, end) infinite; }
+.anim-deadline { animation: tick-tock 1s steps(2, end) infinite; }
 @keyframes tick-tock {
-  0% { transform: rotate(-20deg) scale(1.1); }
-  100% { transform: rotate(20deg) scale(1.1); }
+  0% { transform: rotate(-15deg); }
+  100% { transform: rotate(15deg); }
 }
 
-.btn-special:hover .anim-wakeup { animation: ring-alarm 0.1s infinite; }
+.anim-wakeup { animation: ring-alarm 0.2s infinite; }
 @keyframes ring-alarm {
-  0% { transform: translate(1px, 1px) rotate(0deg) scale(1.1); }
-  25% { transform: translate(-2px, -2px) rotate(-10deg) scale(1.1); }
-  50% { transform: translate(-3px, 0px) rotate(10deg) scale(1.1); }
-  75% { transform: translate(3px, 2px) rotate(0deg) scale(1.1); }
-  100% { transform: translate(1px, -2px) rotate(-10deg) scale(1.1); }
+  0% { transform: translate(1px, 1px) rotate(0deg); }
+  10% { transform: translate(-1px, -2px) rotate(-5deg); }
+  20% { transform: translate(-3px, 0px) rotate(5deg); }
+  30% { transform: translate(3px, 2px) rotate(0deg); }
+  40% { transform: translate(1px, -1px) rotate(5deg); }
+  50% { transform: translate(-1px, 2px) rotate(-5deg); }
+  60% { transform: translate(-3px, 1px) rotate(0deg); }
+  70% { transform: translate(3px, 1px) rotate(-5deg); }
+  80% { transform: translate(-1px, -1px) rotate(5deg); }
+  90% { transform: translate(1px, 2px) rotate(0deg); }
+  100% { transform: translate(1px, -2px) rotate(-5deg); }
 }
 
-.anim-radar { animation: radar-sweep 3s infinite linear; display: inline-block; }
-.btn-special:hover .anim-radar { animation: radar-sweep 1s infinite linear; }
-@keyframes radar-sweep {
-  0% { transform: rotate(0deg) scale(1); }
-  50% { transform: rotate(180deg) scale(1.1); filter: drop-shadow(0 0 10px #0ea5e9); }
-  100% { transform: rotate(360deg) scale(1); }
+/* ─── Page-Wide Special Action Effects ───────────────────────────── */
+
+/* Basis Overlay (unsichtbar für Maus-Events) */
+.effekt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  
+  /* 1. Tür klingelt (DOORBELL) */
+  .effekt-doorbell::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(253,224,71,0.8) 40%, transparent 100%);
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    animation: doorbell-flash 1s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+  }
+  @keyframes doorbell-flash {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+    50% { opacity: 0.8; }
+    100% { transform: translate(-50%, -50%) scale(150); opacity: 0; }
+  }
+
+  /* 2. SOS Notfall */
+  .effekt-sos {
+    background: radial-gradient(circle, transparent 20%, rgba(220,38,38,0.4) 100%);
+    animation: sos-pulse-bg 0.6s infinite alternate ease-in-out;
+  }
+  @keyframes sos-pulse-bg {
+    0% { opacity: 0.3; }
+    100% { opacity: 1; background: radial-gradient(circle, transparent 10%, rgba(220,38,38,0.7) 100%); }
+  }
+  body.effekt-sos-body {
+    animation: sos-shake 0.3s infinite;
+  }
+  @keyframes sos-shake {
+    0% { transform: translate(1px, 1px) rotate(0deg); }
+    25% { transform: translate(-2px, -1px) rotate(-1deg); }
+    50% { transform: translate(1px, -2px) rotate(1deg); }
+    75% { transform: translate(-1px, 2px) rotate(0deg); }
+    100% { transform: translate(1px, -1px) rotate(-1deg); }
+  }
+
+  /* 3. Deadline */
+  .effekt-deadline {
+    box-shadow: inset 0 0 150px rgba(0, 0, 0, 0.9);
+    background: rgba(147, 51, 234, 0.1);
+    animation: deadline-vignette 2s forwards;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .effekt-deadline::after {
+    content: '⏱️';
+    font-size: 15rem;
+    opacity: 0;
+    animation: deadline-zoom 2.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+  @keyframes deadline-vignette {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @keyframes deadline-zoom {
+    0% { transform: scale(0.1); opacity: 0; }
+    20% { transform: scale(1.2); opacity: 0.3; }
+    30% { transform: scale(1); opacity: 0.15; }
+    80% { transform: scale(1); opacity: 0.15; }
+    100% { transform: scale(3); opacity: 0; }
+  }
+
+  /* 4. Wecker (WAKEUP) */
+  .effekt-wakeup {
+    /* Zwei schwarze "Lider", die sich öffnen */
+  }
+  .effekt-wakeup::before, .effekt-wakeup::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 50vh;
+    background: #000;
+    animation: wakeup-lids 2s cubic-bezier(0.7, 0, 0.3, 1) forwards;
+  }
+  .effekt-wakeup::before { top: 0; transform-origin: top; }
+  .effekt-wakeup::after { bottom: 0; transform-origin: bottom; }
+  
+  @keyframes wakeup-lids {
+    0% { transform: scaleY(1); }
+    15% { transform: scaleY(0.9); }
+    25% { transform: scaleY(1); } /* Blinzeln */
+    40% { transform: scaleY(0.5); }
+    50% { transform: scaleY(0.8); } /* Blinzeln */
+    70% { transform: scaleY(0); }
+    100% { transform: scaleY(0); }
+  }
+  .app-container.effekt-wakeup-blur {
+    animation: wakeup-focus 2s ease-out forwards;
+  }
+  @keyframes wakeup-focus {
+    0% { filter: blur(20px) brightness(0.2); }
+    40% { filter: blur(10px) brightness(2); }
+    70% { filter: blur(0px) brightness(1); }
+    100% { filter: blur(0px) brightness(1); }
+  }
+
+  /* 5. Radar (WHERE_ARE_YOU) */
+  .effekt-where_are_you {
+    background: radial-gradient(circle, transparent 30%, rgba(2, 132, 199, 0.1) 100%);
+  }
+  .effekt-where_are_you::after {
+    content: '';
+    position: absolute;
+    top: -50vw;
+    left: -50vw;
+    width: 200vw;
+    height: 200vw;
+    background: conic-gradient(from 0deg, transparent 70%, rgba(14, 165, 233, 0.4) 95%, rgba(14, 165, 233, 0.8) 100%);
+    border-radius: 50%;
+    transform-origin: center;
+    animation: radar-spin 1.5s linear infinite;
+    mix-blend-mode: screen;
+  }
+  @keyframes radar-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+}
+
+
+.anim-radar { animation: radar-pulse 2s infinite; border-radius: 50%; }
+@keyframes radar-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.7); transform: scale(1); }
+  70% { box-shadow: 0 0 0 15px rgba(14, 165, 233, 0); transform: scale(1.1); }
+  100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); transform: scale(1); }
 }
 

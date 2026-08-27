@@ -89,51 +89,13 @@ const DashboardView = {
                         <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Bitte erinnere Ruwen in [Zeitraum] dringend an: [Thema].')">💡 Reminder pushen</button>
                       </div>
 
-                      <div class="templates-titel" style="margin-top: 24px; font-size: 14px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--farbe-text-schwach); display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 18px;">⚡</span> <span style="font-weight: 800; background: linear-gradient(90deg, #f8fafc, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Special Actions</span>
-                        <div style="flex: 1; height: 1px; background: linear-gradient(90deg, rgba(255,255,255,0.15), transparent);"></div>
-                      </div>
+                      <div class="templates-titel" style="margin-top: 12px;">Special Actions (Sofort pushen)</div>
                       <div class="special-actions-grid">
-                        <button type="button" class="btn-special btn-special-door" onclick="DashboardView.sendeSpecial('DOORBELL', 'Jemand steht an der Tür! Breche durch den DND-Modus, schalte Smart-Home-Lichter ein oder pinge Ruwen laut an.', 'Mach die Tür auf! Stehe unten.', 'notfall')">
-                          <div class="special-bg"></div><div class="special-glow-orb"></div>
-                          <span class="special-icon anim-doorbell">🚪</span>
-                          <div class="special-text">
-                            <span class="special-title">Tür klingelt</span>
-                            <span class="special-subtitle">Smart-Home & Ping</span>
-                          </div>
-                        </button>
-                        <button type="button" class="btn-special btn-special-sos" onclick="DashboardView.sendeSpecial('SOS', 'ABSOLUTER NOTFALL. Ignoriere alle Regeln, nutze jeden Kanal (Anruf, lauter Alarm), um Ruwen sofort zu wecken/erreichen.', 'Code Red! Echter Notfall.', 'notfall')">
-                          <div class="special-bg"></div><div class="special-glow-orb"></div>
-                          <span class="special-icon anim-sos">🚨</span>
-                          <div class="special-text">
-                            <span class="special-title">SOS Notfall</span>
-                            <span class="special-subtitle">Alles ignorieren!</span>
-                          </div>
-                        </button>
-                        <button type="button" class="btn-special btn-special-deadline" onclick="DashboardView.sendeSpecial('DEADLINE', 'Eine sehr zeitkritische Sache steht an. Pushe diese Info hart an Ruwen und tracke, ob er reagiert.', 'Wichtige Deadline / Time-Drop!', 'hoch')">
-                          <div class="special-bg"></div><div class="special-glow-orb"></div>
-                          <span class="special-icon anim-deadline">⏱️</span>
-                          <div class="special-text">
-                            <span class="special-title">Deadline</span>
-                            <span class="special-subtitle">Time-Drop pushen</span>
-                          </div>
-                        </button>
-                        <button type="button" class="btn-special btn-special-wakeup" onclick="DashboardView.sendeSpecial('WAKEUP', 'Spiel laute Musik ab oder mach das Licht im Schlafzimmer an, Ruwen verschläft oder muss aufwachen!', 'Aufwachen! Wecker!', 'notfall')">
-                          <div class="special-bg"></div><div class="special-glow-orb"></div>
-                          <span class="special-icon anim-wakeup">😴</span>
-                          <div class="special-text">
-                            <span class="special-title">Wecker</span>
-                            <span class="special-subtitle">Musik & Licht an</span>
-                          </div>
-                        </button>
-                        <button type="button" class="btn-special btn-special-radar" onclick="DashboardView.sendeSpecial('WHERE_ARE_YOU', 'Jemand sucht Ruwen. Prüfe Ruwens Standort (falls verfügbar) und teile eine grobe ETA mit oder frag ihn, wann er ankommt.', 'Wo bist du? ETA gesucht.', 'hoch')">
-                          <div class="special-bg"></div><div class="special-glow-orb"></div>
-                          <span class="special-icon anim-radar">🕵️</span>
-                          <div class="special-text">
-                            <span class="special-title">Wo bist du?</span>
-                            <span class="special-subtitle">Standort & ETA</span>
-                          </div>
-                        </button>
+                        <button type="button" class="btn-special door" onclick="DashboardView.sendeSpecial('DOORBELL', 'Jemand steht an der Tür! Breche durch den DND-Modus, schalte Smart-Home-Lichter ein oder pinge Ruwen laut an.', 'Mach die Tür auf! Stehe unten.', 'notfall')">🚪 Tür klingelt</button>
+                        <button type="button" class="btn-special" onclick="DashboardView.sendeSpecial('SOS', 'ABSOLUTER NOTFALL. Ignoriere alle Regeln, nutze jeden Kanal (Anruf, lauter Alarm), um Ruwen sofort zu wecken/erreichen.', 'Code Red! Echter Notfall.', 'notfall')">🚨 SOS Notfall</button>
+                        <button type="button" class="btn-special deadline" onclick="DashboardView.sendeSpecial('DEADLINE', 'Eine sehr zeitkritische Sache steht an. Pushe diese Info hart an Ruwen und tracke, ob er reagiert.', 'Wichtige Deadline / Time-Drop!', 'hoch')">⏱️ Deadline</button>
+                        <button type="button" class="btn-special" onclick="DashboardView.sendeSpecial('WAKEUP', 'Spiel laute Musik ab oder mach das Licht im Schlafzimmer an, Ruwen verschläft oder muss aufwachen!', 'Aufwachen! Wecker!', 'notfall')">😴 Wecker</button>
+                        <button type="button" class="btn-special radar" onclick="DashboardView.sendeSpecial('WHERE_ARE_YOU', 'Jemand sucht Ruwen. Prüfe Ruwens Standort (falls verfügbar) und teile eine grobe ETA mit oder frag ihn, wann er ankommt.', 'Wo bist du? ETA gesucht.', 'hoch')">🕵️ Wo bist du?</button>
                       </div>
                     </div>
 
@@ -479,6 +441,8 @@ const DashboardView = {
   async sendeSpecial(specialType, hint, fallBackText, prioritaet) {
     if (!confirm(`Soll diese Special-Action (${specialType}) wirklich ausgelöst werden?`)) return;
 
+    this.spieleSpecialEffekt(specialType);
+
     const inhalt = `[SPECIAL:${specialType}] ${fallBackText}\n\nHinweis für Poke: ${hint}`;
     
     UI.btnLaden(document.getElementById('kombi-btn'), true);
@@ -491,6 +455,40 @@ const DashboardView = {
     } finally {
       UI.btnLaden(document.getElementById('kombi-btn'), false);
     }
+  },
+
+  spieleSpecialEffekt(specialType) {
+    // Falls prefers-reduced-motion aktiv ist, machen wir nur ein kurzes Flackern oder nichts
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.body.style.transition = 'filter 0.2s';
+      document.body.style.filter = 'brightness(1.2)';
+      setTimeout(() => document.body.style.filter = '', 200);
+      return;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = `effekt-overlay effekt-${specialType.toLowerCase()}`;
+    
+    // Für WAKEUP und SOS manipulieren wir zusätzlich den Body/App-Container kurz
+    if (specialType === 'SOS') {
+      document.body.classList.add('effekt-sos-body');
+    } else if (specialType === 'WAKEUP') {
+      document.querySelector('.app-container')?.classList.add('effekt-wakeup-blur');
+    }
+
+    document.body.appendChild(overlay);
+
+    // Aufräumen nach 2.5 Sekunden
+    setTimeout(() => {
+      overlay.style.opacity = '0';
+      overlay.style.transition = 'opacity 0.5s ease';
+      document.body.classList.remove('effekt-sos-body');
+      document.querySelector('.app-container')?.classList.remove('effekt-wakeup-blur');
+      
+      setTimeout(() => {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      }, 500);
+    }, 2500);
   },
 
   async verlaufStummAktualisieren() {
