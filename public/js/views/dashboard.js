@@ -255,31 +255,48 @@ const DashboardView = {
       if (val === '/catchme') {
         if (!kombiBtn.dataset.fleeing) {
           kombiBtn.dataset.fleeing = 'true';
+          
+          const originParent = kombiBtn.parentNode;
+          const originNextSibling = kombiBtn.nextSibling;
+          document.body.appendChild(kombiBtn); // Aus dem DOM Flow nehmen, um Parent-Clip zu verhindern
+          
           kombiBtn.style.position = 'fixed';
           kombiBtn.style.zIndex = '9999';
+          kombiBtn.style.width = 'max-content';
+          kombiBtn.style.margin = '0';
           kombiBtn.innerText = 'Catch me if you can! 🏃';
           
-          const moveBtn = () => {
-            const maxX = window.innerWidth - kombiBtn.offsetWidth;
-            const maxY = window.innerHeight - kombiBtn.offsetHeight;
-            const randX = Math.max(0, Math.floor(Math.random() * maxX));
-            const randY = Math.max(0, Math.floor(Math.random() * maxY));
+          const moveBtn = (e) => {
+            if (e && e.cancelable) e.preventDefault(); // Klick/Touch abfangen
+            const maxX = Math.max(0, window.innerWidth - kombiBtn.offsetWidth - 20);
+            const maxY = Math.max(0, window.innerHeight - kombiBtn.offsetHeight - 20);
+            const randX = Math.max(10, Math.floor(Math.random() * maxX));
+            const randY = Math.max(10, Math.floor(Math.random() * maxY));
             kombiBtn.style.left = randX + 'px';
             kombiBtn.style.top = randY + 'px';
           };
           
           kombiBtn.addEventListener('mouseover', moveBtn);
+          kombiBtn.addEventListener('touchstart', moveBtn, {passive: false});
           moveBtn();
           
           setTimeout(() => {
             kombiBtn.removeEventListener('mouseover', moveBtn);
+            kombiBtn.removeEventListener('touchstart', moveBtn);
             kombiBtn.dataset.fleeing = '';
             kombiBtn.style.position = '';
             kombiBtn.style.zIndex = '';
             kombiBtn.style.left = '';
             kombiBtn.style.top = '';
+            kombiBtn.style.width = '';
+            kombiBtn.style.margin = '';
             kombiBtn.innerHTML = '📨 Senden';
             kombiTextarea.value = '';
+            if (originNextSibling) {
+              originParent.insertBefore(kombiBtn, originNextSibling);
+            } else {
+              originParent.appendChild(kombiBtn);
+            }
           }, 10000);
         }
       }
