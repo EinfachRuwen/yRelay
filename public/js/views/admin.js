@@ -21,6 +21,7 @@ const AdminView = {
                 <span class="nav-rolle">Administrator</span>
               </div>
             </div>
+            <button class="btn btn-ghost btn-klein" id="nutzer-panel-btn" title="Benutzerpanel">👤 Benutzer</button>
             <button class="btn btn-ghost btn-klein" id="admin-abmelden-btn">Abmelden</button>
           </div>
         </nav>
@@ -49,6 +50,10 @@ const AdminView = {
 
   async initialisieren(nutzer) {
     document.getElementById('admin-abmelden-btn')?.addEventListener('click', () => App.abmelden());
+
+    document.getElementById('nutzer-panel-btn')?.addEventListener('click', () => {
+      window.location.hash = '#dashboard';
+    });
 
     // Tab-Navigation
     document.querySelectorAll('.admin-tab').forEach(tab => {

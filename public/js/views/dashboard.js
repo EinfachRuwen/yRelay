@@ -19,6 +19,7 @@ const DashboardView = {
                 <span class="nav-rolle">Nutzer</span>
               </div>
             </div>
+            ${nutzer.rolle === 'admin' ? '<button class="btn btn-primaer btn-klein" id="admin-panel-btn" title="Admin Panel">🛠️ Admin</button>' : ''}
             <button class="btn btn-ghost btn-klein" id="profil-btn" title="Profil bearbeiten">👤</button>
             <button class="btn btn-ghost btn-klein" id="passwort-btn" title="Passwort ändern">🔒</button>
             <button class="btn btn-ghost btn-klein" id="abmelden-btn">Abmelden</button>
@@ -177,6 +178,10 @@ const DashboardView = {
     // Abmelden
     document.getElementById('abmelden-btn')?.addEventListener('click', () => {
       UI.ausloggen();
+    });
+
+    document.getElementById('admin-panel-btn')?.addEventListener('click', () => {
+      window.location.hash = '#admin';
     });
 
     document.getElementById('profil-btn')?.addEventListener('click', () => {
