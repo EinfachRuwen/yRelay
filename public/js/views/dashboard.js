@@ -397,9 +397,11 @@ const DashboardView = {
       const feld = document.getElementById('plan-datum-feld');
       feld.classList.toggle('versteckt');
       if (!feld.classList.contains('versteckt')) {
-        // Standardwert: in 1 Stunde
+        // Standardwert: in 1 Stunde (in lokaler Zeit für das Input-Feld)
         const in1h = new Date(Date.now() + 60 * 60 * 1000);
-        document.getElementById('plan-datum').value = in1h.toISOString().slice(0, 16);
+        const tzOffset = in1h.getTimezoneOffset() * 60000;
+        const localISOTime = new Date(in1h - tzOffset).toISOString().slice(0, 16);
+        document.getElementById('plan-datum').value = localISOTime;
       }
     });
     document.getElementById('plan-abbrechen')?.addEventListener('click', () => {
