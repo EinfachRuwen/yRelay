@@ -67,6 +67,10 @@ const API = {
     return this.anfrage('GET', '/auth/ich');
   },
 
+  async onboardingAbschliessen() {
+    return this.anfrage('PATCH', '/auth/onboarding');
+  },
+
   async passwortAendern(altesPasswort, neuesPasswort) {
     return this.anfrage('POST', '/auth/passwort-aendern', { altesPasswort, neuesPasswort });
   },

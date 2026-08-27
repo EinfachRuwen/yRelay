@@ -33,7 +33,8 @@ db.exec(`
     reset_token TEXT,
     reset_expires_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_login DATETIME
+    last_login DATETIME,
+    has_seen_onboarding INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS messages (
@@ -92,7 +93,8 @@ if (emailInfo && emailInfo.notnull === 1) {
       reset_token TEXT,
       reset_expires_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      last_login DATETIME
+      last_login DATETIME,
+      has_seen_onboarding INTEGER NOT NULL DEFAULT 0
     );
     INSERT INTO users_new (id, username, email, display_name, password_hash, role, is_active, invite_token, invite_expires_at, reset_token, reset_expires_at, created_at, last_login)
     SELECT id, username, email, display_name, password_hash, role, is_active, invite_token, invite_expires_at, reset_token, reset_expires_at, created_at, last_login
@@ -111,6 +113,9 @@ try {
 } catch (e) {}
 try {
   db.exec('ALTER TABLE users ADD COLUMN reset_expires_at DATETIME;');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE users ADD COLUMN has_seen_onboarding INTEGER NOT NULL DEFAULT 0;');
 } catch (e) {}
 try {
   // Nutzer-Gegenantworten auf Poke-Antworten (JSON-Array)

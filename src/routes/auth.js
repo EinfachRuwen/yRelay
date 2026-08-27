@@ -41,6 +41,7 @@ router.post('/login', (req, res) => {
       anzeigename: user.display_name,
       email: user.email,
       rolle: user.role,
+      has_seen_onboarding: user.has_seen_onboarding === 1,
     },
   });
 });
@@ -85,6 +86,7 @@ router.post('/einladung-annehmen', (req, res) => {
       benutzername: user.username,
       email: user.email,
       rolle: user.role,
+      has_seen_onboarding: user.has_seen_onboarding === 1,
     },
   });
 });
@@ -97,7 +99,14 @@ router.get('/ich', requireAuth, (req, res) => {
     anzeigename: req.user.display_name,
     email: req.user.email,
     rolle: req.user.role,
+    has_seen_onboarding: req.user.has_seen_onboarding === 1,
   });
+});
+
+// PATCH /api/auth/onboarding - Onboarding abschließen
+router.patch('/onboarding', requireAuth, (req, res) => {
+  db.prepare('UPDATE users SET has_seen_onboarding = 1 WHERE id = ?').run(req.user.id);
+  res.json({ nachricht: 'Onboarding abgeschlossen.' });
 });
 
 // PUT /api/auth/profil - Eigenes Profil aktualisieren

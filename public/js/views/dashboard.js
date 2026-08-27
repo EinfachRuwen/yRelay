@@ -4,8 +4,72 @@ const DashboardView = {
     const nameToDisplay = nutzer.anzeigename || nutzer.benutzername;
     const avatarBuchstabe = (nameToDisplay || 'U')[0].toUpperCase();
 
+    const onboardingHtml = !nutzer.has_seen_onboarding ? `
+      <div id="onboarding-overlay" class="onboarding-overlay">
+        <!-- Slide 1 -->
+        <div class="onboarding-slide aktiv" id="obs-1">
+          <div class="onboarding-icon">👋</div>
+          <div class="onboarding-titel">Dein direkter Draht zu Ruwen</div>
+          <div class="onboarding-text">
+            Willkommen in deiner persönlichen Einsatzzentrale. Das hier ist nicht einfach nur ein weiteres Chat-Programm – es ist eine absolute Garantie, dass du Ruwen erreichst, egal was passiert.
+          </div>
+          <div class="onboarding-actions">
+            <button class="btn btn-primaer btn-gross obs-next">Weiter geht's ➔</button>
+          </div>
+        </div>
+
+        <!-- Slide 2 -->
+        <div class="onboarding-slide" id="obs-2">
+          <div class="onboarding-icon">📞</div>
+          <div class="onboarding-titel">Besser als ein Anruf</div>
+          <div class="onboarding-text">
+            Wenn das Telefon klingelt, kann man es überhören. Das hier nicht.<br><br>
+            Wenn du hier eine Notfall-Nachricht schickst, passiert Magie im Hintergrund. Das System ist direkt mit Ruwens Wohnung verbunden. Es kann laute Alarme auf seinem Handy auslösen, smarte Beleuchtung einschalten oder den "Nicht stören"-Modus durchbrechen, um ihn sofort aufzuwecken.
+          </div>
+          <div class="onboarding-actions">
+            <button class="btn btn-sekundaer btn-gross obs-prev">Zurück</button>
+            <button class="btn btn-primaer btn-gross obs-next">Verstanden ➔</button>
+          </div>
+        </div>
+
+        <!-- Slide 3 -->
+        <div class="onboarding-slide" id="obs-3">
+          <div class="onboarding-icon">📅</div>
+          <div class="onboarding-titel">Nicht nur für brennende Häuser!</div>
+          <div class="onboarding-text">
+            Du musst nicht warten, bis die Welt untergeht. Das System hilft Ruwen auch, seinen Alltag zu organisieren. Du kannst hier jederzeit ganz normale Dinge schreiben, wie zum Beispiel:
+            <ul>
+              <li><em>"Hast du am Freitag Zeit für ein Bier?"</em> (Das System prüft seinen Kalender und trägt es ein!)</li>
+              <li><em>"Setze bitte Milch auf deine Einkaufsliste."</em></li>
+              <li><em>"Bitte ruf mich morgen um 10 Uhr an."</em></li>
+            </ul>
+            Trau dich ruhig, es auszuprobieren! Einmal alle paar Wochen ist völlig okay.
+          </div>
+          <div class="onboarding-actions">
+            <button class="btn btn-sekundaer btn-gross obs-prev">Zurück</button>
+            <button class="btn btn-primaer btn-gross obs-next">Klingt gut ➔</button>
+          </div>
+        </div>
+
+        <!-- Slide 4 -->
+        <div class="onboarding-slide" id="obs-4">
+          <div class="onboarding-icon">🚨</div>
+          <div class="onboarding-titel">Dein erster Test-Alarm</div>
+          <div class="onboarding-text">
+            Graue Theorie ist langweilig. Lass uns direkt ausprobieren, wie das funktioniert. Drücke auf den roten Knopf unten, um eine "Hallo Welt"-Testnachricht an Ruwen zu schicken.<br><br>
+            Keine Sorge, für Testnachrichten geht kein ohrenbetäubender Alarm los – er bekommt nur freundlich Bescheid!
+          </div>
+          <div class="onboarding-actions" style="flex-direction: column; align-items: center; gap: 16px;">
+            <button class="btn btn-notfall btn-gross" id="obs-test-btn" style="width: 100%; max-width: 300px; font-size: 18px;">Trockenübung starten 🚨</button>
+            <button class="btn btn-ghost" id="obs-skip-btn" style="font-size: 12px;">Überspringen</button>
+          </div>
+        </div>
+      </div>
+    ` : '';
+
     return `
-      <div class="seite haupt-seite">
+      ${onboardingHtml}
+      <div class="seite haupt-seite" ${!nutzer.has_seen_onboarding ? 'style="filter: blur(5px); pointer-events: none;" id="haupt-wrapper"' : ''}>
         <!-- Navigation -->
         <nav class="navbar">
           <span class="navbar-logo" id="header-logo" style="cursor: pointer; user-select: none;">
@@ -175,6 +239,83 @@ const DashboardView = {
   },
 
   async initialisieren(nutzer) {
+    // ─── Onboarding Logik ──────────────────────────────────────────────────
+    if (!nutzer.has_seen_onboarding) {
+      const slides = document.querySelectorAll('.onboarding-slide');
+      let currentSlide = 0;
+      
+      const updateSlides = () => {
+        slides.forEach((s, i) => {
+          if (i === currentSlide) s.classList.add('aktiv');
+          else s.classList.remove('aktiv');
+        });
+      };
+
+      document.querySelectorAll('.obs-next').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (currentSlide < slides.length - 1) {
+            currentSlide++;
+            updateSlides();
+          }
+        });
+      });
+
+      document.querySelectorAll('.obs-prev').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (currentSlide > 0) {
+            currentSlide--;
+            updateSlides();
+          }
+        });
+      });
+
+      const finishOnboarding = async (btn) => {
+        UI.btnLaden(btn, true);
+        try {
+          await API.onboardingAbschliessen();
+          nutzer.has_seen_onboarding = true; // Im Speicher aktualisieren
+          
+          // Konfetti laden, wenn nicht da
+          if (!window.confetti) {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+            script.onload = () => confetti({ particleCount: 200, spread: 120 });
+            document.body.appendChild(script);
+          } else {
+            confetti({ particleCount: 200, spread: 120 });
+          }
+
+          document.getElementById('onboarding-overlay').style.opacity = '0';
+          setTimeout(() => {
+            document.getElementById('onboarding-overlay').remove();
+            document.getElementById('haupt-wrapper').style.filter = '';
+            document.getElementById('haupt-wrapper').style.pointerEvents = '';
+          }, 500);
+        } catch(err) {
+          UI.fehler(err.message);
+          UI.btnLaden(btn, false);
+        }
+      };
+
+      document.getElementById('obs-test-btn')?.addEventListener('click', async (e) => {
+        const btn = e.target;
+        UI.btnLaden(btn, true);
+        try {
+          // Testnachricht senden
+          await API.nachrichtSenden('🤖 Dies ist eine automatische Hallo Welt Testnachricht vom Onboarding!');
+          await finishOnboarding(btn);
+          await this.verlaufLaden(); // Den neuen Verlauf laden
+        } catch(err) {
+          UI.fehler('Fehler beim Senden der Testnachricht: ' + err.message);
+          UI.btnLaden(btn, false);
+        }
+      });
+
+      document.getElementById('obs-skip-btn')?.addEventListener('click', (e) => {
+        finishOnboarding(e.target);
+      });
+    }
+
     // Abmelden
     document.getElementById('abmelden-btn')?.addEventListener('click', () => {
       UI.ausloggen();
