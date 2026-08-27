@@ -207,6 +207,38 @@ const UI = {
     }).join('');
   },
 
+  // ─── Spezielle Nachrichten rendern ─────────────────────────────────────
+  renderInhalt(text) {
+    let iconHtml = '';
+    const match = text.match(/^\[SPECIAL:([A-Z_]+)\]/);
+    if (match) {
+      // Poke-Hint entfernen für saubere Anzeige
+      text = text.replace(/^\[SPECIAL:[A-Z_]+\]\s*/, '').split('\n\nHinweis für Poke:')[0];
+      const type = match[1];
+      let icon = ''; let anim = '';
+      if (type === 'DOORBELL') { icon = '🚪'; anim = 'anim-doorbell'; }
+      else if (type === 'SOS') { icon = '🚨'; anim = 'anim-sos'; }
+      else if (type === 'DEADLINE') { icon = '⏱️'; anim = 'anim-deadline'; }
+      else if (type === 'WAKEUP') { icon = '😴'; anim = 'anim-wakeup'; }
+      else if (type === 'WHERE_ARE_YOU') { icon = '🕵️'; anim = 'anim-radar'; }
+      
+      if (icon) {
+        iconHtml = `<div class="special-icon ${anim}">${icon}</div>`;
+      }
+    }
+    
+    if (iconHtml) {
+      return `
+        <div style="display: flex; align-items: center; gap: 12px;">
+          ${iconHtml}
+          <div class="verlauf-inhalt" style="font-weight: 600; font-size: 16px; color: var(--farbe-text);">${this.escapeHtml(text)}</div>
+        </div>
+      `;
+    }
+    
+    return `<div class="verlauf-inhalt">${this.escapeHtml(text)}</div>`;
+  },
+
   // ─── Leere-Liste-Placeholder ──────────────────────────────────────────
   leereListeHtml(emoji, text) {
     return `

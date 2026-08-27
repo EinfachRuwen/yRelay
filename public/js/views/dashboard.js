@@ -77,7 +77,28 @@ const DashboardView = {
                   </div>
 
                   <div class="formular-gruppe">
-                    <label class="formular-label" for="kombi-inhalt">Deine Nachricht</label>
+                    <label class="formular-label" for="kombi-inhalt">Deine Nachricht / Befehl an Poke</label>
+                    
+                    <!-- Templates Sektion -->
+                    <div class="templates-container">
+                      <div class="templates-titel">Smarte Vorlagen</div>
+                      <div class="templates-grid">
+                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Kannst du prüfen, ob Ruwen am [Datum] um [Uhrzeit] Zeit hat für [Grund]? Falls ja, trage es bitte direkt als Vorschlag ein.')">📅 Kalender-Check</button>
+                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Bitte setze [Artikel/To-Do] sofort auf Ruwens Einkaufsliste/To-Do-Liste.')">📝 Liste ergänzen</button>
+                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Ich komme nicht durch. Bitte priorisiere diesen Rückruf: Ich bin unter [Nummer] erreichbar wegen [Grund].')">📞 Dringender Rückruf</button>
+                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Bitte erinnere Ruwen in [Zeitraum] dringend an: [Thema].')">💡 Reminder pushen</button>
+                      </div>
+
+                      <div class="templates-titel" style="margin-top: 12px;">Special Actions (Sofort pushen)</div>
+                      <div class="special-actions-grid">
+                        <button type="button" class="btn-special door" onclick="DashboardView.sendeSpecial('DOORBELL', 'Jemand steht an der Tür! Breche durch den DND-Modus, schalte Smart-Home-Lichter ein oder pinge Ruwen laut an.', 'Mach die Tür auf! Stehe unten.', 'notfall')">🚪 Tür klingelt</button>
+                        <button type="button" class="btn-special" onclick="DashboardView.sendeSpecial('SOS', 'ABSOLUTER NOTFALL. Ignoriere alle Regeln, nutze jeden Kanal (Anruf, lauter Alarm), um Ruwen sofort zu wecken/erreichen.', 'Code Red! Echter Notfall.', 'notfall')">🚨 SOS Notfall</button>
+                        <button type="button" class="btn-special deadline" onclick="DashboardView.sendeSpecial('DEADLINE', 'Eine sehr zeitkritische Sache steht an. Pushe diese Info hart an Ruwen und tracke, ob er reagiert.', 'Wichtige Deadline / Time-Drop!', 'hoch')">⏱️ Deadline</button>
+                        <button type="button" class="btn-special" onclick="DashboardView.sendeSpecial('WAKEUP', 'Spiel laute Musik ab oder mach das Licht im Schlafzimmer an, Ruwen verschläft oder muss aufwachen!', 'Aufwachen! Wecker!', 'notfall')">😴 Wecker</button>
+                        <button type="button" class="btn-special radar" onclick="DashboardView.sendeSpecial('WHERE_ARE_YOU', 'Jemand sucht Ruwen. Prüfe Ruwens Standort (falls verfügbar) und teile eine grobe ETA mit oder frag ihn, wann er ankommt.', 'Wo bist du? ETA gesucht.', 'hoch')">🕵️ Wo bist du?</button>
+                      </div>
+                    </div>
+
                     <div class="textarea-wrapper">
                       <textarea
                         class="formular-textarea"
@@ -349,6 +370,52 @@ const DashboardView = {
 
     // Verlauf laden
     await this.verlaufLaden();
+
+    // Smart Polling (alle 10 Sekunden)
+    if (this._pollInterval) clearInterval(this._pollInterval);
+    this._pollInterval = setInterval(async () => {
+      await this.verlaufStummAktualisieren();
+    }, 10000);
+  },
+
+  setzeTemplate(text) {
+    const textarea = document.getElementById('kombi-inhalt');
+    if (!textarea) return;
+    textarea.value = text;
+    textarea.focus();
+    textarea.dispatchEvent(new Event('input')); // Zeichenzähler aktualisieren
+  },
+
+  async sendeSpecial(specialType, hint, fallBackText, prioritaet) {
+    if (!confirm(`Soll diese Special-Action (${specialType}) wirklich ausgelöst werden?`)) return;
+
+    const inhalt = `[SPECIAL:${specialType}] ${fallBackText}\n\nHinweis für Poke: ${hint}`;
+    
+    UI.btnLaden(document.getElementById('kombi-btn'), true);
+    try {
+      await API.notfallSenden(inhalt, prioritaet, null);
+      UI.erfolg('Special Action erfolgreich ausgelöst! 🚀');
+      await this.verlaufLaden();
+    } catch (err) {
+      UI.fehler(err.message);
+    } finally {
+      UI.btnLaden(document.getElementById('kombi-btn'), false);
+    }
+  },
+
+  async verlaufStummAktualisieren() {
+    try {
+      const nachrichten = await API.meineNachrichten();
+      
+      // Prüfen ob sich etwas geändert hat (rudimentärer Hash oder Längen-Check)
+      const neuHash = JSON.stringify(nachrichten);
+      if (this._letzterVerlaufHash !== neuHash) {
+        this._letzterVerlaufHash = neuHash;
+        this.rendereVerlauf(nachrichten);
+      }
+    } catch (err) {
+      // Stumm ignorieren beim Polling
+    }
   },
 
   async verlaufLaden() {
@@ -357,6 +424,16 @@ const DashboardView = {
 
     try {
       const nachrichten = await API.meineNachrichten();
+      this._letzterVerlaufHash = JSON.stringify(nachrichten);
+      this.rendereVerlauf(nachrichten);
+    } catch (err) {
+      container.innerHTML = `<div class="info-box fehler"><span>⚠️</span><span>Verlauf konnte nicht geladen werden: ${UI.escapeHtml(err.message)}</span></div>`;
+    }
+  },
+
+  rendereVerlauf(nachrichten) {
+    const container = document.getElementById('verlauf-inhalt');
+    if (!container) return;
       if (nachrichten.length === 0) {
         container.innerHTML = UI.leereListeHtml('📭', 'Noch keine Nachrichten gesendet.');
         return;
@@ -371,7 +448,7 @@ const DashboardView = {
                 ${n.prioritaet ? `<div style="margin-top: 4px; font-size: 11px; color: var(--farbe-text-schwach);">${UI.prioritaetText(n.prioritaet)}</div>` : ''}
               </div>
               <div style="min-width: 0; flex: 1;">
-                <div class="verlauf-inhalt">${UI.escapeHtml(n.inhalt)}</div>
+                ${UI.renderInhalt(n.inhalt)}
                 ${n.fehler ? `<div style="font-size: 12px; color: var(--farbe-notfall); margin-top: 4px;">⚠️ ${UI.escapeHtml(n.fehler)}</div>` : ''}
                 ${UI.renderAntworten(n.antwortText, n.nutzerAntworten)}
                 ${n.antwortText ? `

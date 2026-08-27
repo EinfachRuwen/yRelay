@@ -457,7 +457,7 @@ const AdminView = {
                     </div>
                     <div>
                       <div class="verlauf-nutzer">👤 ${UI.escapeHtml(n.von.benutzername)} &lt;${UI.escapeHtml(n.von.email)}&gt;</div>
-                      <div class="verlauf-inhalt" style="margin-top: 4px;">${UI.escapeHtml(n.inhalt)}</div>
+                      <div style="margin-top: 6px;">${UI.renderInhalt(n.inhalt)}</div>
                       ${n.fehler ? `<div style="font-size: 12px; color: var(--farbe-notfall); margin-top: 4px;">⚠️ ${UI.escapeHtml(n.fehler)}</div>` : ''}
                       ${UI.renderAntworten(n.antwortText, n.nutzerAntworten)}
                     </div>
