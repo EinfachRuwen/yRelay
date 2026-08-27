@@ -460,6 +460,20 @@ const DashboardView = {
   },
 
   spieleSpecialEffekt(specialType) {
+    // 🎵 Sound abspielen (unabhängig von prefers-reduced-motion)
+    const soundMap = {
+      'DOORBELL': 'doorbell.mp3',
+      'SOS': 'sos.mp3',
+      'DEADLINE': 'deadline.mp3',
+      'WAKEUP': 'wakeup.mp3',
+      'WHERE_ARE_YOU': 'radar.mp3'
+    };
+    
+    if (soundMap[specialType]) {
+      const audio = new Audio(`/sounds/${soundMap[specialType]}`);
+      audio.play().catch(e => console.log('Audio Autoplay blockiert:', e));
+    }
+
     // Falls prefers-reduced-motion aktiv ist, machen wir nur ein kurzes Flackern oder nichts
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       document.body.style.transition = 'filter 0.2s';
