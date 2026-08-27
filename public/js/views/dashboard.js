@@ -527,12 +527,17 @@ const DashboardView = {
       const typ = document.querySelector('input[name="nachricht_typ"]:checked').value;
       if (!inhalt) { UI.fehler('Bitte eine Nachricht eingeben.'); return; }
       if (!sendAt) { UI.fehler('Bitte einen Sendezeitpunkt wählen.'); return; }
+      
+      const localDate = new Date(sendAt);
+      if (isNaN(localDate.getTime())) { UI.fehler('Ungültiges Datum.'); return; }
+      const utcSendAt = localDate.toISOString(); // Konvertiere lokale Browserzeit in UTC-String für den Server
+
       const btn = document.getElementById('plan-senden');
       UI.btnLaden(btn, true);
       try {
         const prio = typ !== 'standard' ? typ : null;
-        await API.nachrichtPlanen(inhalt, sendAt, prio);
-        const sendeZeit = new Date(sendAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        await API.nachrichtPlanen(inhalt, utcSendAt, prio);
+        const sendeZeit = localDate.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
         UI.erfolg(`Nachricht für ${sendeZeit} Uhr eingeplant! ⏰`);
         kombiTextarea.value = '';
         document.getElementById('plan-datum-feld').classList.add('versteckt');
@@ -679,9 +684,15 @@ const DashboardView = {
       return '';
     };
 
+    const sortierteNachrichten = [...nachrichten].sort((a, b) => {
+      if (a.gepinnt && !b.gepinnt) return -1;
+      if (!a.gepinnt && b.gepinnt) return 1;
+      return 0; // Behält die vorherige Reihenfolge (nach created_at) bei
+    });
+
     container.innerHTML = `
       <div class="verlauf-liste">
-        ${nachrichten.map(n => `
+        ${sortierteNachrichten.map(n => `
           <div class="verlauf-eintrag${n.gepinnt ? ' gepinnt' : ''}" id="eintrag-${n.id}">
             <div>
               ${gepinntBadge(n)}

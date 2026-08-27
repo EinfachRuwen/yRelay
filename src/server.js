@@ -132,8 +132,22 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'yrelay-geheimnis-bitt
   console.warn('⚠️  [yRelay] Bitte setze JWT_SECRET auf einen langen, zufälligen String in der docker-compose.yml!\n');
 }
 
+// Reminder-Service & Backup-Service starten
+starteReminderService();
+
+const { backupDatabase } = require('./services/backup');
+const DAILY_MS = 24 * 60 * 60 * 1000;
+setInterval(() => {
+  backupDatabase('daily')
+    .then(path => console.log(`[yRelay] Tägliches Backup erstellt: ${path}`))
+    .catch(err => console.error(`[yRelay] Fehler beim täglichen Backup:`, err));
+}, DAILY_MS);
+// Direkt beim Start auch einmal ein Backup ziehen (falls Server oft neustartet)
+backupDatabase('startup')
+  .then(path => console.log(`[yRelay] Startup-Backup erstellt: ${path}`))
+  .catch(err => console.error(`[yRelay] Fehler beim Startup-Backup:`, err));
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[yRelay] Server läuft auf Port ${PORT}`);
   console.log(`[yRelay] Dashboard: http://localhost:${PORT}`);
-  starteReminderService();
 });

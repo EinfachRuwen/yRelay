@@ -181,6 +181,19 @@ const API = {
     return this.anfrage('GET', '/admin/statistiken');
   },
 
+  // Admin - Backups
+  async adminBackupsLaden() {
+    return this.anfrage('GET', '/admin/backups');
+  },
+
+  async adminBackupErstellen() {
+    return this.anfrage('POST', '/admin/backups');
+  },
+
+  async adminBackupWiederherstellen(filename) {
+    return this.anfrage('POST', `/admin/backups/${filename}/restore`);
+  },
+
   // Admin - Notiz
   async adminNotizLaden() {
     return this.anfrage('GET', '/admin/notiz');

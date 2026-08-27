@@ -387,6 +387,8 @@ const AdminView = {
 
   async nutzerRendern(container) {
     const nutzer = await API.adminNutzerLaden();
+    let labels = [];
+    try { labels = await API.adminLabelsLaden(); } catch(e) {}
 
     container.innerHTML = `
       <div class="karte">
@@ -396,7 +398,11 @@ const AdminView = {
             <div class="karte-titel">Nutzer-Verwaltung</div>
             <div class="karte-untertitel">${nutzer.length} Nutzer insgesamt</div>
           </div>
-          <div style="display: flex; gap: 8px;">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <select id="nutzer-label-filter" class="formular-select" style="min-width: 150px; padding: 4px 8px; font-size: 13px;">
+              <option value="all">Alle Labels</option>
+              ${labels.map(l => `<option value="${l.id}">${UI.escapeHtml(l.name)}</option>`).join('')}
+            </select>
             <button class="btn btn-sekundaer btn-klein" id="nutzer-einladen-btn">✉️ Einladen</button>
             <button class="btn btn-primaer btn-klein" id="nutzer-erstellen-btn">+ Erstellen</button>
           </div>
@@ -418,7 +424,7 @@ const AdminView = {
                   </thead>
                   <tbody>
                     ${nutzer.map(n => `
-                      <tr>
+                      <tr class="nutzer-zeile" data-label-ids="${n.labelIds.join(',')}">
                         <td>
                           <strong>${UI.escapeHtml(n.anzeigename || n.benutzername)}</strong>
                           ${n.anzeigename ? `<span style="font-size: 12px; color: var(--farbe-text-gedaempft); margin-left: 6px;">@${UI.escapeHtml(n.benutzername)}</span>` : ''}
@@ -493,6 +499,18 @@ const AdminView = {
         </div>
       </div>
     `;
+
+    document.getElementById('nutzer-label-filter')?.addEventListener('change', (e) => {
+      const selected = e.target.value;
+      document.querySelectorAll('.nutzer-zeile').forEach(row => {
+        if (selected === 'all') {
+          row.style.display = '';
+        } else {
+          const ids = row.dataset.labelIds.split(',').filter(Boolean);
+          row.style.display = ids.includes(selected) ? '' : 'none';
+        }
+      });
+    });
 
     document.getElementById('nutzer-erstellen-btn')?.addEventListener('click', () => {
       this.nutzerErstellenModal();
@@ -898,6 +916,8 @@ const AdminView = {
 
   async einstellungenRendern(container) {
     const einstellungen = await API.adminEinstellungenLaden();
+    let backups = [];
+    try { backups = await API.adminBackupsLaden(); } catch(e) {}
 
     container.innerHTML = `
       <div class="karte">
@@ -973,6 +993,50 @@ const AdminView = {
           </form>
         </div>
       </div>
+
+      <!-- Backup Verwaltung -->
+      <div class="karte" style="margin-top: 20px;">
+        <div class="karte-header">
+          <div class="karte-icon karte-icon-warnung">🛡️</div>
+          <div style="flex: 1;">
+            <div class="karte-titel">Backups (Sicherungen)</div>
+            <div class="karte-untertitel">Datenbank-Backups verwalten und wiederherstellen</div>
+          </div>
+          <div>
+            <button class="btn btn-primaer btn-klein" id="backup-erstellen-btn">Backup jetzt erstellen</button>
+          </div>
+        </div>
+        <div class="karte-koerper">
+          ${backups.length === 0 ? UI.leereListeHtml('🛡️', 'Noch keine Backups vorhanden.') : `
+            <div class="tabelle-container">
+              <table class="tabelle">
+                <thead>
+                  <tr>
+                    <th>Dateiname</th>
+                    <th>Datum</th>
+                    <th>Größe</th>
+                    <th>Aktion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${backups.map(b => `
+                    <tr>
+                      <td><strong>${UI.escapeHtml(b.filename)}</strong></td>
+                      <td>${new Date(b.createdAt).toLocaleString('de-DE')}</td>
+                      <td>${(b.sizeBytes / 1024).toFixed(2)} KB</td>
+                      <td>
+                        <button class="btn btn-gefahr btn-klein backup-restore-btn" data-file="${UI.escapeHtml(b.filename)}">
+                          Wiederherstellen
+                        </button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `}
+        </div>
+      </div>
     `;
 
     // SMTP-Test
@@ -1018,6 +1082,47 @@ const AdminView = {
       } finally {
         UI.btnLaden(btn, false);
       }
+    });
+
+    // Backup erstellen
+    document.getElementById('backup-erstellen-btn')?.addEventListener('click', async (e) => {
+      const btn = e.target;
+      UI.btnLaden(btn, true);
+      try {
+        await API.adminBackupErstellen();
+        UI.erfolg('Backup erfolgreich erstellt!');
+        await this.tabLaden('einstellungen'); // Reload view
+      } catch (err) {
+        UI.fehler(err.message);
+      } finally {
+        UI.btnLaden(btn, false);
+      }
+    });
+
+    // Backup wiederherstellen
+    document.querySelectorAll('.backup-restore-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const file = e.target.dataset.file;
+        if (!confirm(`WARNUNG: Möchtest du das Backup '${file}' wirklich wiederherstellen? Alle aktuellen Daten werden überschrieben!`)) return;
+        
+        UI.btnLaden(e.target, true);
+        try {
+          await API.adminBackupWiederherstellen(file);
+          UI.modalZeigen(`
+            <div class="modal-header">
+              <span class="modal-titel">✅ Wiederherstellung erfolgreich</span>
+            </div>
+            <div class="modal-koerper">
+              <p>Das Backup wurde erfolgreich eingespielt. Der Server startet jetzt neu.</p>
+              <p>Die Seite wird in wenigen Sekunden neu geladen...</p>
+            </div>
+          `);
+          setTimeout(() => window.location.reload(), 3000);
+        } catch (err) {
+          UI.fehler(err.message);
+          UI.btnLaden(e.target, false);
+        }
+      });
     });
   },
 };

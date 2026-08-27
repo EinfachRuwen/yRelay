@@ -16,10 +16,11 @@ router.use(requireAdmin);
 // GET /api/admin/nutzer - Alle Nutzer auflisten
 router.get('/nutzer', (req, res) => {
   const nutzer = db.prepare(`
-    SELECT id, username, email, display_name, role, is_active, invite_token,
-           created_at, last_login
-    FROM users
-    ORDER BY created_at DESC
+    SELECT u.id, u.username, u.email, u.display_name, u.role, u.is_active, u.invite_token,
+           u.created_at, u.last_login,
+           (SELECT group_concat(label_id) FROM nutzer_labels WHERE nutzer_id = u.id) as label_ids
+    FROM users u
+    ORDER BY u.created_at DESC
   `).all();
 
   res.json(nutzer.map(n => ({
@@ -32,6 +33,7 @@ router.get('/nutzer', (req, res) => {
     hatEinladungAusstehend: !!n.invite_token && !n.last_login,
     erstelltAm: n.created_at,
     letzterLogin: n.last_login,
+    labelIds: n.label_ids ? n.label_ids.split(',').map(Number) : [],
   })));
 });
 
@@ -280,6 +282,42 @@ router.get('/nachrichten', (req, res) => {
   })));
 });
 
+// ─── Backups ────────────────────────────────────────────────────────────────
+const { backupDatabase, listBackups, restoreBackup } = require('../services/backup');
+
+// GET /api/admin/backups - Liste aller Backups
+router.get('/backups', (req, res) => {
+  try {
+    const backups = listBackups();
+    res.json(backups);
+  } catch (err) {
+    res.status(500).json({ fehler: 'Fehler beim Laden der Backups: ' + err.message });
+  }
+});
+
+// POST /api/admin/backups - Manuelles Backup erstellen
+router.post('/backups', async (req, res) => {
+  try {
+    await backupDatabase('manual');
+    res.json({ nachricht: 'Backup erfolgreich erstellt.' });
+  } catch (err) {
+    res.status(500).json({ fehler: 'Fehler beim Erstellen des Backups: ' + err.message });
+  }
+});
+
+// POST /api/admin/backups/:filename/restore - Backup wiederherstellen
+router.post('/backups/:filename/restore', (req, res) => {
+  const { filename } = req.params;
+  try {
+    restoreBackup(filename);
+    res.json({ nachricht: 'Backup erfolgreich wiederhergestellt. Der Server muss möglicherweise neu gestartet werden.' });
+    // Beende den Prozess kurz nach der Antwort, damit der Prozess-Manager (npm, docker etc.) ihn mit der alten DB neu startet.
+    setTimeout(() => process.exit(0), 1000);
+  } catch (err) {
+    res.status(500).json({ fehler: 'Fehler bei der Wiederherstellung: ' + err.message });
+  }
+});
+
 // ─── Einstellungen ──────────────────────────────────────────────────────────
 
 // GET /api/admin/einstellungen - Einstellungen abrufen
@@ -435,10 +473,10 @@ router.post('/broadcast', async (req, res) => {
     nutzer = db.prepare(`
       SELECT u.username, u.email FROM users u
       JOIN nutzer_labels nl ON u.id = nl.nutzer_id
-      WHERE nl.label_id = ? AND u.is_active = 1 AND u.role = 'user'
+      WHERE nl.label_id = ? AND u.is_active = 1 AND u.role = 'user' AND u.email IS NOT NULL
     `).all(labelId);
   } else {
-    nutzer = db.prepare(`SELECT username, email FROM users WHERE is_active = 1 AND role = 'user'`).all();
+    nutzer = db.prepare(`SELECT username, email FROM users WHERE is_active = 1 AND role = 'user' AND email IS NOT NULL`).all();
   }
 
   if (nutzer.length === 0) return res.json({ nachricht: 'Keine Empfänger gefunden.', gesendet: 0 });

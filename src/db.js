@@ -67,6 +67,17 @@ try {
 const emailInfo = db.prepare("PRAGMA table_info(users)").all().find(c => c.name === 'email');
 if (emailInfo && emailInfo.notnull === 1) {
   console.log('[yRelay] Führe Datenbank-Migration durch: E-Mail optional machen...');
+  
+  // 🚨 Pre-Migration Backup (Synchron)
+  const backupDir = path.join(dbDir, 'backups');
+  if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+  const backupPath = path.join(backupDir, 'pre_migration_' + Date.now() + '.db');
+  fs.copyFileSync(DB_PATH, backupPath);
+  console.log('[yRelay] Sicherheits-Backup vor Migration erstellt:', backupPath);
+
+  // Fremdschlüssel-Prüfungen deaktivieren, um CASCADE-Deletes (wie bei Nachrichten) zu verhindern!
+  db.pragma('foreign_keys = OFF');
+  
   db.exec(`
     CREATE TABLE users_new (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,6 +101,8 @@ if (emailInfo && emailInfo.notnull === 1) {
     DROP TABLE users;
     ALTER TABLE users_new RENAME TO users;
   `);
+
+  db.pragma('foreign_keys = ON'); // Wieder aktivieren
   console.log('[yRelay] Migration abgeschlossen.');
 }
 
