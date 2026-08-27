@@ -228,11 +228,7 @@ ${a.text}`),
 ${a.text}`),
     `NEUE ANTWORT VON ${req.user.username}:
 ${inhalt.trim()}`,
-  ].join('
-
----
-
-');
+  ].join('\n\n---\n\n');
 
   const appUrl = require('../db').getSetting('app_url') || 'http://localhost:3000';
   const antwortLink = `${appUrl}/api/webhooks/poke-reply/${nachricht.id}/${nachricht.reply_token}`;
