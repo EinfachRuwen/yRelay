@@ -373,14 +373,7 @@ const DashboardView = {
               <div>
                 <div class="verlauf-inhalt">${UI.escapeHtml(n.inhalt)}</div>
                 ${n.fehler ? `<div style="font-size: 12px; color: var(--farbe-notfall); margin-top: 4px;">⚠️ ${UI.escapeHtml(n.fehler)}</div>` : ''}
-                ${n.antwortText ? `
-                  <div style="margin-top: 12px; padding: 12px 16px; background: rgba(6, 182, 212, 0.08); border-left: 3px solid var(--farbe-akzent); border-radius: 4px;">
-                    <div style="font-size: 11px; color: var(--farbe-akzent); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-                      <span style="font-size: 14px;">🤖</span> Poke hat geantwortet (${UI.datumFormatieren(n.antwortDatum)}):
-                    </div>
-                    <div style="font-size: 13px; color: var(--farbe-text); line-height: 1.5; white-space: pre-wrap;">${UI.escapeHtml(n.antwortText)}</div>
-                  </div>
-                ` : ''}
+                ${UI.renderAntworten(n.antwortText)}
               </div>
               <div style="text-align: right;">
                 <div class="verlauf-datum">${UI.datumFormatieren(n.gesendetAm)}</div>

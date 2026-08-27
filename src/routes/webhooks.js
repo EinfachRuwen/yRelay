@@ -4,6 +4,18 @@ const { sendeAntwortMail } = require('../services/email');
 
 const router = express.Router();
 
+// Hilfsfunktion: reply_content als Array lesen (rückwärtskompatibel)
+function leseAntworten(replyContent) {
+  if (!replyContent) return [];
+  try {
+    const parsed = JSON.parse(replyContent);
+    return Array.isArray(parsed) ? parsed : [{ text: replyContent, time: null }];
+  } catch {
+    // Legacy: plain text aus alter Version
+    return [{ text: replyContent, time: null }];
+  }
+}
+
 // POST /api/webhooks/poke-reply/:id/:token
 router.post('/poke-reply/:id/:token', (req, res) => {
   const { id, token } = req.params;
@@ -15,7 +27,7 @@ router.post('/poke-reply/:id/:token', (req, res) => {
 
   // Nachricht prüfen und zugehörige Nutzer-Daten holen
   const msg = db.prepare(`
-    SELECT m.id, m.content, u.email, u.username
+    SELECT m.id, m.content, m.reply_content, u.email, u.username
     FROM messages m
     JOIN users u ON m.user_id = u.id
     WHERE m.id = ? AND m.reply_token = ?
@@ -25,16 +37,25 @@ router.post('/poke-reply/:id/:token', (req, res) => {
     return res.status(404).json({ fehler: 'Nachricht nicht gefunden oder Token ungültig.' });
   }
 
-  // Antwort speichern
+  // Bestehende Antworten laden und neue anhängen
+  const bestehendeAntworten = leseAntworten(msg.reply_content);
+  const istErstantwort = bestehendeAntworten.length === 0;
+
+  bestehendeAntworten.push({
+    text: message,
+    time: new Date().toISOString(),
+  });
+
+  // Als JSON speichern
   db.prepare(`
     UPDATE messages 
     SET reply_content = ?, replied_at = CURRENT_TIMESTAMP 
     WHERE id = ?
-  `).run(message, id);
+  `).run(JSON.stringify(bestehendeAntworten), id);
 
   // E-Mail-Benachrichtigung senden (asynchron im Hintergrund)
   if (msg.email) {
-    sendeAntwortMail(msg.email, msg.username, msg.content, message).catch(err => {
+    sendeAntwortMail(msg.email, msg.username, msg.content, message, !istErstantwort).catch(err => {
       console.error('[yRelay] Fehler beim Senden der Antwort-Mail:', err);
     });
   }

@@ -143,11 +143,40 @@ const UI = {
     return '<span class="verlauf-typ-badge frei">💬 Nachricht</span>';
   },
 
-  // ─── Priorität-Text ───────────────────────────────────────────────────
+  // ─── Priorität-Text ────────────────────────────────────────────
   prioritaetText(prioritaet) {
     if (prioritaet === 'notfall') return '🚨 Notfall';
     if (prioritaet === 'hoch') return '⚠️ Hohe Priorität';
     return '-';
+  },
+
+  // ─── Poke-Antworten rendern (mehrere möglich) ────────────────────────
+  renderAntworten(replyContent) {
+    if (!replyContent) return '';
+
+    // Rückwärtskompatibel: JSON-Array oder Plain-Text
+    let antworten = [];
+    try {
+      const parsed = JSON.parse(replyContent);
+      antworten = Array.isArray(parsed) ? parsed : [{ text: replyContent, time: null }];
+    } catch {
+      antworten = [{ text: replyContent, time: null }];
+    }
+
+    const gesamt = antworten.length;
+    return antworten.map((a, i) => {
+      const label = gesamt > 1
+        ? `🤖 Poke – Antwort ${i + 1} von ${gesamt} ${a.time ? `(${this.datumFormatieren(a.time)})` : ''}`
+        : `🤖 Poke hat geantwortet${a.time ? ` (${this.datumFormatieren(a.time)})` : ''}`;
+      return `
+        <div style="margin-top: ${i > 0 ? '8px' : '12px'}; padding: 12px 16px; background: rgba(6, 182, 212, 0.08); border-left: 3px solid var(--farbe-akzent); border-radius: 4px;">
+          <div style="font-size: 11px; color: var(--farbe-akzent); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            ${this.escapeHtml(label)}
+          </div>
+          <div style="font-size: 13px; color: var(--farbe-text); line-height: 1.5; white-space: pre-wrap;">${this.escapeHtml(a.text)}</div>
+        </div>
+      `;
+    }).join('');
   },
 
   // ─── Leere-Liste-Placeholder ──────────────────────────────────────────

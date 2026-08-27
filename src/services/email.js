@@ -132,26 +132,36 @@ async function testeSMTP() {
  * @param {string} empfaengerEmail - E-Mail des Nutzers
  * @param {string} empfaengerName - Name des Nutzers
  * @param {string} originalNachricht - Der ursprüngliche Text
- * @param {string} antwortText - Pokes Antwort
+ * @param {string} antwortText - Pokes neue Antwort
+ * @param {boolean} istFolgeantwort - Ist dies eine Folgeantwort?
  */
-async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachricht, antwortText) {
+async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachricht, antwortText, istFolgeantwort = false) {
   const transporter = erstelleTransporter();
   if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
 
   const absender = getSetting('smtp_from') || getSetting('smtp_user');
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
 
+  const subject = istFolgeantwort
+    ? 'Poke hat nochmal geantwortet 🤖'
+    : 'Poke hat auf deine Nachricht geantwortet 🤖';
+  const headline = istFolgeantwort ? 'Weitere Antwort von Poke' : 'Neue Antwort';
+  const headerGradient = istFolgeantwort
+    ? 'rgba(139, 92, 246, 0.2), rgba(99, 102, 241, 0.1)'
+    : 'rgba(6, 182, 212, 0.2), rgba(56, 189, 248, 0.1)';
+  const headerTextGradient = istFolgeantwort ? '#8b5cf6, #6366f1' : '#06b6d4, #38bdf8';
+
   const mailOptionen = {
     from: `"yRelay" <${absender}>`,
     to: empfaengerEmail,
-    subject: 'Poke hat auf deine Nachricht geantwortet 🤖',
+    subject,
     html: `
 <!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Poke hat geantwortet</title>
+  <title>${subject}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#0f172a;font-family:'Segoe UI',Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f172a;padding:40px 20px;">
@@ -159,8 +169,8 @@ async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachric
       <td align="center">
         <table width="560" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid rgba(99,102,241,0.3);border-radius:16px;overflow:hidden;">
           <tr>
-            <td style="padding:32px 40px;text-align:center;background:linear-gradient(135deg,rgba(6,182,212,0.2),rgba(56,189,248,0.1));">
-              <h1 style="margin:0;font-size:28px;font-weight:800;background:linear-gradient(135deg,#06b6d4,#38bdf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px;">Neue Antwort</h1>
+            <td style="padding:32px 40px;text-align:center;background:linear-gradient(135deg,${headerGradient});">
+              <h1 style="margin:0;font-size:28px;font-weight:800;background:linear-gradient(135deg,${headerTextGradient});-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px;">${headline}</h1>
               <p style="margin:8px 0 0;color:#94a3b8;font-size:14px;">Poke hat auf deine Nachricht geantwortet</p>
             </td>
           </tr>

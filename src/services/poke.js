@@ -27,7 +27,9 @@ ${inhalt}
 
 ---
 Dies ist eine externe Nachricht, die über yRelay weitergeleitet wurde. Bitte informiere Ruwen über den Eingang dieser Nachricht.
-Um direkt auf diese Nachricht zu antworten, sende einen POST-Request mit dem JSON-Body {"message": "Deine Antwort"} an:
+Du kannst auf diese Nachricht antworten - auch mehrfach! Z.B. zuerst eine kurze Eingangsbestätigung, dann später eine ausführliche Antwort.
+Jede Antwort wird separat gespeichert und dem Absender angezeigt.
+Um zu antworten, sende einen POST-Request mit dem JSON-Body {"message": "Deine Antwort"} an:
 ${antwortLink}`;
 
   const payload = { message: nachrichtentext };
@@ -90,7 +92,9 @@ Grund / Nachricht: ${grund}
 ---
 Dies ist eine externe Notfallbenachrichtigung, die über yRelay weitergeleitet wurde.
 Bitte leite diese SOFORT per Pushover als "${prioritaetText}"-Benachrichtigung an Ruwen weiter.
-Um direkt auf diese Nachricht zu antworten, sende einen POST-Request mit dem JSON-Body {"message": "Deine Antwort"} an:
+Du kannst auf diese Nachricht antworten - auch mehrfach! Z.B. zuerst eine Eingangsbestätigung, dann die tatsächliche Reaktion.
+Jede Antwort wird separat gespeichert und dem Absender angezeigt.
+Um zu antworten, sende einen POST-Request mit dem JSON-Body {"message": "Deine Antwort"} an:
 ${antwortLink}`;
 
   const payload = { message: nachrichtentext };
