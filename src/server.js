@@ -56,7 +56,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Statische Dateien (Frontend)
-app.use(express.static(path.join(__dirname, '../public')));
+// index: false, damit wir index.html unten manuell mit Cache-Buster ausliefern können
+app.use(express.static(path.join(__dirname, '../public'), { index: false }));
 
 // ─── API-Routes ──────────────────────────────────────────────────────────────
 
@@ -75,10 +76,31 @@ app.get('/api/gesundheit', (req, res) => {
   });
 });
 
-// ─── SPA-Fallback ────────────────────────────────────────────────────────────
+// ─── SPA-Fallback & Cache-Busting ────────────────────────────────────────────
 // Alle anderen Anfragen an index.html weiterleiten (für Client-seitiges Routing)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+const START_TIME = Date.now();
+const fs = require('fs');
+let indexHtmlCache = null;
+
+app.get('*', (req, res, next) => {
+  // Für API-Routen Fehler werfen (404), statt HTML zu senden
+  if (req.path.startsWith('/api/')) return next();
+
+  if (!indexHtmlCache) {
+    const indexPath = path.join(__dirname, '../public/index.html');
+    try {
+      let html = fs.readFileSync(indexPath, 'utf-8');
+      // Cache-Buster an alle lokalen .js und .css Dateien anhängen
+      html = html.replace(/src="([^"]+\.js)"/g, `src="$1?v=${START_TIME}"`);
+      html = html.replace(/href="([^"]+\.css)"/g, `href="$1?v=${START_TIME}"`);
+      indexHtmlCache = html;
+    } catch (err) {
+      console.error('[yRelay] Fehler beim Lesen von index.html', err);
+      return res.status(500).send('Interner Serverfehler.');
+    }
+  }
+  
+  res.send(indexHtmlCache);
 });
 
 // ─── Fehlerbehandlung ─────────────────────────────────────────────────────────
