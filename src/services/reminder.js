@@ -73,9 +73,45 @@ async function pruefe() {
           WHERE id = ?
         `).run(ergebnis.payload, ergebnis.erfolg ? 'gesendet' : 'fehlgeschlagen', ergebnis.fehler || null, msg.id);
         console.log(`[yRelay Reminder] Geplante Nachricht ${msg.id}: ${ergebnis.erfolg ? 'gesendet' : 'fehlgeschlagen'}`);
+
+        // 🔔 Benachrichtigung senden
+        const { sendePushUndMail } = require('./notify');
+        const userDaten = db.prepare('SELECT email, username, ntfy_topic FROM users WHERE id = ?').get(msg.user_id);
+        
+        if (ergebnis.erfolg) {
+          sendePushUndMail(userDaten, {
+            betreff: 'Geplante Nachricht versendet ⏰',
+            inhalt: `Deine geplante Nachricht wurde soeben erfolgreich an Poke weitergeleitet.<br><br><em>"${msg.content}"</em>`,
+            icon: '⏰',
+            farbe: '#10b981, #059669',
+            ntfyTags: ['alarm_clock', 'white_check_mark']
+          }).catch(err => console.error('[yRelay] Fehler bei Benachrichtigung (Erfolg geplant):', err));
+        } else {
+          sendePushUndMail(userDaten, {
+            betreff: 'Fehler bei geplanter Nachricht 🚨',
+            inhalt: `Deine geplante Nachricht konnte leider <strong>nicht</strong> an Poke gesendet werden.<br><br><strong>Fehler:</strong> ${ergebnis.fehler}<br><em>"${msg.content}"</em>`,
+            icon: '🚨',
+            farbe: '#ef4444, #b91c1c',
+            ntfyTags: ['warning', 'x'],
+            ntfyPriority: 4
+          }).catch(err => console.error('[yRelay] Fehler bei Benachrichtigung (Fehler geplant):', err));
+        }
+
       } catch (err) {
         db.prepare("UPDATE messages SET status = 'fehlgeschlagen', error_message = ? WHERE id = ?").run(err.message, msg.id);
         console.error(`[yRelay Reminder] Fehler bei gepl. Nachricht ${msg.id}:`, err.message);
+
+        // 🔔 Benachrichtigung senden (Catch-Block)
+        const { sendePushUndMail } = require('./notify');
+        const userDaten = db.prepare('SELECT email, username, ntfy_topic FROM users WHERE id = ?').get(msg.user_id);
+        sendePushUndMail(userDaten, {
+          betreff: 'Fehler bei geplanter Nachricht 🚨',
+          inhalt: `Deine geplante Nachricht konnte aufgrund eines internen Fehlers <strong>nicht</strong> gesendet werden.<br><br><strong>Fehler:</strong> ${err.message}`,
+          icon: '🚨',
+          farbe: '#ef4444, #b91c1c',
+          ntfyTags: ['warning', 'boom'],
+          ntfyPriority: 4
+        }).catch(err => console.error('[yRelay] Fehler bei Benachrichtigung (Catch geplant):', err));
       }
     }
     // Nachrichten holen, die:

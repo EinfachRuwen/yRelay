@@ -452,13 +452,55 @@ async function sendeRueckfrageMail(empfaengerEmail, empfaengerName, originalNach
   }
 }
 
-module.exports = { 
-  sendeEinladungsmail, 
-  testeSMTP, 
-  sendeAntwortMail, 
-  sendePasswortResetMail, 
-  sendeKontoGesperrtMail, 
-  sendeKontoAktiviertMail, 
-  sendeAusstehendeAntwortMail,
-  sendeRueckfrageMail 
+/**
+ * Versendet eine universelle Systembenachrichtigung (E-Mail).
+ */
+async function sendeSystemBenachrichtigung(empfaengerEmail, empfaengerName, betreff, inhalt, icon = 'ℹ️', gradientFarben = '#6366f1, #8b5cf6', ctaUrl = null, ctaText = 'Öffnen') {
+  const transporter = erstelleTransporter();
+  if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
+
+  const absender = getSetting('smtp_from') || getSetting('smtp_user');
+
+  let ctaHtml = '';
+  if (ctaUrl) {
+    ctaHtml = `
+      <div style="text-align:center;margin: 28px 0;">
+        <a href="${ctaUrl}" style="display:inline-block;padding:12px 28px;background:linear-gradient(135deg,${gradientFarben});color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.3);">${ctaText}</a>
+      </div>
+    `;
+  }
+
+  const body = `
+    <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#f1f5f9;">Hallo ${empfaengerName},</p>
+    <div style="color:#94a3b8;font-size:15px;line-height:1.7;">
+      ${inhalt}
+    </div>
+    ${ctaHtml}
+  `;
+
+  const mailOptionen = {
+    from: `"yRelay" <${absender}>`,
+    to: empfaengerEmail,
+    subject: betreff,
+    html: emailTemplate(icon, betreff, 'System-Benachrichtigung', gradientFarben, body),
+  };
+
+  try {
+    await transporter.sendMail(mailOptionen);
+    return { erfolg: true };
+  } catch (err) {
+    console.error('[yRelay] E-Mail-Fehler (SystemBenachrichtigung):', err.message);
+    return { erfolg: false, fehler: err.message };
+  }
+}
+
+module.exports = {
+  sendeEinladungsmail,
+  sendePasswortResetMail,
+  sendeKontoGesperrtMail,
+  sendeKontoAktiviertMail,
+  sendeAntwortMail,
+  sendeRueckfrageMail,
+  sendeSystemBenachrichtigung,
+  testeSMTP,
 };

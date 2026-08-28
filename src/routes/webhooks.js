@@ -106,7 +106,10 @@ router.post('/poke-action/:id/:token', (req, res) => {
   if (!action) return res.status(400).json({ fehler: 'Feld "action" fehlt.' });
 
   const msg = db.prepare(`
-    SELECT id FROM messages WHERE id = ? AND reply_token = ?
+    SELECT m.id, m.content, u.email, u.username, u.ntfy_topic 
+    FROM messages m
+    JOIN users u ON m.user_id = u.id
+    WHERE m.id = ? AND m.reply_token = ?
   `).get(id, token);
 
   if (!msg) return res.status(404).json({ fehler: 'Nachricht nicht gefunden oder Token ungültig.' });
@@ -123,6 +126,42 @@ router.post('/poke-action/:id/:token', (req, res) => {
   } else {
     db.prepare('UPDATE messages SET status_label = ?, status_label_notiz = ? WHERE id = ?')
       .run(action, notiz || null, id);
+      
+    // Benachrichtigung senden, wenn der Status geändert wird
+    const { sendePushUndMail } = require('../services/notify');
+    
+    let titel = '';
+    let emoji = 'ℹ️';
+    let farbe = '#6366f1, #8b5cf6';
+    let tags = ['information_source'];
+    
+    if (action === 'erledigt') {
+      titel = 'Aufgabe erledigt ✅';
+      emoji = '✅';
+      farbe = '#10b981, #059669'; // Gruen
+      tags = ['white_check_mark'];
+    } else if (action === 'in_bearbeitung') {
+      titel = 'Aufgabe in Bearbeitung ⏳';
+      emoji = '⏳';
+      farbe = '#f59e0b, #d97706'; // Orange
+      tags = ['hourglass'];
+    } else if (action === 'offen') {
+      titel = 'Aufgabe wieder offen 📝';
+      emoji = '📝';
+      tags = ['memo'];
+    }
+
+    const inhaltHTML = `Poke hat den Status deiner Nachricht auf <strong>${action}</strong> gesetzt.<br><br>
+    <em>Deine Nachricht: "${msg.content.substring(0, 100)}${msg.content.length > 100 ? '...' : ''}"</em>
+    ${notiz ? `<br><br><strong>Notiz von Poke:</strong> ${notiz}` : ''}`;
+
+    sendePushUndMail(msg, {
+      betreff: `Poke Status-Update: ${titel}`,
+      inhalt: inhaltHTML,
+      icon: emoji,
+      farbe: farbe,
+      ntfyTags: tags
+    }).catch(err => console.error('[yRelay] Fehler beim Status-Push:', err));
   }
 
   console.log(`[yRelay] Poke hat Nachricht ${id} mit Action "${action}" markiert.`);

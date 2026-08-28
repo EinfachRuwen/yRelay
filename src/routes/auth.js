@@ -77,6 +77,21 @@ router.post('/einladung-annehmen', (req, res) => {
     WHERE id = ?
   `).run(passwortHash, user.id);
 
+  // Admin-Benachrichtigung: Alle Admins laden und informieren
+  const { sendePushUndMail } = require('../services/notify');
+  const admins = db.prepare(`SELECT id, username, email, ntfy_topic FROM users WHERE role = 'admin' AND is_active = 1`).all();
+  
+  const inhalt = `Der Nutzer <strong>${user.username}</strong> (${user.email || 'keine E-Mail'}) hat soeben seine Einladung angenommen und das Konto aktiviert.`;
+  
+  for (const admin of admins) {
+    sendePushUndMail(admin, {
+      betreff: 'Neuer Nutzer registriert 👤',
+      inhalt: inhalt,
+      icon: '👤',
+      ntfyTags: ['bust_in_silhouette', 'tada']
+    }).catch(err => console.error('[yRelay] Fehler bei Admin-Benachrichtigung:', err));
+  }
+
   const authToken = createToken(user.id);
   res.json({
     nachricht: 'Konto erfolgreich aktiviert. Willkommen bei yRelay!',
