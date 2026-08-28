@@ -851,7 +851,7 @@ const DashboardView = {
               ${n.statusLabelNotiz ? `<div style="margin-top: 4px; font-size: 12px; color: var(--farbe-text-gedaempft); font-style: italic;">🤖 Poke: ${UI.escapeHtml(n.statusLabelNotiz)}</div>` : ''}
               ${n.fehler ? `<div style="font-size: 12px; color: var(--farbe-notfall); margin-top: 4px;">⚠️ ${UI.escapeHtml(n.fehler)}</div>` : ''}
               ${geplanterStatus(n)}
-              ${UI.renderAntworten(n.antwortText, n.nutzerAntworten)}
+              ${UI.renderAntworten(n.id, n.antwortText, n.nutzerAntworten)}
               ${n.antwortText ? `
                 <div style="margin-top: 8px;">
                   <button class="textarea-aktion-btn" onclick="DashboardView.antwortfeldToggle(${n.id})" id="antwort-toggle-${n.id}">
@@ -892,6 +892,18 @@ const DashboardView = {
       await this.verlaufLaden();
     } catch (err) {
       UI.fehler(err.message);
+    }
+  },
+
+  async buttonKlick(btnElement, nachrichtId, btnId) {
+    UI.btnLaden(btnElement, true);
+    try {
+      const result = await API.buttonKlicken(nachrichtId, btnId);
+      UI.erfolg(result.nachricht || 'Klick erfolgreich gesendet!');
+      await this.verlaufLaden();
+    } catch (err) {
+      UI.fehler(err.message);
+      UI.btnLaden(btnElement, false);
     }
   },
 

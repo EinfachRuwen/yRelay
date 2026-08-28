@@ -35,6 +35,12 @@ Jede Antwort wird separat gespeichert und dem Absender per E-Mail und im Dashboa
 Um zu antworten, sende einen POST-Request mit dem JSON-Body {"message": "Deine Antwort"} an:
 ${antwortLink}
 
+Du kannst auch interaktive Buttons für Rückfragen oder Entscheidungen anlegen, die der Nutzer direkt im Dashboard anklicken kann.
+Füge dazu im JSON-Body einfach ein Array 'buttons' hinzu:
+{"message": "Deine Frage...", "buttons": [{"id": "btn_ja", "text": "Ja, bitte", "style": "primaer"}, {"id": "btn_nein", "text": "Nein", "style": "sekundaer"}]}
+Erlaubte 'style'-Werte: primaer, sekundaer, warnung, notfall (Maximal 5 Buttons).
+Wenn der Nutzer klickt, erhältst du eine neue System-Nachricht in diesem Chat, die dir mitteilt, welcher Button geklickt wurde.
+
 Du kannst diese Nachricht auch mit einem Status markieren (optional aber hilfreich):
 POST {"action": "erledigt", "notiz": "Optional: Was du getan hast"} an: ${actionLink}
 Verfügbare Aktionen: erledigt, in_bearbeitung, offen, pin, unpin`;
@@ -106,9 +112,11 @@ Du kannst auch mehrfach antworten, z.B. zuerst eine Eingangsbestätigung, dann d
 Jede Antwort wird separat gespeichert und dem Absender per E-Mail und im Dashboard angezeigt.
 Um zu antworten, sende einen POST-Request mit dem JSON-Body {"message": "Deine Antwort"} an:
 ${antwortLink}
+Du kannst auch interaktive Buttons anlegen (siehe reguläre Nachrichten-Instruktionen für Details), z.B.:
+{"message": "Frage", "buttons": [{"id": "ok", "text": "OK"}]}
 
-Du kannst diese Nachricht auch mit einem Status markieren:
-POST {"action": "erledigt", "notiz": "Optional"} an: ${actionLink}
+Du kannst diese Notfall-Nachricht auch mit einem Status markieren:
+POST {"action": "in_bearbeitung", "notiz": "..."} an: ${actionLink}
 Verfügbare Aktionen: erledigt, in_bearbeitung, offen, pin, unpin`;
 
   const payload = { message: nachrichtentext };

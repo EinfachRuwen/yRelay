@@ -151,7 +151,7 @@ const UI = {
   },
 
   // ─── Poke-Antworten rendern (mehrere möglich) ────────────────────────
-  renderAntworten(replyContent, userRepliesContent = null) {
+  renderAntworten(nachrichtId, replyContent, userRepliesContent = null) {
     if (!replyContent) return '';
 
     // Rückwärtskompatibel: JSON-Array oder Plain-Text für Poke-Antworten
@@ -186,12 +186,32 @@ const UI = {
       const datumTxt = a.time ? ` (${this.datumFormatieren(a.time)})` : '';
       
       if (a.absender === 'poke') {
+        let buttonsHtml = '';
+        if (a.buttons && a.buttons.length > 0) {
+          const btnTags = a.buttons.map(btn => {
+            let btnStyle = 'background: var(--farbe-primaer); color: white;';
+            if (btn.style === 'sekundaer') btnStyle = 'background: var(--farbe-rahmen); color: var(--farbe-text);';
+            if (btn.style === 'warnung') btnStyle = 'background: var(--farbe-warnung); color: white;';
+            if (btn.style === 'notfall') btnStyle = 'background: var(--farbe-notfall); color: white;';
+            
+            const dis = a.buttons_disabled ? 'opacity: 0.5; cursor: not-allowed;' : 'cursor: pointer;';
+            const oc = a.buttons_disabled ? '' : `onclick="DashboardView.buttonKlick(this, ${nachrichtId}, '${this.escapeHtml(btn.id)}')";`;
+            
+            return `<button type="button" style="border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 13px; transition: opacity 0.2s; ${btnStyle} ${dis}" ${oc} ${a.buttons_disabled ? 'disabled' : ''}>
+              ${this.escapeHtml(btn.text)}
+            </button>`;
+          }).join('');
+          
+          buttonsHtml = `<div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">${btnTags}</div>`;
+        }
+
         return `
           <div style="margin-top: 12px; padding: 12px 16px; background: rgba(6, 182, 212, 0.08); border-left: 3px solid var(--farbe-akzent); border-radius: 4px;">
             <div style="font-size: 11px; color: var(--farbe-akzent); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
               🤖 Poke hat geantwortet${this.escapeHtml(datumTxt)}
             </div>
             <div style="font-size: 13px; color: var(--farbe-text); line-height: 1.5; white-space: pre-wrap;">${this.escapeHtml(a.text)}</div>
+            ${buttonsHtml}
           </div>
         `;
       } else {

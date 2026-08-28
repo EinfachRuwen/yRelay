@@ -219,6 +219,102 @@ router.post('/:id/pinnen', (req, res) => {
 });
 
 
+// Hilfsfunktion zum Verarbeiten eines Button-Klicks
+async function verarbeiteButtonKlick(nachricht, btnId, user) {
+  let pokeAntworten = [];
+  try {
+    const parsed = JSON.parse(nachricht.reply_content);
+    pokeAntworten = Array.isArray(parsed) ? parsed : [{ text: nachricht.reply_content, time: null }];
+  } catch {
+    pokeAntworten = [{ text: nachricht.reply_content, time: null }];
+  }
+
+  // Den letzten Beitrag mit Buttons finden
+  const letzteMitButtons = [...pokeAntworten].reverse().find(a => a.buttons && a.buttons.length > 0);
+  if (!letzteMitButtons || letzteMitButtons.buttons_disabled) {
+    throw new Error('Buttons sind nicht mehr gültig oder wurden bereits geklickt.');
+  }
+
+  const geklickterButton = letzteMitButtons.buttons.find(b => b.id === btnId);
+  if (!geklickterButton) {
+    throw new Error('Button nicht gefunden.');
+  }
+
+  // Buttons deaktivieren
+  letzteMitButtons.buttons_disabled = true;
+  db.prepare('UPDATE messages SET reply_content = ? WHERE id = ?').run(JSON.stringify(pokeAntworten), nachricht.id);
+
+  // Klick als Nutzer-Antwort speichern
+  let nutzerAntworten = [];
+  try { if (nachricht.user_replies) nutzerAntworten = JSON.parse(nachricht.user_replies); } catch {}
+  
+  const text = `[System] Nutzer hat den Button "${geklickterButton.text}" geklickt.`;
+  nutzerAntworten.push({ text, time: new Date().toISOString() });
+  db.prepare('UPDATE messages SET user_replies = ? WHERE id = ?').run(JSON.stringify(nutzerAntworten), nachricht.id);
+
+  // Poke benachrichtigen
+  const webhookUrl = require('../db').getSetting('poke_webhook_url');
+  const apiKey = require('../db').getSetting('poke_api_key');
+  if (webhookUrl && apiKey) {
+    const payload = { 
+      message: `[yRelay System] Der Nutzer ${user.username} hat auf deine Rückfrage den Button "${geklickterButton.text}" geklickt.`
+    };
+    try {
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {
+      console.error('[yRelay] Fehler beim Senden des Button-Klicks an Poke:', e);
+    }
+  }
+
+  return geklickterButton;
+}
+
+// GET /api/nachrichten/klick/:id/:token/:btnId - Klick via E-Mail (öffentlich, aber per Token geschützt)
+router.get('/klick/:id/:token/:btnId', async (req, res) => {
+  const { id, token, btnId } = req.params;
+  const nachricht = db.prepare(`
+    SELECT m.id, m.reply_content, m.user_replies, u.username 
+    FROM messages m JOIN users u ON m.user_id = u.id 
+    WHERE m.id = ? AND m.reply_token = ?
+  `).get(id, token);
+
+  const appUrl = require('../db').getSetting('app_url') || 'http://localhost:3000';
+
+  if (!nachricht) {
+    return res.redirect(`${appUrl}/#dashboard?fehler=ungueltig`);
+  }
+
+  try {
+    await verarbeiteButtonKlick(nachricht, btnId, { username: nachricht.username });
+    res.redirect(`${appUrl}/#dashboard`);
+  } catch (err) {
+    res.redirect(`${appUrl}/#dashboard?fehler=button`);
+  }
+});
+
+// POST /api/nachrichten/klick/:id - Klick via Dashboard
+router.post('/klick/:id', async (req, res) => {
+  const { btnId } = req.body;
+  const nachricht = db.prepare(`
+    SELECT id, reply_content, user_replies 
+    FROM messages WHERE id = ? AND user_id = ?
+  `).get(req.params.id, req.user.id);
+
+  if (!nachricht) return res.status(404).json({ fehler: 'Nachricht nicht gefunden.' });
+  if (!btnId) return res.status(400).json({ fehler: 'Button-ID fehlt.' });
+
+  try {
+    const btn = await verarbeiteButtonKlick(nachricht, btnId, req.user);
+    res.json({ nachricht: `Button "${btn.text}" erfolgreich geklickt.` });
+  } catch (err) {
+    res.status(400).json({ fehler: err.message });
+  }
+});
+
 // POST /api/nachrichten/:id/antworten - Nutzer antwortet auf Pokes Antwort
 router.post('/:id/antworten', async (req, res) => {
   const { id } = req.params;

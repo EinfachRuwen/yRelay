@@ -92,6 +92,10 @@ const API = {
     return this.anfrage('POST', '/nachrichten/notfall', { inhalt, prioritaet, originalTranskript });
   },
 
+  async buttonKlicken(nachrichtId, btnId) {
+    return this.anfrage('POST', `/nachrichten/klick/${nachrichtId}`, { btnId });
+  },
+
   async audioTranskribieren(audioBlob) {
     const optionen = {
       method: 'POST',

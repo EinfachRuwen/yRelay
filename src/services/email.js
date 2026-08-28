@@ -215,6 +215,11 @@ async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachric
     <div style="text-align:center;">
       <a href="${appUrl}" style="display:inline-block;padding:12px 28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;border-radius:8px;box-shadow:0 4px 12px rgba(99,102,241,0.35);">Zum Dashboard & Antworten →</a>
     </div>
+    
+    <div style="margin-top:24px;padding:16px;background:rgba(239, 68, 68, 0.1);border-left:4px solid #ef4444;border-radius:4px;">
+      <p style="margin:0;color:#f87171;font-size:13px;font-weight:600;">⚠️ WICHTIG:</p>
+      <p style="margin:4px 0 0;color:#94a3b8;font-size:13px;">Bitte antworte <strong>NICHT</strong> direkt auf diese E-Mail! Poke kann deine Antwort nur empfangen, wenn du sie über das yRelay Dashboard verschickst.</p>
+    </div>
   `;
 
   const mailOptionen = {
@@ -234,7 +239,7 @@ async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachric
 }
 
 /**
- * Sendet einen Passwort-Zurücksetzen-Link.
+ * Sendet eine Passwort-Zurücksetzen-Link.
  */
 async function sendePasswortResetMail(empfaengerEmail, empfaengerName, resetToken) {
   const transporter = erstelleTransporter();
@@ -385,6 +390,75 @@ async function sendeAusstehendeAntwortMail(empfaengerEmail, empfaengerName, orig
   }
 }
 
-module.exports = { sendeEinladungsmail, testeSMTP, sendeAntwortMail, sendePasswortResetMail, sendeKontoGesperrtMail, sendeKontoAktiviertMail, sendeAusstehendeAntwortMail };
+/**
+ * Sendet eine Rückfragen-Mail mit interaktiven Entscheidungs-Buttons.
+ */
+async function sendeRueckfrageMail(empfaengerEmail, empfaengerName, originalNachricht, antwortText, buttons, nachrichtId, token, verlauf) {
+  const transporter = erstelleTransporter();
+  if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
 
+  const appUrl = getSetting('app_url') || '';
+  
+  // Buttons als Links rendern
+  const buttonsHtml = buttons.map(btn => {
+    let bg = '#6366f1';
+    if (btn.style === 'sekundaer') bg = '#475569';
+    if (btn.style === 'warnung') bg = '#eab308';
+    if (btn.style === 'notfall') bg = '#ef4444';
+    
+    const url = `${appUrl}/api/nachrichten/klick/${nachrichtId}/${token}/${encodeURIComponent(btn.id)}`;
+    
+    return `<a href="${url}" style="display:block;margin-bottom:10px;padding:14px 20px;background:${bg};color:white;text-decoration:none;border-radius:8px;font-weight:600;text-align:center;font-size:15px;">
+      ${btn.text}
+    </a>`;
+  }).join('');
 
+  const bodyContent = `
+    <h2 style="margin:0 0 16px;color:#f1f5f9;font-size:18px;">Rückfrage von Poke an ${empfaengerName},</h2>
+    
+    <div style="background:rgba(255,255,255,0.03);border-left:3px solid #6366f1;padding:16px;margin-bottom:24px;border-radius:0 8px 8px 0;">
+      <p style="margin:0;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Poke fragt:</p>
+      <p style="margin:0;color:#f1f5f9;font-size:15px;line-height:1.6;white-space:pre-wrap;">${antwortText}</p>
+    </div>
+    
+    <div style="margin-bottom:24px;">
+      <p style="margin:0 0 12px;color:#cbd5e1;font-size:14px;font-weight:600;">Bitte triff eine Entscheidung:</p>
+      ${buttonsHtml}
+    </div>
+
+    ${appUrl ? `<div style="text-align:center;margin-top:24px;">
+      <a href="${appUrl}/#dashboard" style="display:inline-block;padding:10px 20px;background:transparent;color:#94a3b8;text-decoration:underline;font-size:13px;">Oder im Dashboard beantworten</a>
+    </div>` : ''}
+  `;
+
+  const html = emailTemplate(
+    '❓',
+    'Rückfrage von Poke',
+    'Poke benötigt eine Entscheidung von dir',
+    '#f59e0b, #d97706',
+    bodyContent
+  );
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"yRelay" <${getSetting('smtp_from') || getSetting('smtp_user')}>`,
+      to: empfaengerEmail,
+      subject: `[yRelay] Rückfrage von Poke`,
+      html,
+    });
+    return { erfolg: true, messageId: info.messageId };
+  } catch (err) {
+    return { erfolg: false, fehler: err.message };
+  }
+}
+
+module.exports = { 
+  sendeEinladungsmail, 
+  testeSMTP, 
+  sendeAntwortMail, 
+  sendePasswortResetMail, 
+  sendeKontoGesperrtMail, 
+  sendeKontoAktiviertMail, 
+  sendeAusstehendeAntwortMail,
+  sendeRueckfrageMail 
+};

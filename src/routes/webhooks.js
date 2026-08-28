@@ -1,6 +1,6 @@
 const express = require('express');
 const { db } = require('../db');
-const { sendeAntwortMail } = require('../services/email');
+const { sendeAntwortMail, sendeRueckfrageMail } = require('../services/email');
 
 const router = express.Router();
 
@@ -18,7 +18,7 @@ function leseAntworten(replyContent) {
 // POST /api/webhooks/poke-reply/:id/:token
 router.post('/poke-reply/:id/:token', (req, res) => {
   const { id, token } = req.params;
-  const { message } = req.body;
+  const { message, buttons } = req.body;
 
   if (!message) {
     return res.status(400).json({ fehler: 'Feld "message" fehlt im JSON-Body.' });
@@ -42,6 +42,7 @@ router.post('/poke-reply/:id/:token', (req, res) => {
 
   bestehendePokeAntworten.push({
     text: message,
+    buttons: Array.isArray(buttons) && buttons.length > 0 ? buttons.slice(0, 5) : null,
     time: new Date().toISOString(),
   });
 
@@ -66,9 +67,17 @@ router.post('/poke-reply/:id/:token', (req, res) => {
 
   // E-Mail-Benachrichtigung senden (asynchron im Hintergrund)
   if (msg.email) {
-    sendeAntwortMail(msg.email, msg.username, msg.content, message, !istErstantwort, gemischterVerlauf).catch(err => {
-      console.error('[yRelay] Fehler beim Senden der Antwort-Mail:', err);
-    });
+    const hasButtons = Array.isArray(buttons) && buttons.length > 0;
+    
+    if (hasButtons) {
+      sendeRueckfrageMail(msg.email, msg.username, msg.content, message, buttons, msg.id, token, gemischterVerlauf).catch(err => {
+        console.error('[yRelay] Fehler beim Senden der Rückfrage-Mail:', err);
+      });
+    } else {
+      sendeAntwortMail(msg.email, msg.username, msg.content, message, !istErstantwort, gemischterVerlauf).catch(err => {
+        console.error('[yRelay] Fehler beim Senden der Antwort-Mail:', err);
+      });
+    }
   }
 
   res.json({ success: true, message: 'Antwort erfolgreich gespeichert.' });
