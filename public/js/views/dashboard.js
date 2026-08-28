@@ -360,7 +360,7 @@ const DashboardView = {
           }
           return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
         };
-        const topic = \`yrelay-\${nutzer.benutzername.toLowerCase().replace(/[^a-z0-9]/g, '')}-\${generateSafeString()}\`;
+        const topic = `yrelay-${nutzer.benutzername.toLowerCase().replace(/[^a-z0-9]/g, '')}-${generateSafeString()}`;
         document.getElementById('profil-ntfy').value = topic;
       });
 
