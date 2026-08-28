@@ -337,13 +337,33 @@ const DashboardView = {
               <label class="formular-label" for="profil-anzeigename">Anzeigename</label>
               <input class="formular-eingabe" type="text" id="profil-anzeigename" value="${nutzer.anzeigename || ''}" placeholder="Dein Name, wie er anderen angezeigt wird">
             </div>
-            <div style="display: flex; gap: 10px;">
+            <div class="formular-gruppe">
+              <label class="formular-label" for="profil-ntfy">ntfy.sh Topic (für Push-Benachrichtigungen)</label>
+              <div style="display: flex; gap: 8px;">
+                <input class="formular-eingabe" type="text" id="profil-ntfy" value="${nutzer.ntfy_topic || ''}" placeholder="z.B. yrelay-ruwen-abc123xyz" style="flex: 1;">
+                <button type="button" class="btn btn-ghost" id="ntfy-generieren" title="Zufälliges Topic generieren">🎲 Generieren</button>
+              </div>
+              <div style="font-size: 11px; color: var(--farbe-text-schwach); margin-top: 4px;">Abonniere dieses Topic in der <a href="https://ntfy.sh" target="_blank" style="color: var(--farbe-primaer);">ntfy App</a>. Gib es nicht weiter!</div>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
               <button type="button" class="btn btn-ghost" onclick="UI.modalSchliessen()">Abbrechen</button>
               <button type="submit" class="btn btn-primaer" style="flex: 1;" id="profil-speichern">Speichern</button>
             </div>
           </form>
         </div>
       `);
+
+      document.getElementById('ntfy-generieren')?.addEventListener('click', () => {
+        const generateSafeString = () => {
+          if (window.crypto && window.crypto.randomUUID) {
+            return window.crypto.randomUUID().replace(/-/g, '') + window.crypto.randomUUID().replace(/-/g, '');
+          }
+          return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        };
+        const topic = \`yrelay-\${nutzer.benutzername.toLowerCase().replace(/[^a-z0-9]/g, '')}-\${generateSafeString()}\`;
+        document.getElementById('profil-ntfy').value = topic;
+      });
+
       document.getElementById('profil-formular')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('profil-speichern');
@@ -352,7 +372,10 @@ const DashboardView = {
           await fetch('/api/auth/profil', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('yrelay_token') },
-            body: JSON.stringify({ anzeigename: document.getElementById('profil-anzeigename').value.trim() })
+            body: JSON.stringify({ 
+              anzeigename: document.getElementById('profil-anzeigename').value.trim(),
+              ntfy_topic: document.getElementById('profil-ntfy').value.trim()
+            })
           });
           UI.modalSchliessen();
           UI.erfolg('Profil gespeichert. Lade neu...');

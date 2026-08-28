@@ -17,7 +17,7 @@ router.use(requireAdmin);
 router.get('/nutzer', (req, res) => {
   const nutzer = db.prepare(`
     SELECT u.id, u.username, u.email, u.display_name, u.role, u.is_active, u.invite_token,
-           u.created_at, u.last_login,
+           u.created_at, u.last_login, u.ntfy_topic,
            (SELECT group_concat(label_id) FROM nutzer_labels WHERE nutzer_id = u.id) as label_ids
     FROM users u
     ORDER BY u.created_at DESC
@@ -33,6 +33,7 @@ router.get('/nutzer', (req, res) => {
     hatEinladungAusstehend: !!n.invite_token && !n.last_login,
     erstelltAm: n.created_at,
     letzterLogin: n.last_login,
+    ntfy_topic: n.ntfy_topic || null,
     labelIds: n.label_ids ? n.label_ids.split(',').map(Number) : [],
   })));
 });
@@ -148,7 +149,7 @@ router.patch('/nutzer/:id', async (req, res) => {
 // PUT /api/admin/nutzer/:id - Nutzer bearbeiten
 router.put('/nutzer/:id', (req, res) => {
   const { id } = req.params;
-  const { benutzername, email, anzeigename } = req.body;
+  const { benutzername, email, anzeigename, ntfy_topic } = req.body;
 
   if (!benutzername) {
     return res.status(400).json({ fehler: 'Benutzername ist erforderlich.' });
@@ -160,6 +161,7 @@ router.put('/nutzer/:id', (req, res) => {
   }
 
   const emailVal = email && email.trim() !== '' ? email.trim() : null;
+  const ntfyVal = ntfy_topic && ntfy_topic.trim() !== '' ? ntfy_topic.trim() : null;
 
   const vorhanden = db.prepare('SELECT id FROM users WHERE (username = ? OR (email = ? AND email IS NOT NULL)) AND id != ?').get(benutzername, emailVal, id);
   if (vorhanden) {
@@ -167,8 +169,8 @@ router.put('/nutzer/:id', (req, res) => {
   }
 
   db.prepare(`
-    UPDATE users SET username = ?, email = ?, display_name = ? WHERE id = ?
-  `).run(benutzername, emailVal, anzeigename || null, id);
+    UPDATE users SET username = ?, email = ?, display_name = ?, ntfy_topic = ? WHERE id = ?
+  `).run(benutzername, emailVal, anzeigename || null, ntfyVal, id);
 
   res.json({ nachricht: 'Nutzerdaten erfolgreich aktualisiert.' });
 });

@@ -94,10 +94,11 @@ if (emailInfo && emailInfo.notnull === 1) {
       reset_expires_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       last_login DATETIME,
-      has_seen_onboarding INTEGER NOT NULL DEFAULT 0
+      has_seen_onboarding INTEGER NOT NULL DEFAULT 0,
+      ntfy_topic TEXT
     );
-    INSERT INTO users_new (id, username, email, display_name, password_hash, role, is_active, invite_token, invite_expires_at, reset_token, reset_expires_at, created_at, last_login)
-    SELECT id, username, email, display_name, password_hash, role, is_active, invite_token, invite_expires_at, reset_token, reset_expires_at, created_at, last_login
+    INSERT INTO users_new (id, username, email, display_name, password_hash, role, is_active, invite_token, invite_expires_at, reset_token, reset_expires_at, created_at, last_login, has_seen_onboarding, ntfy_topic)
+    SELECT id, username, email, display_name, password_hash, role, is_active, invite_token, invite_expires_at, reset_token, reset_expires_at, created_at, last_login, has_seen_onboarding, ntfy_topic
     FROM users;
     
     DROP TABLE users;
@@ -141,6 +142,11 @@ try {
 } catch (e) {}
 try {
   db.exec('ALTER TABLE messages ADD COLUMN status_label_notiz TEXT;');
+} catch (e) {}
+
+try {
+  // Feature: ntfy Topic für Push-Benachrichtigungen
+  db.exec('ALTER TABLE users ADD COLUMN ntfy_topic TEXT;');
 } catch (e) {}
 
 // Feature: Nutzer Labels

@@ -147,8 +147,8 @@ const API = {
     return this.anfrage('POST', '/admin/nutzer/einladen', { benutzername, email, anzeigename });
   },
 
-  async adminNutzerBearbeiten(id, benutzername, email, anzeigename) {
-    return this.anfrage('PUT', `/admin/nutzer/${id}`, { benutzername, email, anzeigename });
+  async adminNutzerBearbeiten(id, benutzername, email, anzeigename, ntfy_topic) {
+    return this.anfrage('PUT', `/admin/nutzer/${id}`, { benutzername, email, anzeigename, ntfy_topic });
   },
 
   async adminNutzerStatus(id, aktiv) {

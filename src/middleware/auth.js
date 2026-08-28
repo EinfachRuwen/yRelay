@@ -16,7 +16,7 @@ function requireAuth(req, res, next) {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     // Nutzer aus der Datenbank laden (aktueller Status)
-    const user = db.prepare('SELECT id, username, email, display_name, role, is_active, has_seen_onboarding FROM users WHERE id = ?').get(decoded.userId);
+    const user = db.prepare('SELECT id, username, email, display_name, role, is_active, has_seen_onboarding, ntfy_topic FROM users WHERE id = ?').get(decoded.userId);
     if (!user || !user.is_active) {
       return res.status(401).json({ fehler: 'Konto ist deaktiviert oder nicht gefunden.' });
     }

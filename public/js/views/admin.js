@@ -461,7 +461,7 @@ const AdminView = {
                                 </button>
                               ` : ''}
                               <button class="btn btn-sekundaer btn-klein"
-                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}')"
+                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}', '${UI.escapeHtml(n.ntfy_topic || '')}')"
                                 title="Nutzer bearbeiten">
                                 ✏️
                               </button>
@@ -482,7 +482,7 @@ const AdminView = {
                               </button>
                             ` : `
                               <button class="btn btn-sekundaer btn-klein"
-                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}')"
+                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}', '${UI.escapeHtml(n.ntfy_topic || '')}')"
                                 title="Profil bearbeiten">
                                 ✏️
                               </button>
@@ -667,7 +667,7 @@ const AdminView = {
     }
   },
 
-  nutzerBearbeitenModal(id, benutzername, email, anzeigename) {
+  nutzerBearbeitenModal(id, benutzername, email, anzeigename, ntfy_topic) {
     UI.modalZeigen(`
       <div class="modal-header">
         <span class="modal-titel">✏️ Nutzer bearbeiten</span>
@@ -687,6 +687,13 @@ const AdminView = {
             <label class="formular-label" for="bearbeiten-email">E-Mail (optional)</label>
             <input class="formular-eingabe" type="email" id="bearbeiten-email" value="${email}">
           </div>
+          <div class="formular-gruppe">
+            <label class="formular-label" for="bearbeiten-ntfy">ntfy.sh Topic (optional)</label>
+            <div style="display: flex; gap: 8px;">
+              <input class="formular-eingabe" type="text" id="bearbeiten-ntfy" value="${ntfy_topic}" placeholder="z.B. yrelay-ruwen-abc123xyz" style="flex: 1;">
+              <button type="button" class="btn btn-ghost" id="admin-ntfy-generieren" title="Zufälliges Topic generieren">🎲 Generieren</button>
+            </div>
+          </div>
           <div id="bearbeiten-fehler" class="info-box fehler versteckt" style="margin-bottom: 12px;">
             <span>⚠️</span><span id="bearbeiten-fehler-text"></span>
           </div>
@@ -698,21 +705,34 @@ const AdminView = {
       </div>
     `);
 
+    document.getElementById('admin-ntfy-generieren')?.addEventListener('click', () => {
+      const generateSafeString = () => {
+        if (window.crypto && window.crypto.randomUUID) {
+          return window.crypto.randomUUID().replace(/-/g, '') + window.crypto.randomUUID().replace(/-/g, '');
+        }
+        return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      };
+      const uname = document.getElementById('bearbeiten-benutzername').value.trim() || 'nutzer';
+      const topic = `yrelay-${uname.toLowerCase().replace(/[^a-z0-9]/g, '')}-${generateSafeString()}`;
+      document.getElementById('bearbeiten-ntfy').value = topic;
+    });
+
     document.getElementById('bearbeiten-formular')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('bearbeiten-submit-btn');
       const fehlerBox = document.getElementById('bearbeiten-fehler');
       const fehlerText = document.getElementById('bearbeiten-fehler-text');
-      fehlerBox.classList.add('versteckt');
+      
+      const uname = document.getElementById('bearbeiten-benutzername').value.trim();
+      const emailVal = document.getElementById('bearbeiten-email').value.trim();
+      const anzeigename = document.getElementById('bearbeiten-anzeigename').value.trim();
+      const ntfy = document.getElementById('bearbeiten-ntfy').value.trim();
 
+      fehlerBox.classList.add('versteckt');
       UI.btnLaden(btn, true);
+
       try {
-        await API.adminNutzerBearbeiten(
-          id,
-          document.getElementById('bearbeiten-benutzername').value.trim(),
-          document.getElementById('bearbeiten-email').value.trim(),
-          document.getElementById('bearbeiten-anzeigename').value.trim()
-        );
+        await API.adminNutzerBearbeiten(id, uname, emailVal, anzeigename, ntfy);
         UI.modalSchliessen();
         UI.erfolg('Nutzerdaten erfolgreich aktualisiert.');
         await this.tabLaden('nutzer');

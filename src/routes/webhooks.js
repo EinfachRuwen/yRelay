@@ -26,7 +26,7 @@ router.post('/poke-reply/:id/:token', (req, res) => {
 
   // Nachricht prüfen und zugehörige Nutzer-Daten holen (inkl. user_replies)
   const msg = db.prepare(`
-    SELECT m.id, m.content, m.reply_content, m.user_replies, u.email, u.username
+    SELECT m.id, m.content, m.reply_content, m.user_replies, u.email, u.username, u.ntfy_topic
     FROM messages m
     JOIN users u ON m.user_id = u.id
     WHERE m.id = ? AND m.reply_token = ?
@@ -66,9 +66,9 @@ router.post('/poke-reply/:id/:token', (req, res) => {
   ].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
 
   // E-Mail-Benachrichtigung senden (asynchron im Hintergrund)
+  const hasButtons = Array.isArray(buttons) && buttons.length > 0;
+  
   if (msg.email) {
-    const hasButtons = Array.isArray(buttons) && buttons.length > 0;
-    
     if (hasButtons) {
       sendeRueckfrageMail(msg.email, msg.username, msg.content, message, buttons, msg.id, token, gemischterVerlauf).catch(err => {
         console.error('[yRelay] Fehler beim Senden der Rückfrage-Mail:', err);
@@ -78,6 +78,21 @@ router.post('/poke-reply/:id/:token', (req, res) => {
         console.error('[yRelay] Fehler beim Senden der Antwort-Mail:', err);
       });
     }
+  }
+  
+  // ntfy Push-Benachrichtigung senden (parallel)
+  if (msg.ntfy_topic) {
+    const { sendNtfyNotification } = require('../services/ntfy');
+    const appUrl = require('../db').getSetting('app_url') || 'http://localhost:3000';
+    const clickUrl = `${appUrl}/#dashboard`;
+    
+    const title = hasButtons ? '❓ Rückfrage von Poke' : '🤖 Poke hat geantwortet';
+    const tags = hasButtons ? ['question', 'robot'] : ['robot', 'envelope'];
+    const priority = hasButtons ? 4 : 3;
+    
+    sendNtfyNotification(msg.ntfy_topic, title, message, clickUrl, priority, tags).catch(err => {
+      console.error('[yRelay] Fehler beim Senden der ntfy-Push-Benachrichtigung:', err);
+    });
   }
 
   res.json({ success: true, message: 'Antwort erfolgreich gespeichert.' });

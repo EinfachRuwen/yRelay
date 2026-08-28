@@ -100,6 +100,7 @@ router.get('/ich', requireAuth, (req, res) => {
     email: req.user.email,
     rolle: req.user.role,
     has_seen_onboarding: req.user.has_seen_onboarding === 1,
+    ntfy_topic: req.user.ntfy_topic || null,
   });
 });
 
@@ -111,9 +112,10 @@ router.patch('/onboarding', requireAuth, (req, res) => {
 
 // PUT /api/auth/profil - Eigenes Profil aktualisieren
 router.put('/profil', requireAuth, (req, res) => {
-  const { anzeigename } = req.body;
+  const { anzeigename, ntfy_topic } = req.body;
   
-  db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(anzeigename || null, req.user.id);
+  db.prepare('UPDATE users SET display_name = ?, ntfy_topic = ? WHERE id = ?')
+    .run(anzeigename || null, ntfy_topic || null, req.user.id);
   
   res.json({ nachricht: 'Profil erfolgreich aktualisiert.' });
 });
