@@ -87,3 +87,10 @@ const App = {
 
 // App starten
 App.init();
+
+// Offline Sync Initialisierung
+if (typeof API !== 'undefined' && API.syncOfflineQueue) {
+  window.addEventListener('online', () => API.syncOfflineQueue());
+  // Beim Start ebenfalls prüfen (z.B. App wurde im Offline-Modus beendet und jetzt mit Netz gestartet)
+  setTimeout(() => API.syncOfflineQueue(), 2000);
+}

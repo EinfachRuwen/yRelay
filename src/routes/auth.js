@@ -1,7 +1,7 @@
 // Authentifizierungs-Routes für yRelay
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { db } = require('../db');
+const { db, logAudit } = require('../db');
 const { isValidNtfyTopic, NTFY_TOPIC_MAX_LENGTH } = require('../services/ntfy');
 const { createToken } = require('../middleware/auth');
 const { requireAuth } = require('../middleware/auth');
@@ -32,6 +32,7 @@ router.post('/login', (req, res) => {
 
   // Letzten Login aktualisieren
   db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
+  logAudit(user.id, 'login', { username: user.username, role: user.role });
 
   const token = createToken(user.id);
   res.json({
@@ -83,6 +84,8 @@ router.post('/einladung-annehmen', (req, res) => {
   const admins = db.prepare(`SELECT id, username, email, ntfy_topic, email_notifications FROM users WHERE role = 'admin' AND is_active = 1`).all();
   
   const inhalt = `Der Nutzer <strong>${user.username}</strong> (${user.email || 'keine E-Mail'}) hat soeben seine Einladung angenommen und das Konto aktiviert.`;
+  
+  logAudit(user.id, 'invite_accepted', { username: user.username });
   
   for (const admin of admins) {
     sendePushUndMail(admin, {
@@ -141,6 +144,8 @@ router.put('/profil', requireAuth, (req, res) => {
   db.prepare('UPDATE users SET display_name = ?, ntfy_topic = ?, email_notifications = ? WHERE id = ?')
     .run(anzeigename || null, ntfyVal, emailNotif, req.user.id);
   
+  logAudit(req.user.id, 'profile_updated', { anzeigename, ntfy_topic: ntfyVal, email_notifications: emailNotif });
+  
   res.json({ nachricht: 'Profil erfolgreich aktualisiert.' });
 });
 
@@ -165,6 +170,8 @@ router.post('/passwort-aendern', requireAuth, (req, res) => {
 
   const neuerHash = bcrypt.hashSync(neuesPasswort, 12);
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(neuerHash, req.user.id);
+
+  logAudit(req.user.id, 'password_changed', {});
 
   res.json({ nachricht: 'Passwort erfolgreich geändert.' });
 });
@@ -218,6 +225,8 @@ router.post('/passwort-zuruecksetzen', (req, res) => {
 
   const hash = bcrypt.hashSync(passwort, 12);
   db.prepare('UPDATE users SET password_hash = ?, reset_token = NULL, reset_expires_at = NULL WHERE id = ?').run(hash, user.id);
+
+  logAudit(user.id, 'password_reset_completed', { email: user.email });
 
   res.json({ nachricht: 'Passwort erfolgreich zurückgesetzt. Du kannst dich jetzt einloggen.' });
 });

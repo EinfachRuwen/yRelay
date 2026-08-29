@@ -1,6 +1,7 @@
 // Nachrichten-Routes für yRelay
 const express = require('express');
-const { db, getSetting } = require('../db');
+const axios = require('axios');
+const { db, getSetting, logAudit } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { sendeFreieNachricht, sendeNotfallbenachrichtigung } = require('../services/poke');
 
@@ -64,6 +65,7 @@ router.post('/senden', async (req, res) => {
   `).run(req.user.id, inhalt.trim(), replyToken);
 
   const messageId = insertErgebnis.lastInsertRowid;
+  logAudit(req.user.id, 'send_message', { message_id: messageId, type: 'free' });
 
   let pokeInhalt = inhalt.trim();
   if (isMostlyOriginal(originalTranskript, pokeInhalt)) {
@@ -117,6 +119,7 @@ router.post('/notfall', async (req, res) => {
   `).run(req.user.id, prioritaet, inhalt.trim(), replyToken);
 
   const messageId = insertErgebnis.lastInsertRowid;
+  logAudit(req.user.id, 'send_emergency', { message_id: messageId, priority: prioritaet });
 
   let pokeInhalt = inhalt.trim();
   if (isMostlyOriginal(originalTranskript, pokeInhalt)) {
@@ -197,6 +200,8 @@ router.post('/planen', async (req, res) => {
     VALUES (?, ?, ?, ?, '', 'geplant', ?, ?)
   `).run(req.user.id, typ, prioritaet || null, inhalt.trim(), replyToken, sendeZeitDb);
 
+  logAudit(req.user.id, 'schedule_message', { message_id: insertErgebnis.lastInsertRowid, send_at: sendeZeitDb });
+
   res.json({ nachricht: 'Nachricht geplant.', id: insertErgebnis.lastInsertRowid, sendetAm: sendeZeit.toISOString() });
 });
 
@@ -206,6 +211,7 @@ router.delete('/:id/abbrechen', (req, res) => {
   if (!nachricht) return res.status(404).json({ fehler: 'Nachricht nicht gefunden.' });
   if (nachricht.status !== 'geplant') return res.status(400).json({ fehler: 'Nur geplante Nachrichten können abgebrochen werden.' });
   db.prepare('UPDATE messages SET status = ? WHERE id = ?').run('abgebrochen', req.params.id);
+  logAudit(req.user.id, 'cancel_message', { message_id: req.params.id });
   res.json({ nachricht: 'Geplante Nachricht wurde abgebrochen.' });
 });
 
@@ -251,6 +257,8 @@ async function verarbeiteButtonKlick(nachricht, btnId, user) {
   const text = `[System] Nutzer hat den Button "${geklickterButton.text}" geklickt.`;
   nutzerAntworten.push({ text, time: new Date().toISOString() });
   db.prepare('UPDATE messages SET user_replies = ? WHERE id = ?').run(JSON.stringify(nutzerAntworten), nachricht.id);
+  
+  logAudit(user.id, 'button_click', { message_id: nachricht.id, button_id: btnId });
 
   // Poke benachrichtigen
   const webhookUrl = require('../db').getSetting('poke_webhook_url');
@@ -277,7 +285,7 @@ async function verarbeiteButtonKlick(nachricht, btnId, user) {
 router.get('/klick/:id/:token/:btnId', async (req, res) => {
   const { id, token, btnId } = req.params;
   const nachricht = db.prepare(`
-    SELECT m.id, m.reply_content, m.user_replies, u.username 
+    SELECT m.id, m.reply_content, m.user_replies, u.username, u.id as user_id
     FROM messages m JOIN users u ON m.user_id = u.id 
     WHERE m.id = ? AND m.reply_token = ?
   `).get(id, token);
@@ -289,7 +297,7 @@ router.get('/klick/:id/:token/:btnId', async (req, res) => {
   }
 
   try {
-    await verarbeiteButtonKlick(nachricht, btnId, { username: nachricht.username });
+    await verarbeiteButtonKlick(nachricht, btnId, { id: nachricht.user_id, username: nachricht.username });
     res.redirect(`${appUrl}/#dashboard`);
   } catch (err) {
     res.redirect(`${appUrl}/#dashboard?fehler=button`);

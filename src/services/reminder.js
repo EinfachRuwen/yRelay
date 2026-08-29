@@ -1,6 +1,6 @@
 // yRelay - Reminder-Service
 // Überwacht unbeantwortete Nachrichten und pikt Poke an bzw. benachrichtigt Nutzer
-const { db, getSetting } = require('../db');
+const { db, getSetting, logAudit } = require('../db');
 const { sendeAusstehendeAntwortMail } = require('./email');
 
 // Poke direkt über den Webhook antriggern (ohne neue DB-Nachricht zu erstellen)
@@ -73,6 +73,8 @@ async function pruefe() {
           WHERE id = ?
         `).run(ergebnis.payload, ergebnis.erfolg ? 'gesendet' : 'fehlgeschlagen', ergebnis.fehler || null, msg.id);
         console.log(`[yRelay Reminder] Geplante Nachricht ${msg.id}: ${ergebnis.erfolg ? 'gesendet' : 'fehlgeschlagen'}`);
+
+        logAudit(msg.user_id, 'scheduled_message_processed', { message_id: msg.id, success: ergebnis.erfolg });
 
         // 🔔 Benachrichtigung senden
         const { sendePushUndMail } = require('./notify');

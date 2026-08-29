@@ -1,5 +1,5 @@
 const express = require('express');
-const { db } = require('../db');
+const { db, logAudit } = require('../db');
 const { sendeAntwortMail, sendeRueckfrageMail } = require('../services/email');
 
 const router = express.Router();
@@ -26,7 +26,7 @@ router.post('/poke-reply/:id/:token', (req, res) => {
 
   // Nachricht prüfen und zugehörige Nutzer-Daten holen (inkl. user_replies)
   const msg = db.prepare(`
-    SELECT m.id, m.content, m.reply_content, m.user_replies, u.email, u.username, u.ntfy_topic, u.email_notifications
+    SELECT m.id, m.content, m.reply_content, m.user_replies, u.id as user_id, u.email, u.username, u.ntfy_topic, u.email_notifications
     FROM messages m
     JOIN users u ON m.user_id = u.id
     WHERE m.id = ? AND m.reply_token = ?
@@ -95,6 +95,8 @@ router.post('/poke-reply/:id/:token', (req, res) => {
     });
   }
 
+  logAudit(msg.user_id, 'poke_reply_received', { message_id: msg.id, has_buttons: hasButtons });
+
   res.json({ success: true, message: 'Antwort erfolgreich gespeichert.' });
 });
 
@@ -106,7 +108,7 @@ router.post('/poke-action/:id/:token', (req, res) => {
   if (!action) return res.status(400).json({ fehler: 'Feld "action" fehlt.' });
 
   const msg = db.prepare(`
-    SELECT m.id, m.content, u.email, u.username, u.ntfy_topic, u.email_notifications
+    SELECT m.id, m.content, u.id as user_id, u.email, u.username, u.ntfy_topic, u.email_notifications
     FROM messages m
     JOIN users u ON m.user_id = u.id
     WHERE m.id = ? AND m.reply_token = ?
@@ -161,7 +163,9 @@ router.post('/poke-action/:id/:token', (req, res) => {
       icon: emoji,
       farbe: farbe,
       ntfyTags: tags
-    }).catch(err => console.error('[yRelay] Fehler beim Status-Push:', err));
+    }).catch(err => console.error('[yRelay] Fehler bei Push/Mail (Status-Update):', err));
+
+    logAudit(msg.user_id, 'poke_status_update', { message_id: msg.id, action, notiz });
   }
 
   console.log(`[yRelay] Poke hat Nachricht ${id} mit Action "${action}" markiert.`);

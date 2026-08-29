@@ -3,7 +3,7 @@ const { isValidNtfyTopic, NTFY_TOPIC_MAX_LENGTH } = require('../services/ntfy');
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
-const { db, getSetting, setSetting } = require('../db');
+const { db, getSetting, setSetting, logAudit } = require('../db');
 const { requireAdmin } = require('../middleware/auth');
 const { sendeEinladungsmail, testeSMTP } = require('../services/email');
 
@@ -65,6 +65,8 @@ router.post('/nutzer', (req, res) => {
     VALUES (?, ?, ?, ?, 'user', 1)
   `).run(benutzername, emailVal, anzeigename || null, hash);
 
+  logAudit(req.user.id, 'admin_create_user', { target_user_id: ergebnis.lastInsertRowid, username: benutzername });
+
   res.status(201).json({
     nachricht: `Nutzer "${benutzername}" erfolgreich erstellt.`,
     id: ergebnis.lastInsertRowid,
@@ -93,6 +95,8 @@ router.post('/nutzer/einladen', async (req, res) => {
     INSERT INTO users (username, email, display_name, role, is_active, invite_token, invite_expires_at)
     VALUES (?, ?, ?, 'user', 1, ?, ?)
   `).run(benutzername, emailVal, anzeigename || null, einladungsToken, ablaufDatum);
+
+  logAudit(req.user.id, 'admin_invite_user', { target_user_id: ergebnis.lastInsertRowid, username: benutzername, email: emailVal });
 
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
   const inviteUrl = `${appUrl}/#einladung/${einladungsToken}`;
@@ -136,7 +140,10 @@ router.patch('/nutzer/:id', async (req, res) => {
     return res.status(404).json({ fehler: 'Nutzer nicht gefunden.' });
   }
 
-  db.prepare('UPDATE users SET is_active = ? WHERE id = ?').run(aktiv ? 1 : 0, id);
+  const aktivVal = aktiv ? 1 : 0;
+  db.prepare('UPDATE users SET is_active = ? WHERE id = ?').run(aktivVal, id);
+
+  logAudit(req.user.id, 'admin_toggle_status', { target_user_id: id, is_active: aktivVal });
 
   const { sendeKontoGesperrtMail, sendeKontoAktiviertMail } = require('../services/email');
   if (aktiv) {
@@ -179,6 +186,8 @@ router.put('/nutzer/:id', (req, res) => {
     UPDATE users SET username = ?, email = ?, display_name = ?, ntfy_topic = ?, email_notifications = ? WHERE id = ?
   `).run(benutzername, emailVal, anzeigename || null, ntfyVal, emailNotifVal, id);
 
+  logAudit(req.user.id, 'admin_edit_user', { target_user_id: id, username: benutzername });
+
   res.json({ nachricht: 'Nutzerdaten erfolgreich aktualisiert.' });
 });
 
@@ -196,6 +205,9 @@ router.delete('/nutzer/:id', (req, res) => {
   }
 
   db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  
+  logAudit(req.user.id, 'admin_delete_user', { target_user_id: id, username: user.username });
+  
   res.json({ nachricht: 'Nutzer erfolgreich gelöscht.' });
 });
 
@@ -214,6 +226,8 @@ router.post('/nutzer/:id/einladung-neu', async (req, res) => {
   db.prepare(`
     UPDATE users SET invite_token = ?, invite_expires_at = ?, password_hash = NULL WHERE id = ?
   `).run(neuerToken, ablaufDatum, id);
+
+  logAudit(req.user.id, 'admin_resend_invite', { target_user_id: id, username: user.username });
 
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
   const inviteUrl = `${appUrl}/#einladung/${neuerToken}`;
@@ -360,6 +374,8 @@ router.put('/einstellungen', (req, res) => {
   if (smtpPass && smtpPass !== '••••••••') setSetting('smtp_pass', smtpPass);
   if (smtpFrom !== undefined) setSetting('smtp_from', smtpFrom);
   if (appUrl !== undefined) setSetting('app_url', appUrl);
+
+  logAudit(req.user.id, 'admin_settings_updated', {});
 
   res.json({ nachricht: 'Einstellungen erfolgreich gespeichert.' });
 });
@@ -544,6 +560,7 @@ router.post('/broadcast', async (req, res) => {
     }
   }
 
+  logAudit(req.user.id, 'admin_broadcast', { count: nutzer.length, subject: betreff });
   console.log(`[yRelay] Broadcast an ${nutzer.length} Nutzer gesendet.`);
 });
 
@@ -564,6 +581,7 @@ router.post('/labels', (req, res) => {
   if (!name) return res.status(400).json({ fehler: 'Name ist erforderlich.' });
   try {
     const result = db.prepare(`INSERT INTO labels (name, farbe) VALUES (?, ?)`).run(name.trim(), farbe || '#6366f1');
+    logAudit(req.user.id, 'admin_create_label', { label_id: result.lastInsertRowid, name: name.trim() });
     res.status(201).json({ id: result.lastInsertRowid, name: name.trim(), farbe: farbe || '#6366f1', nutzerAnzahl: 0 });
   } catch {
     res.status(409).json({ fehler: 'Label mit diesem Namen existiert bereits.' });
@@ -572,7 +590,9 @@ router.post('/labels', (req, res) => {
 
 // DELETE /api/admin/labels/:id - Label löschen
 router.delete('/labels/:id', (req, res) => {
+  const label = db.prepare('SELECT name FROM labels WHERE id = ?').get(req.params.id);
   db.prepare('DELETE FROM labels WHERE id = ?').run(req.params.id);
+  logAudit(req.user.id, 'admin_delete_label', { label_id: req.params.id, name: label?.name });
   res.json({ nachricht: 'Label gelöscht.' });
 });
 
@@ -584,6 +604,7 @@ router.put('/nutzer/:id/labels', (req, res) => {
   const insert = db.prepare('INSERT OR IGNORE INTO nutzer_labels (nutzer_id, label_id) VALUES (?, ?)');
   const transaction = db.transaction((ids) => { for (const lid of ids) insert.run(req.params.id, lid); });
   transaction(labelIds);
+  logAudit(req.user.id, 'admin_update_user_labels', { target_user_id: req.params.id, label_ids: labelIds });
   res.json({ nachricht: 'Labels aktualisiert.' });
 });
 
@@ -593,6 +614,20 @@ router.get('/nutzer/:id/labels', (req, res) => {
     SELECT l.* FROM labels l JOIN nutzer_labels nl ON l.id = nl.label_id WHERE nl.nutzer_id = ?
   `).all(req.params.id);
   res.json(labels);
+});
+
+// GET /api/admin/audit-logs - Audit Logs laden
+router.get('/audit-logs', (req, res) => {
+  const limit = 500;
+  const logs = db.prepare(`
+    SELECT a.id, a.action, a.details, a.created_at, u.username as user_name
+    FROM audit_logs a
+    LEFT JOIN users u ON a.user_id = u.id
+    ORDER BY a.created_at DESC
+    LIMIT ?
+  `).all(limit);
+
+  res.json(logs);
 });
 
 module.exports = router;

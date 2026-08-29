@@ -36,6 +36,7 @@ const AdminView = {
             <button class="admin-tab" data-tab="nutzer" role="tab">👥 Nutzer</button>
             <button class="admin-tab" data-tab="nachrichten" role="tab">📨 Nachrichten</button>
             <button class="admin-tab" data-tab="labels" role="tab">🏷️ Labels</button>
+            <button class="admin-tab" data-tab="audit" role="tab">📜 Audit Log</button>
             <button class="admin-tab" data-tab="einstellungen" role="tab">🔧 Einstellungen</button>
           </div>
 
@@ -82,6 +83,7 @@ const AdminView = {
         case 'nachrichten': await this.nachrichtenRendern(container); break;
         case 'labels': await this.labelsRendern(container); break;
         case 'einstellungen': await this.einstellungenRendern(container); break;
+        case 'audit': await this.auditLogsLaden(container); break;
       }
     } catch (err) {
       container.innerHTML = `<div class="info-box fehler"><span>⚠️</span><span>Fehler: ${UI.escapeHtml(err.message)}</span></div>`;
@@ -1158,4 +1160,52 @@ const AdminView = {
       });
     });
   },
+
+  async auditLogsLaden(container) {
+    try {
+      const logs = await API.adminAuditLogsLaden();
+      
+      const renderDetails = (detailsStr) => {
+        try {
+          if (!detailsStr) return '-';
+          const obj = JSON.parse(detailsStr);
+          if (Object.keys(obj).length === 0) return '-';
+          return Object.entries(obj).map(([k, v]) => `<strong>${UI.escapeHtml(k)}:</strong> ${UI.escapeHtml(String(v))}`).join('<br>');
+        } catch {
+          return UI.escapeHtml(detailsStr);
+        }
+      };
+
+      container.innerHTML = `
+        <div class="admin-panel-karte">
+          <h3>📜 Audit Log</h3>
+          <p style="color: var(--farbe-text-schwach); margin-bottom: 20px;">Die neuesten Aktivitäten im System.</p>
+          <div class="tabelle-container" style="max-height: 600px; overflow-y: auto;">
+            <table class="tabelle">
+              <thead>
+                <tr>
+                  <th style="width: 150px;">Zeitpunkt</th>
+                  <th style="width: 150px;">Aktion</th>
+                  <th style="width: 120px;">Nutzer</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${logs.length === 0 ? '<tr><td colspan="4" style="text-align: center;">Noch keine Einträge.</td></tr>' : logs.map(l => `
+                  <tr>
+                    <td style="white-space: nowrap; font-size: 12px;">${UI.datumFormatieren(l.created_at)}</td>
+                    <td><span class="label" style="background: rgba(255,255,255,0.1); border-radius: 4px; padding: 2px 6px;">${UI.escapeHtml(l.action)}</span></td>
+                    <td>${l.user_name ? UI.escapeHtml(l.user_name) : '<em>System</em>'}</td>
+                    <td style="font-size: 13px; color: var(--farbe-text-schwach); line-height: 1.4;">${renderDetails(l.details)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    } catch (err) {
+      container.innerHTML = `<div class="info-box fehler">⚠️ Fehler beim Laden des Audit Logs: ${err.message}</div>`;
+    }
+  }
 };

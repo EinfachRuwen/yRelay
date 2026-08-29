@@ -149,10 +149,21 @@ try {
   db.exec('ALTER TABLE users ADD COLUMN ntfy_topic TEXT;');
 } catch (e) {}
 
+// Feature: E-Mail Benachrichtigungen deaktivieren
 try {
-  // Feature: E-Mail Benachrichtigungen deaktivieren
   db.exec('ALTER TABLE users ADD COLUMN email_notifications INTEGER NOT NULL DEFAULT 1;');
 } catch (e) {}
+
+// Feature: Audit Logs
+db.exec(`
+  CREATE TABLE IF NOT EXISTS audit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    action TEXT NOT NULL,
+    details TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
 
 // Feature: Nutzer Labels
 db.exec(`
@@ -231,4 +242,14 @@ function setSetting(key, value) {
   `).run(key, value);
 }
 
-module.exports = { db, initAdminUser, initSettings, getSetting, setSetting };
+function logAudit(userId, action, detailsObj = {}) {
+  try {
+    const detailsStr = JSON.stringify(detailsObj);
+    db.prepare('INSERT INTO audit_logs (user_id, action, details) VALUES (?, ?, ?)')
+      .run(userId || null, action, detailsStr);
+  } catch (err) {
+    console.error('[yRelay] Fehler beim Schreiben des Audit Logs:', err);
+  }
+}
+
+module.exports = { db, initAdminUser, initSettings, getSetting, setSetting, logAudit };

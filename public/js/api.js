@@ -20,7 +20,12 @@ const API = {
     return this._token;
   },
 
-  async anfrage(methode, pfad, daten = null) {
+  async anfrage(methode, pfad, daten = null, queueIfOffline = false) {
+    if (queueIfOffline && !navigator.onLine) {
+      this._enqueueOffline(methode, pfad, daten);
+      return { nachricht: 'Offline-Modus: Aktion in Warteschlange geparkt.' };
+    }
+
     const optionen = {
       method: methode,
       headers: {
@@ -48,9 +53,46 @@ const API = {
       return json;
     } catch (err) {
       if (err.name === 'TypeError') {
+        if (queueIfOffline) {
+          this._enqueueOffline(methode, pfad, daten);
+          return { nachricht: 'Verbindung verloren: Aktion in Warteschlange geparkt.' };
+        }
         throw new Error('Verbindungsfehler. Server nicht erreichbar.');
       }
       throw err;
+    }
+  },
+
+  _enqueueOffline(methode, pfad, daten) {
+    const queue = JSON.parse(localStorage.getItem('yrelay_offline_queue') || '[]');
+    queue.push({ methode, pfad, daten, timestamp: Date.now() });
+    localStorage.setItem('yrelay_offline_queue', JSON.stringify(queue));
+    if (window.UI && UI.info) {
+      UI.info('📴 Offline: Aktion wurde geparkt und wird gesendet, sobald du wieder Netz hast.');
+    }
+  },
+
+  async syncOfflineQueue() {
+    if (!navigator.onLine) return;
+    const queue = JSON.parse(localStorage.getItem('yrelay_offline_queue') || '[]');
+    if (queue.length === 0) return;
+
+    let successCount = 0;
+    const failedQueue = [];
+
+    for (const item of queue) {
+      try {
+        await this.anfrage(item.methode, item.pfad, item.daten, false);
+        successCount++;
+      } catch (err) {
+        console.error('[yRelay Offline Sync] Item fehlgeschlagen:', err);
+        failedQueue.push(item);
+      }
+    }
+
+    localStorage.setItem('yrelay_offline_queue', JSON.stringify(failedQueue));
+    if (successCount > 0 && window.UI && UI.erfolg) {
+      UI.erfolg(`📶 Wieder online! ${successCount} geparkte Aktion(en) gesendet.`);
     }
   },
 
@@ -85,15 +127,15 @@ const API = {
 
   // Nachrichten
   async nachrichtSenden(inhalt, originalTranskript = null) {
-    return this.anfrage('POST', '/nachrichten/senden', { inhalt, originalTranskript });
+    return this.anfrage('POST', '/nachrichten/senden', { inhalt, originalTranskript }, true);
   },
 
   async notfallSenden(inhalt, prioritaet, originalTranskript = null) {
-    return this.anfrage('POST', '/nachrichten/notfall', { inhalt, prioritaet, originalTranskript });
+    return this.anfrage('POST', '/nachrichten/notfall', { inhalt, prioritaet, originalTranskript }, true);
   },
 
   async buttonKlicken(nachrichtId, btnId) {
-    return this.anfrage('POST', `/nachrichten/klick/${nachrichtId}`, { btnId });
+    return this.anfrage('POST', `/nachrichten/klick/${nachrichtId}`, { btnId }, true);
   },
 
   async audioTranskribieren(audioBlob) {
@@ -187,6 +229,10 @@ const API = {
 
   async adminStatistiken() {
     return this.anfrage('GET', '/admin/statistiken');
+  },
+
+  async adminAuditLogsLaden() {
+    return this.anfrage('GET', '/admin/audit-logs');
   },
 
   // Admin - Backups
