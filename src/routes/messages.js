@@ -1,6 +1,5 @@
 // Nachrichten-Routes für yRelay
 const express = require('express');
-const axios = require('axios');
 const { db, getSetting, logAudit } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { sendeFreieNachricht, sendeNotfallbenachrichtigung } = require('../services/poke');
