@@ -49,7 +49,7 @@ async function pruefe() {
     // ─── Geplante Nachrichten versenden ──────────────────────────────────────
     const zuSenden = db.prepare(`
       SELECT m.id, m.content, m.type, m.priority, m.reply_token,
-             u.email, u.username, u.id as user_id
+             u.email, u.username, u.id as user_id, u.ntfy_topic, u.email_notifications
       FROM messages m
       JOIN users u ON m.user_id = u.id
       WHERE m.status = 'geplant'
@@ -76,7 +76,7 @@ async function pruefe() {
 
         // 🔔 Benachrichtigung senden
         const { sendePushUndMail } = require('./notify');
-        const userDaten = db.prepare('SELECT email, username, ntfy_topic FROM users WHERE id = ?').get(msg.user_id);
+        const userDaten = db.prepare('SELECT email, username, ntfy_topic, email_notifications FROM users WHERE id = ?').get(msg.user_id);
         
         if (ergebnis.erfolg) {
           sendePushUndMail(userDaten, {
@@ -103,7 +103,7 @@ async function pruefe() {
 
         // 🔔 Benachrichtigung senden (Catch-Block)
         const { sendePushUndMail } = require('./notify');
-        const userDaten = db.prepare('SELECT email, username, ntfy_topic FROM users WHERE id = ?').get(msg.user_id);
+        const userDaten = db.prepare('SELECT email, username, ntfy_topic, email_notifications FROM users WHERE id = ?').get(msg.user_id);
         sendePushUndMail(userDaten, {
           betreff: 'Fehler bei geplanter Nachricht 🚨',
           inhalt: `Deine geplante Nachricht konnte aufgrund eines internen Fehlers <strong>nicht</strong> gesendet werden.<br><br><strong>Fehler:</strong> ${err.message}`,
@@ -120,7 +120,7 @@ async function pruefe() {
     // - Vor mehr als 5 Minuten erstellt wurden
     const unbeantwortete = db.prepare(`
       SELECT m.id, m.content, m.reply_token, m.reminder_sent_at, m.user_notified_at,
-             m.created_at, u.email, u.username
+             m.created_at, u.email, u.username, u.ntfy_topic, u.email_notifications
       FROM messages m
       JOIN users u ON m.user_id = u.id
       WHERE m.status = 'gesendet'

@@ -26,7 +26,7 @@ router.post('/poke-reply/:id/:token', (req, res) => {
 
   // Nachricht prüfen und zugehörige Nutzer-Daten holen (inkl. user_replies)
   const msg = db.prepare(`
-    SELECT m.id, m.content, m.reply_content, m.user_replies, u.email, u.username, u.ntfy_topic
+    SELECT m.id, m.content, m.reply_content, m.user_replies, u.email, u.username, u.ntfy_topic, u.email_notifications
     FROM messages m
     JOIN users u ON m.user_id = u.id
     WHERE m.id = ? AND m.reply_token = ?
@@ -68,7 +68,7 @@ router.post('/poke-reply/:id/:token', (req, res) => {
   // E-Mail-Benachrichtigung senden (asynchron im Hintergrund)
   const hasButtons = Array.isArray(buttons) && buttons.length > 0;
   
-  if (msg.email) {
+  if (msg.email && msg.email_notifications !== 0 && msg.email_notifications !== false) {
     if (hasButtons) {
       sendeRueckfrageMail(msg.email, msg.username, msg.content, message, buttons, msg.id, token, gemischterVerlauf).catch(err => {
         console.error('[yRelay] Fehler beim Senden der Rückfrage-Mail:', err);
@@ -106,7 +106,7 @@ router.post('/poke-action/:id/:token', (req, res) => {
   if (!action) return res.status(400).json({ fehler: 'Feld "action" fehlt.' });
 
   const msg = db.prepare(`
-    SELECT m.id, m.content, u.email, u.username, u.ntfy_topic 
+    SELECT m.id, m.content, u.email, u.username, u.ntfy_topic, u.email_notifications
     FROM messages m
     JOIN users u ON m.user_id = u.id
     WHERE m.id = ? AND m.reply_token = ?

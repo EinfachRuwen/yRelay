@@ -149,6 +149,11 @@ try {
   db.exec('ALTER TABLE users ADD COLUMN ntfy_topic TEXT;');
 } catch (e) {}
 
+try {
+  // Feature: E-Mail Benachrichtigungen deaktivieren
+  db.exec('ALTER TABLE users ADD COLUMN email_notifications INTEGER NOT NULL DEFAULT 1;');
+} catch (e) {}
+
 // Feature: Nutzer Labels
 db.exec(`
   CREATE TABLE IF NOT EXISTS labels (

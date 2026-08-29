@@ -461,7 +461,7 @@ const AdminView = {
                                 </button>
                               ` : ''}
                               <button class="btn btn-sekundaer btn-klein"
-                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}', '${UI.escapeHtml(n.ntfy_topic || '')}')"
+                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}', '${UI.escapeHtml(n.ntfy_topic || '')}', ${n.email_notifications !== false})"
                                 title="Nutzer bearbeiten">
                                 ✏️
                               </button>
@@ -482,7 +482,7 @@ const AdminView = {
                               </button>
                             ` : `
                               <button class="btn btn-sekundaer btn-klein"
-                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}', '${UI.escapeHtml(n.ntfy_topic || '')}')"
+                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}', '${UI.escapeHtml(n.ntfy_topic || '')}', ${n.email_notifications !== false})"
                                 title="Profil bearbeiten">
                                 ✏️
                               </button>
@@ -667,7 +667,7 @@ const AdminView = {
     }
   },
 
-  nutzerBearbeitenModal(id, benutzername, email, anzeigename, ntfy_topic) {
+  nutzerBearbeitenModal(id, benutzername, email, anzeigename, ntfy_topic, email_notifications = true) {
     UI.modalZeigen(`
       <div class="modal-header">
         <span class="modal-titel">✏️ Nutzer bearbeiten</span>
@@ -693,6 +693,12 @@ const AdminView = {
               <input class="formular-eingabe" type="text" id="bearbeiten-ntfy" value="${ntfy_topic}" placeholder="z.B. yrelay-ruwen-abc123xyz" style="flex: 1;">
               <button type="button" class="btn btn-ghost" id="admin-ntfy-generieren" title="Zufälliges Topic generieren">🎲 Generieren</button>
             </div>
+          </div>
+          <div class="formular-gruppe" style="margin-top: 15px;">
+            <label class="formular-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="bearbeiten-email-notifications" ${email_notifications ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+              ✉️ E-Mail-Benachrichtigungen senden
+            </label>
           </div>
           <div id="bearbeiten-fehler" class="info-box fehler versteckt" style="margin-bottom: 12px;">
             <span>⚠️</span><span id="bearbeiten-fehler-text"></span>
@@ -727,12 +733,13 @@ const AdminView = {
       const emailVal = document.getElementById('bearbeiten-email').value.trim();
       const anzeigename = document.getElementById('bearbeiten-anzeigename').value.trim();
       const ntfy = document.getElementById('bearbeiten-ntfy').value.trim();
+      const emailNotif = document.getElementById('bearbeiten-email-notifications').checked;
 
       fehlerBox.classList.add('versteckt');
       UI.btnLaden(btn, true);
 
       try {
-        await API.adminNutzerBearbeiten(id, uname, emailVal, anzeigename, ntfy);
+        await API.adminNutzerBearbeiten(id, uname, emailVal, anzeigename, ntfy, emailNotif);
         UI.modalSchliessen();
         UI.erfolg('Nutzerdaten erfolgreich aktualisiert.');
         await this.tabLaden('nutzer');
@@ -919,7 +926,7 @@ const AdminView = {
                       <div class="verlauf-nutzer">👤 ${UI.escapeHtml(n.von.benutzername)} &lt;${UI.escapeHtml(n.von.email)}&gt;</div>
                       <div style="margin-top: 6px;">${UI.renderInhalt(n.inhalt)}</div>
                       ${n.fehler ? `<div style="font-size: 12px; color: var(--farbe-notfall); margin-top: 4px;">⚠️ ${UI.escapeHtml(n.fehler)}</div>` : ''}
-                      ${UI.renderAntworten(n.antwortText, n.nutzerAntworten)}
+                      ${UI.renderAntworten(n.id, n.antwortText, n.nutzerAntworten)}
                     </div>
                     <div style="text-align: right;">
                       <div class="verlauf-datum">${UI.datumFormatieren(n.gesendetAm)}</div>

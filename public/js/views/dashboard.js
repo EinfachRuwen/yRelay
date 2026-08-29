@@ -345,6 +345,16 @@ const DashboardView = {
               </div>
               <div style="font-size: 11px; color: var(--farbe-text-schwach); margin-top: 4px;">Abonniere dieses Topic in der <a href="https://ntfy.sh" target="_blank" style="color: var(--farbe-primaer);">ntfy App</a>. Gib es nicht weiter!</div>
             </div>
+            <div class="formular-gruppe" style="margin-top: 15px;">
+              <label class="formular-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="profil-email-notifications" ${nutzer.email_notifications !== false ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+                ✉️ E-Mail-Benachrichtigungen empfangen
+              </label>
+              <div style="font-size: 12px; color: var(--farbe-text-schwach); margin-left: 26px; margin-top: 4px;">
+                Deaktivieren, wenn du nur ntfy-Push erhalten möchtest. Passwort-Resets und Einladungen werden weiterhin per E-Mail gesendet.
+              </div>
+            </div>
+            
             <div style="display: flex; gap: 10px; margin-top: 20px;">
               <button type="button" class="btn btn-ghost" onclick="UI.modalSchliessen()">Abbrechen</button>
               <button type="submit" class="btn btn-primaer" style="flex: 1;" id="profil-speichern">Speichern</button>
@@ -374,7 +384,8 @@ const DashboardView = {
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('yrelay_token') },
             body: JSON.stringify({ 
               anzeigename: document.getElementById('profil-anzeigename').value.trim(),
-              ntfy_topic: document.getElementById('profil-ntfy').value.trim()
+              ntfy_topic: document.getElementById('profil-ntfy').value.trim(),
+              email_notifications: document.getElementById('profil-email-notifications').checked
             })
           });
           UI.modalSchliessen();
