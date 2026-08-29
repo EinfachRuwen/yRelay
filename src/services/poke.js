@@ -35,11 +35,12 @@ Jede Antwort wird separat gespeichert und dem Absender per E-Mail und im Dashboa
 Um zu antworten, sende einen POST-Request mit dem JSON-Body {"message": "Deine Antwort"} an:
 ${antwortLink}
 
-Du kannst auch interaktive Buttons für Rückfragen oder Entscheidungen anlegen, die der Nutzer direkt im Dashboard anklicken kann.
-Füge dazu im JSON-Body einfach ein Array 'buttons' hinzu:
-{"message": "Deine Frage...", "buttons": [{"id": "btn_ja", "text": "Ja, bitte", "style": "primaer"}, {"id": "btn_nein", "text": "Nein", "style": "sekundaer"}]}
+Du kannst auch interaktive Buttons mitsenden, wenn DU eine Rückfrage oder Entscheidung vom ABSENDER (also dem Nutzer, der diese Nachricht geschrieben hat) benötigst. 
+Diese Buttons werden dem Absender in seinem yRelay Dashboard angezeigt, damit er sie direkt anklicken kann.
+Füge dazu im JSON-Body einfach ein Array 'buttons' hinzu. Beispiel:
+{"message": "Möchtest du, dass ich den Termin verschiebe?", "buttons": [{"id": "btn_ja", "text": "Ja, bitte", "style": "primaer"}, {"id": "btn_nein", "text": "Nein", "style": "sekundaer"}]}
 Erlaubte 'style'-Werte: primaer, sekundaer, warnung, notfall (Maximal 5 Buttons).
-Wenn der Nutzer klickt, erhältst du eine neue System-Nachricht in diesem Chat, die dir mitteilt, welcher Button geklickt wurde.
+Wenn der Absender einen der Buttons klickt, erhältst du eine neue System-Nachricht in diesem Chat, die dir mitteilt, wofür er sich entschieden hat.
 
 Du kannst diese Nachricht auch mit einem Status markieren (optional aber hilfreich):
 POST {"action": "erledigt", "notiz": "Optional: Was du getan hast"} an: ${actionLink}
@@ -112,8 +113,8 @@ Du kannst auch mehrfach antworten, z.B. zuerst eine Eingangsbestätigung, dann d
 Jede Antwort wird separat gespeichert und dem Absender per E-Mail und im Dashboard angezeigt.
 Um zu antworten, sende einen POST-Request mit dem JSON-Body {"message": "Deine Antwort"} an:
 ${antwortLink}
-Du kannst auch interaktive Buttons anlegen (siehe reguläre Nachrichten-Instruktionen für Details), z.B.:
-{"message": "Frage", "buttons": [{"id": "ok", "text": "OK"}]}
+Du kannst auch interaktive Buttons mitsenden (siehe reguläre Nachrichten-Instruktionen für Details), wenn du vom Absender noch eine dringende Entscheidung brauchst, z.B.:
+{"message": "Soll ich den Notfall-Plan ausführen?", "buttons": [{"id": "ok", "text": "Ja, ausführen!"}, {"id": "stop", "text": "Nein, abbrechen"}]}
 
 Du kannst diese Notfall-Nachricht auch mit einem Status markieren:
 POST {"action": "in_bearbeitung", "notiz": "..."} an: ${actionLink}
