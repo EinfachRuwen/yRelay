@@ -166,15 +166,17 @@ async function pruefe() {
         // Immer zuerst als "gesendet" markieren (Idempotenz vor dem await)
         db.prepare('UPDATE messages SET user_notified_at = CURRENT_TIMESTAMP WHERE id = ?').run(msg.id);
 
-        sendeAusstehendeAntwortMail(msg.email, msg.username, msg.content).then(ergebnis => {
-          if (ergebnis.erfolg) {
-            console.log(`[yRelay Reminder] Nutzer ${msg.username} wurde für Nachricht ${msg.id} benachrichtigt.`);
-          } else {
-            console.warn(`[yRelay Reminder] Mail-Fehler für Nachricht ${msg.id}: ${ergebnis.fehler}`);
-          }
-        }).catch(err => {
-          console.error('[yRelay Reminder] Kritischer Mail-Fehler:', err.message);
-        });
+        if (msg.email && msg.email_notifications !== 0 && msg.email_notifications !== false) {
+          sendeAusstehendeAntwortMail(msg.email, msg.username, msg.content).then(ergebnis => {
+            if (ergebnis.erfolg) {
+              console.log(`[yRelay Reminder] Nutzer ${msg.username} wurde für Nachricht ${msg.id} benachrichtigt.`);
+            } else {
+              console.warn(`[yRelay Reminder] Mail-Fehler für Nachricht ${msg.id}: ${ergebnis.fehler}`);
+            }
+          }).catch(err => {
+            console.error('[yRelay Reminder] Kritischer Mail-Fehler:', err.message);
+          });
+        }
       }
     }
   } catch (err) {
