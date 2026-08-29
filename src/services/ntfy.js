@@ -46,4 +46,11 @@ async function sendNtfyNotification(topic, title, message, clickUrl = null, prio
   }
 }
 
-module.exports = { sendNtfyNotification };
+const NTFY_TOPIC_MAX_LENGTH = 32;
+
+function isValidNtfyTopic(topic) {
+  return typeof topic === 'string'
+    && topic.length <= NTFY_TOPIC_MAX_LENGTH
+    && /^[A-Za-z0-9_-]+$/.test(topic);
+}
+module.exports = { NTFY_TOPIC_MAX_LENGTH, isValidNtfyTopic, sendNtfyNotification };

@@ -1,3 +1,4 @@
+const { isValidNtfyTopic, NTFY_TOPIC_MAX_LENGTH } = require('../services/ntfy');
 // Admin-Routes für yRelay
 const express = require('express');
 const bcrypt = require('bcryptjs');
@@ -164,6 +165,10 @@ router.put('/nutzer/:id', (req, res) => {
   const emailVal = email && email.trim() !== '' ? email.trim() : null;
   const ntfyVal = ntfy_topic && ntfy_topic.trim() !== '' ? ntfy_topic.trim() : null;
   const emailNotifVal = email_notifications ? 1 : 0;
+
+  if (ntfyVal && !isValidNtfyTopic(ntfyVal)) {
+    return res.status(400).json({ fehler: `Das ntfy Topic darf nur Buchstaben, Zahlen, - und _ enthalten und maximal ${NTFY_TOPIC_MAX_LENGTH} Zeichen lang sein.` });
+  }
 
   const vorhanden = db.prepare('SELECT id FROM users WHERE (username = ? OR (email = ? AND email IS NOT NULL)) AND id != ?').get(benutzername, emailVal, id);
   if (vorhanden) {

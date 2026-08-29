@@ -690,7 +690,7 @@ const AdminView = {
           <div class="formular-gruppe">
             <label class="formular-label" for="bearbeiten-ntfy">ntfy.sh Topic (optional)</label>
             <div style="display: flex; gap: 8px;">
-              <input class="formular-eingabe" type="text" id="bearbeiten-ntfy" value="${ntfy_topic}" placeholder="z.B. yrelay-ruwen-abc123xyz" style="flex: 1;">
+              <input class="formular-eingabe" type="text" id="bearbeiten-ntfy" value="${ntfy_topic}" placeholder="z.B. yrelay-ruwen-abc123xyz" maxlength="32" pattern="[A-Za-z0-9_-]+" style="flex: 1;">
               <button type="button" class="btn btn-ghost" id="admin-ntfy-generieren" title="Zufälliges Topic generieren">🎲 Generieren</button>
             </div>
           </div>
@@ -714,12 +714,13 @@ const AdminView = {
     document.getElementById('admin-ntfy-generieren')?.addEventListener('click', () => {
       const generateSafeString = () => {
         if (window.crypto && window.crypto.randomUUID) {
-          return window.crypto.randomUUID().replace(/-/g, '') + window.crypto.randomUUID().replace(/-/g, '');
+          return window.crypto.randomUUID().replace(/-/g, '');
         }
-        return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       };
       const uname = document.getElementById('bearbeiten-benutzername').value.trim() || 'nutzer';
-      const topic = `yrelay-${uname.toLowerCase().replace(/[^a-z0-9]/g, '')}-${generateSafeString()}`;
+      const name = uname.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10) || 'nutzer';
+      const topic = `yrelay-${name}-${generateSafeString().slice(0, 14)}`;
       document.getElementById('bearbeiten-ntfy').value = topic;
     });
 

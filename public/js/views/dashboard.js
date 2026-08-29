@@ -340,7 +340,7 @@ const DashboardView = {
             <div class="formular-gruppe">
               <label class="formular-label" for="profil-ntfy">ntfy.sh Topic (für Push-Benachrichtigungen)</label>
               <div style="display: flex; gap: 8px;">
-                <input class="formular-eingabe" type="text" id="profil-ntfy" value="${nutzer.ntfy_topic || ''}" placeholder="z.B. yrelay-ruwen-abc123xyz" style="flex: 1;">
+                <input class="formular-eingabe" type="text" id="profil-ntfy" value="${nutzer.ntfy_topic || ''}" placeholder="z.B. yrelay-ruwen-abc123xyz" maxlength="32" pattern="[A-Za-z0-9_-]+" style="flex: 1;">
                 <button type="button" class="btn btn-ghost" id="ntfy-generieren" title="Zufälliges Topic generieren">🎲 Generieren</button>
               </div>
               <div style="font-size: 11px; color: var(--farbe-text-schwach); margin-top: 4px;">Abonniere dieses Topic in der <a href="https://ntfy.sh" target="_blank" style="color: var(--farbe-primaer);">ntfy App</a>. Gib es nicht weiter!</div>
@@ -366,11 +366,12 @@ const DashboardView = {
       document.getElementById('ntfy-generieren')?.addEventListener('click', () => {
         const generateSafeString = () => {
           if (window.crypto && window.crypto.randomUUID) {
-            return window.crypto.randomUUID().replace(/-/g, '') + window.crypto.randomUUID().replace(/-/g, '');
+            return window.crypto.randomUUID().replace(/-/g, '');
           }
-          return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+          return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
         };
-        const topic = \`yrelay-\${nutzer.benutzername.toLowerCase().replace(/[^a-z0-9]/g, '')}-\${generateSafeString()}\`;
+        const name = nutzer.benutzername.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10) || 'nutzer';
+        const topic = `yrelay-${name}-${generateSafeString().slice(0, 14)}`;
         document.getElementById('profil-ntfy').value = topic;
       });
 
@@ -379,7 +380,7 @@ const DashboardView = {
         const btn = document.getElementById('profil-speichern');
         UI.btnLaden(btn, true);
         try {
-          await fetch('/api/auth/profil', {
+          const antwort = await fetch('/api/auth/profil', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('yrelay_token') },
             body: JSON.stringify({ 
@@ -388,6 +389,8 @@ const DashboardView = {
               email_notifications: document.getElementById('profil-email-notifications').checked
             })
           });
+          const daten = await antwort.json();
+          if (!antwort.ok) throw new Error(daten.fehler || `Serverfehler ${antwort.status}`);
           UI.modalSchliessen();
           UI.erfolg('Profil gespeichert. Lade neu...');
           setTimeout(() => window.location.reload(), 1000);

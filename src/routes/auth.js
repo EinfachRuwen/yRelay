@@ -2,6 +2,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { db } = require('../db');
+const { isValidNtfyTopic, NTFY_TOPIC_MAX_LENGTH } = require('../services/ntfy');
 const { createToken } = require('../middleware/auth');
 const { requireAuth } = require('../middleware/auth');
 
@@ -129,11 +130,16 @@ router.patch('/onboarding', requireAuth, (req, res) => {
 // PUT /api/auth/profil - Eigenes Profil aktualisieren
 router.put('/profil', requireAuth, (req, res) => {
   const { anzeigename, ntfy_topic, email_notifications } = req.body;
-  
+  const ntfyVal = ntfy_topic && ntfy_topic.trim() !== '' ? ntfy_topic.trim() : null;
+
+  if (ntfyVal && !isValidNtfyTopic(ntfyVal)) {
+    return res.status(400).json({ fehler: `Das ntfy Topic darf nur Buchstaben, Zahlen, - und _ enthalten und maximal ${NTFY_TOPIC_MAX_LENGTH} Zeichen lang sein.` });
+  }
+
   const emailNotif = email_notifications === false ? 0 : 1;
-  
+
   db.prepare('UPDATE users SET display_name = ?, ntfy_topic = ?, email_notifications = ? WHERE id = ?')
-    .run(anzeigename || null, ntfy_topic || null, emailNotif, req.user.id);
+    .run(anzeigename || null, ntfyVal, emailNotif, req.user.id);
   
   res.json({ nachricht: 'Profil erfolgreich aktualisiert.' });
 });
