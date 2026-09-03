@@ -292,6 +292,10 @@ const API = {
     return this.anfrage('PUT', `/admin/nutzer/${nutzerId}/labels`, { labelIds });
   },
 
+  async schulIntegrationLaden() {
+    return this.anfrage('GET', '/schuldashboard/integration');
+  },
+
   // Geplante Nachrichten
   async nachrichtPlanen(inhalt, sendAt, prioritaet = null, pokeProfilId = null) {
     return this.anfrage('POST', '/nachrichten/planen', { inhalt, sendAt, prioritaet, pokeProfilId });

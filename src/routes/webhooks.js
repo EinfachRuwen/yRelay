@@ -179,13 +179,12 @@ router.post('/poke-action/:id/:token', (req, res) => {
   res.json({ success: true });
 });
 
-// POST /api/webhooks/schul-update/:secret
-router.post('/schul-update/:secret', (req, res) => {
-  const { getSetting } = require('../db');
-  const secret = getSetting('schul_webhook_secret');
-  if (!secret || req.params.secret !== secret) {
-    return res.status(403).json({ fehler: 'Ungültiges Secret.' });
-  }
+// POST /api/webhooks/schul-update/:token
+router.post('/schul-update/:token', (req, res) => {
+  const integration = db.prepare(`
+    SELECT id, nutzer_id, profil_id FROM schul_integrationen WHERE token = ?
+  `).get(req.params.token);
+  if (!integration) return res.status(403).json({ fehler: 'Ungültiger Schul-Integrationstoken.' });
 
   const { typ, daten } = req.body;
   

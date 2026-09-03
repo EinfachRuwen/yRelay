@@ -30,6 +30,7 @@ const SchulDashboardView = {
           <div class="sektion-titel" style="display:flex; justify-content:space-between; align-items:center;">
             <div>🎒 Schul-Dashboard</div>
             <div class="schulmodus-toggle" style="display:flex; align-items:center; gap:10px;">
+              <button id="integration-btn" class="btn btn-ghost btn-klein" title="Poke-Integration anzeigen">🔗 Integration</button>
               <span id="modus-status-badge" class="status-badge" style="background:var(--text-sekundaer);">Modus: Inaktiv</span>
               <button id="toggle-modus-btn" class="btn btn-sekundaer btn-klein">Aktivieren</button>
             </div>
@@ -135,6 +136,33 @@ const SchulDashboardView = {
 
     this._schulmodusAktiv = false;
     await this.datenLaden();
+
+    document.getElementById('integration-btn')?.addEventListener('click', async () => {
+      try {
+        const integration = await API.schulIntegrationLaden();
+        UI.modalZeigen(`
+          <div class="modal-header">
+            <span class="modal-titel">🔗 Poke-Integration</span>
+            <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+          </div>
+          <div class="modal-koerper">
+            <p>Diese Integration gehört zu deinem Schul-Dashboard und dem Poke-Profil <strong>${UI.escapeHtml(integration.profilName)}</strong>.</p>
+            <div class="formular-gruppe">
+              <label class="formular-label" for="schul-callback-url">Callback-URL für Poke</label>
+              <input class="formular-eingabe" id="schul-callback-url" value="${UI.escapeHtml(integration.callbackUrl)}" readonly>
+            </div>
+            <button class="btn btn-primaer btn-vollbreite" id="schul-callback-kopieren">📋 URL kopieren</button>
+            <p class="text-gedaempft" style="margin-top:12px;">Beim Aktivieren des Schulmodus bekommt Poke diese URL automatisch mit der API-Anleitung. Teile sie nur mit diesem Poke-Profil.</p>
+          </div>
+        `);
+        document.getElementById('schul-callback-kopieren')?.addEventListener('click', async () => {
+          await navigator.clipboard.writeText(integration.callbackUrl);
+          UI.erfolg('Callback-URL kopiert.');
+        });
+      } catch (e) {
+        UI.fehler(e.message);
+      }
+    });
 
     // Modus umschalten
     document.getElementById('toggle-modus-btn')?.addEventListener('click', async () => {

@@ -1432,7 +1432,7 @@ const AdminView = {
         </div>
         <div class="formular-gruppe">
           <label class="formular-label">API Key (Token)</label>
-          <input type="text" id="prof-apikey" class="eingabefeld" value="${isEdit ? UI.escapeHtml(profil.api_key) : ''}" required>
+          <input type="password" id="prof-apikey" class="eingabefeld" value="" placeholder="${isEdit && profil.api_key_gesetzt ? 'Gespeicherter Key bleibt unverändert' : 'Bearer-Token eingeben'}" ${isEdit ? '' : 'required'}>
         </div>
         <div class="formular-gruppe" style="display:flex; align-items:center; gap:10px;">
           <input type="checkbox" id="prof-standard" ${isEdit && profil.ist_standard ? 'checked' : ''}>

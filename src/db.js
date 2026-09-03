@@ -224,6 +224,15 @@ db.exec(`
     profil_id INTEGER NOT NULL REFERENCES poke_profiles(id) ON DELETE CASCADE,
     PRIMARY KEY (nutzer_id, profil_id)
   );
+
+  CREATE TABLE IF NOT EXISTS schul_integrationen (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nutzer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    profil_id INTEGER NOT NULL REFERENCES poke_profiles(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    erstellt_am DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (nutzer_id, profil_id)
+  );
 `);
 
 // Migration: poke_profile_id zu messages hinzufügen

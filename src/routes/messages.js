@@ -44,6 +44,23 @@ const router = express.Router();
 // Alle Routes erfordern Authentifizierung
 router.use(requireAuth);
 
+function ladeNutzerPokeProfil(nutzerId, profilId = null) {
+  if (profilId) {
+    return db.prepare(`
+      SELECT pp.*
+      FROM poke_profiles pp
+      JOIN nutzer_poke_profile npp ON pp.id = npp.profil_id
+      WHERE pp.id = ? AND npp.nutzer_id = ?
+    `).get(profilId, nutzerId);
+  }
+
+  return db.prepare(`
+    SELECT pp.* FROM poke_profiles pp
+    JOIN nutzer_poke_profile npp ON pp.id = npp.profil_id
+    WHERE npp.nutzer_id = ? ORDER BY pp.ist_standard DESC LIMIT 1
+  `).get(nutzerId) || db.prepare('SELECT * FROM poke_profiles WHERE ist_standard = 1 LIMIT 1').get();
+}
+
 // POST /api/nachrichten/senden - Freie Nachricht an Poke senden
 router.post('/senden', async (req, res) => {
   const { inhalt, originalTranskript } = req.body;
@@ -54,6 +71,12 @@ router.post('/senden', async (req, res) => {
 
   if (inhalt.length > 5000) {
     return res.status(400).json({ fehler: 'Die Nachricht darf maximal 5000 Zeichen lang sein.' });
+  }
+
+  const pokeProfilId = req.body.pokeProfilId || null;
+  const pokeProfil = ladeNutzerPokeProfil(req.user.id, pokeProfilId);
+  if (pokeProfilId && !pokeProfil) {
+    return res.status(403).json({ fehler: 'Dieses Poke-Profil ist dir nicht zugewiesen.' });
   }
 
   // Token generieren und temporären Eintrag erstellen
@@ -72,20 +95,6 @@ router.post('/senden', async (req, res) => {
   }
 
   // Poke-Profil des Nutzers ermitteln (falls mehrere, wird poke_profile_id aus Body genutzt)
-  const pokeProfilId = req.body.pokeProfilId || null;
-  let pokeProfil = null;
-  if (pokeProfilId) {
-    pokeProfil = db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(pokeProfilId);
-  } else {
-    // Erstes zugewiesenes Profil oder Standard-Profil
-    const nutzerProfil = db.prepare(`
-      SELECT pp.* FROM poke_profiles pp
-      JOIN nutzer_poke_profile npp ON pp.id = npp.profil_id
-      WHERE npp.nutzer_id = ? ORDER BY pp.ist_standard DESC LIMIT 1
-    `).get(req.user.id);
-    pokeProfil = nutzerProfil || db.prepare('SELECT * FROM poke_profiles WHERE ist_standard = 1 LIMIT 1').get();
-  }
-
   // poke_profile_id in Nachricht speichern
   if (pokeProfil) {
     db.prepare('UPDATE messages SET poke_profile_id = ? WHERE id = ?').run(pokeProfil.id, messageId);
@@ -131,6 +140,12 @@ router.post('/notfall', async (req, res) => {
     return res.status(400).json({ fehler: 'Die Nachricht darf maximal 2000 Zeichen lang sein.' });
   }
 
+  const pokeProfilIdNotfall = req.body.pokeProfilId || null;
+  const pokeProfilNotfall = ladeNutzerPokeProfil(req.user.id, pokeProfilIdNotfall);
+  if (pokeProfilIdNotfall && !pokeProfilNotfall) {
+    return res.status(403).json({ fehler: 'Dieses Poke-Profil ist dir nicht zugewiesen.' });
+  }
+
   const replyToken = require('crypto').randomBytes(16).toString('hex');
   const insertErgebnis = db.prepare(`
     INSERT INTO messages (user_id, type, priority, content, poke_payload, status, reply_token)
@@ -146,18 +161,6 @@ router.post('/notfall', async (req, res) => {
   }
 
   // Poke-Profil des Nutzers ermitteln
-  const pokeProfilIdNotfall = req.body.pokeProfilId || null;
-  let pokeProfilNotfall = null;
-  if (pokeProfilIdNotfall) {
-    pokeProfilNotfall = db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(pokeProfilIdNotfall);
-  } else {
-    const nutzerProfilN = db.prepare(`
-      SELECT pp.* FROM poke_profiles pp
-      JOIN nutzer_poke_profile npp ON pp.id = npp.profil_id
-      WHERE npp.nutzer_id = ? ORDER BY pp.ist_standard DESC LIMIT 1
-    `).get(req.user.id);
-    pokeProfilNotfall = nutzerProfilN || db.prepare('SELECT * FROM poke_profiles WHERE ist_standard = 1 LIMIT 1').get();
-  }
   if (pokeProfilNotfall) {
     db.prepare('UPDATE messages SET poke_profile_id = ? WHERE id = ?').run(pokeProfilNotfall.id, messageId);
   }
@@ -221,6 +224,11 @@ router.post('/planen', async (req, res) => {
   if (!inhalt || !inhalt.trim()) return res.status(400).json({ fehler: 'Die Nachricht darf nicht leer sein.' });
   if (!sendAt) return res.status(400).json({ fehler: 'Sendezeitpunkt (sendAt) ist erforderlich.' });
 
+  const geplantProfil = ladeNutzerPokeProfil(req.user.id, pokeProfilId);
+  if (pokeProfilId && !geplantProfil) {
+    return res.status(403).json({ fehler: 'Dieses Poke-Profil ist dir nicht zugewiesen.' });
+  }
+
   const sendeZeit = new Date(sendAt);
   if (isNaN(sendeZeit) || sendeZeit <= new Date()) {
     return res.status(400).json({ fehler: 'Sendezeitpunkt muss in der Zukunft liegen.' });
@@ -233,17 +241,7 @@ router.post('/planen', async (req, res) => {
 
   // Poke-Profil des Nutzers ermitteln (falls mehrere, wird pokeProfilId aus Body genutzt)
   let dbPokeProfilId = null;
-  if (pokeProfilId) {
-    const profil = db.prepare('SELECT id FROM poke_profiles WHERE id = ?').get(pokeProfilId);
-    if (profil) dbPokeProfilId = profil.id;
-  } else {
-    const nutzerProfil = db.prepare(`
-      SELECT pp.id FROM poke_profiles pp
-      JOIN nutzer_poke_profile npp ON pp.id = npp.profil_id
-      WHERE npp.nutzer_id = ? ORDER BY pp.ist_standard DESC LIMIT 1
-    `).get(req.user.id);
-    dbPokeProfilId = nutzerProfil ? nutzerProfil.id : db.prepare('SELECT id FROM poke_profiles WHERE ist_standard = 1 LIMIT 1').get()?.id;
-  }
+  dbPokeProfilId = geplantProfil?.id || null;
 
   const insertErgebnis = db.prepare(`
     INSERT INTO messages (user_id, type, priority, content, poke_payload, status, reply_token, send_at, poke_profile_id)

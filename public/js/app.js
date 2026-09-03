@@ -67,6 +67,10 @@ const App = {
 
     // Schul-Dashboard-Route
     if (hash === '#schule' || hash === '#schule/') {
+      if (!this.nutzer.schul_dashboard_global_enabled || !this.nutzer.has_schul_access) {
+        this.navigieren('dashboard');
+        return;
+      }
       app.innerHTML = SchulDashboardView.rendern(this.nutzer);
       SchulDashboardView.initialisieren(this.nutzer);
       return;

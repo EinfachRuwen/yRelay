@@ -33,7 +33,10 @@ router.get('/', requireAdmin, (req, res) => {
     FROM poke_profiles pp
     ORDER BY pp.ist_standard DESC, pp.name ASC
   `).all();
-  res.json(profile);
+  res.json(profile.map(({ api_key, ...profil }) => ({
+    ...profil,
+    api_key_gesetzt: !!api_key,
+  })));
 });
 
 // POST /api/poke-profile - Neues Profil erstellen
@@ -67,7 +70,7 @@ router.put('/:id', requireAdmin, (req, res) => {
   const profil = db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(id);
   if (!profil) return res.status(404).json({ fehler: 'Poke-Profil nicht gefunden.' });
 
-  if (!name || !webhook_url || !api_key) {
+  if (!name || !webhook_url || (!api_key && !profil.api_key)) {
     return res.status(400).json({ fehler: 'Name, Webhook-URL und API-Key sind Pflichtfelder.' });
   }
 
@@ -78,7 +81,7 @@ router.put('/:id', requireAdmin, (req, res) => {
   db.prepare(`
     UPDATE poke_profiles SET name = ?, icon = ?, farbe = ?, webhook_url = ?, api_key = ?, beschreibung = ?, ist_standard = ?
     WHERE id = ?
-  `).run(name.trim(), icon || '🤖', farbe || '#6366f1', webhook_url.trim(), api_key.trim(), beschreibung?.trim() || null, ist_standard ? 1 : 0, id);
+  `).run(name.trim(), icon || '🤖', farbe || '#6366f1', webhook_url.trim(), api_key ? api_key.trim() : profil.api_key, beschreibung?.trim() || null, ist_standard ? 1 : 0, id);
 
   logAudit(req.user.id, 'admin_edit_poke_profile', { profil_id: id, name });
   res.json({ nachricht: `Poke-Profil "${name}" erfolgreich gespeichert.` });
@@ -109,9 +112,12 @@ router.put('/nutzer/:nutzerId', requireAdmin, (req, res) => {
   db.prepare('DELETE FROM nutzer_poke_profile WHERE nutzer_id = ?').run(nutzerId);
 
   if (Array.isArray(profilIds) && profilIds.length > 0) {
+    const gueltigeProfile = db.prepare(`
+      SELECT id FROM poke_profiles WHERE id IN (${profilIds.map(() => '?').join(',')})
+    `).all(...profilIds.map(Number)).map(p => p.id);
     const insert = db.prepare('INSERT OR IGNORE INTO nutzer_poke_profile (nutzer_id, profil_id) VALUES (?, ?)');
     const insertMany = db.transaction((ids) => { for (const pid of ids) insert.run(nutzerId, pid); });
-    insertMany(profilIds);
+    insertMany(gueltigeProfile);
   }
 
   logAudit(req.user.id, 'admin_assign_poke_profiles', { target_user_id: nutzerId, profil_ids: profilIds });

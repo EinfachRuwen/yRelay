@@ -150,13 +150,6 @@ backupDatabase('startup')
   .then(path => console.log(`[yRelay] Startup-Backup erstellt: ${path}`))
   .catch(err => console.error(`[yRelay] Fehler beim Startup-Backup:`, err));
 
-// Schul-Dashboard Webhook Secret sicherstellen
-let schulSecret = require('./db').getSetting('schul_webhook_secret');
-if (!schulSecret) {
-  schulSecret = require('crypto').randomBytes(16).toString('hex');
-  require('./db').setSetting('schul_webhook_secret', schulSecret);
-}
-
 const webhookUrl = require('./db').getSetting('poke_webhook_url');
 
 // Reminder Service starten
@@ -166,7 +159,7 @@ starteReminderService();
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[yRelay] Server läuft auf Port ${PORT}`);
   console.log(`[yRelay] Dashboard: http://localhost:${PORT}`);
-  console.log(`[yRelay] Schul-Dashboard Webhook Secret: ${schulSecret}`);
+  console.log('[yRelay] Schul-Dashboard Webhook ist konfiguriert.');
   if (!webhookUrl) {
     console.log('[yRelay] ⚠️ WARNUNG: poke_webhook_url ist nicht konfiguriert!');
   }

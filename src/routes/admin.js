@@ -43,6 +43,22 @@ router.get('/nutzer', (req, res) => {
   })));
 });
 
+// GET /api/admin/nutzer/:id - Nutzer inklusive zugewiesener Poke-Profile
+router.get('/nutzer/:id', (req, res) => {
+  const nutzer = db.prepare('SELECT id, username FROM users WHERE id = ?').get(req.params.id);
+  if (!nutzer) return res.status(404).json({ fehler: 'Nutzer nicht gefunden.' });
+
+  const profile = db.prepare(`
+    SELECT pp.id, pp.name, pp.icon, pp.farbe, pp.beschreibung, pp.ist_standard
+    FROM poke_profiles pp
+    JOIN nutzer_poke_profile npp ON pp.id = npp.profil_id
+    WHERE npp.nutzer_id = ?
+    ORDER BY pp.ist_standard DESC, pp.name ASC
+  `).all(req.params.id);
+
+  res.json({ id: nutzer.id, benutzername: nutzer.username, poke_profile: profile });
+});
+
 // POST /api/admin/nutzer - Nutzer manuell anlegen
 router.post('/nutzer', (req, res) => {
   const { benutzername, email, passwort, anzeigename } = req.body;
