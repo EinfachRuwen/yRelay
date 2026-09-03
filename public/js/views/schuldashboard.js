@@ -2,6 +2,7 @@
 const SchulDashboardView = {
   async rendern(nutzer) {
     const nameToDisplay = nutzer.anzeigename || nutzer.benutzername;
+    const avatarBuchstabe = nameToDisplay[0].toUpperCase();
     const isMobile = window.innerWidth <= 768;
 
     return `
