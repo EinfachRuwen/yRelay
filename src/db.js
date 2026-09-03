@@ -57,6 +57,30 @@ db.exec(`
     value TEXT NOT NULL,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS schul_kalender_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titel TEXT NOT NULL,
+    start DATETIME NOT NULL,
+    ende DATETIME,
+    ganztaegig INTEGER NOT NULL DEFAULT 0,
+    notiz TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS schul_aufgaben_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titel TEXT NOT NULL,
+    faellig DATETIME,
+    erledigt INTEGER NOT NULL DEFAULT 0,
+    notiz TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS schul_feed (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    typ TEXT NOT NULL,
+    inhalt TEXT NOT NULL,
+    zeitpunkt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // Migrationen für bestehende Tabellen
@@ -181,6 +205,32 @@ db.exec(`
   );
 `);
 
+// Feature: Multi-Poke-Profile
+db.exec(`
+  CREATE TABLE IF NOT EXISTS poke_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    icon TEXT DEFAULT '🤖',
+    farbe TEXT DEFAULT '#6366f1',
+    webhook_url TEXT NOT NULL,
+    api_key TEXT NOT NULL,
+    beschreibung TEXT,
+    ist_standard INTEGER DEFAULT 0,
+    erstellt_am DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS nutzer_poke_profile (
+    nutzer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    profil_id INTEGER NOT NULL REFERENCES poke_profiles(id) ON DELETE CASCADE,
+    PRIMARY KEY (nutzer_id, profil_id)
+  );
+`);
+
+// Migration: poke_profile_id zu messages hinzufügen
+try {
+  db.exec('ALTER TABLE messages ADD COLUMN poke_profile_id INTEGER REFERENCES poke_profiles(id) ON DELETE SET NULL;');
+} catch (e) {}
+
 // Initialen Admin-Nutzer anlegen falls noch keiner existiert
 function initAdminUser() {
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@yrelay.local';
@@ -252,4 +302,23 @@ function logAudit(userId, action, detailsObj = {}) {
   }
 }
 
-module.exports = { db, initAdminUser, initSettings, getSetting, setSetting, logAudit };
+/**
+ * Migriert beim ersten Start den poke_webhook_url / poke_api_key aus den Settings
+ * automatisch in ein Standard-Poke-Profil, falls noch kein Profil existiert.
+ */
+function initPokeProfile() {
+  const existing = db.prepare('SELECT id FROM poke_profiles LIMIT 1').get();
+  if (!existing) {
+    const webhookUrl = getSetting('poke_webhook_url');
+    const apiKey = getSetting('poke_api_key');
+    if (webhookUrl && apiKey) {
+      db.prepare(`
+        INSERT INTO poke_profiles (name, icon, farbe, webhook_url, api_key, beschreibung, ist_standard)
+        VALUES ('Standard-Poke', '🤖', '#6366f1', ?, ?, 'Automatisch migriertes Standard-Profil', 1)
+      `).run(webhookUrl, apiKey);
+      console.log('[yRelay] Standard-Poke-Profil aus Settings migriert.');
+    }
+  }
+}
+
+module.exports = { db, initAdminUser, initSettings, getSetting, setSetting, logAudit, initPokeProfile };

@@ -10,9 +10,9 @@ const { getSetting } = require('../db');
  * @param {string} replyToken - Sicherheitstoken für die Antwort
  * @returns {Object} { erfolg: boolean, payload: string, fehler?: string }
  */
-async function sendeFreieNachricht(user, inhalt, messageId, replyToken) {
-  const webhookUrl = getSetting('poke_webhook_url');
-  const apiKey = getSetting('poke_api_key');
+async function sendeFreieNachricht(user, inhalt, messageId, replyToken, pokeProfile = null) {
+  const webhookUrl = pokeProfile?.webhook_url || getSetting('poke_webhook_url');
+  const apiKey = pokeProfile?.api_key || getSetting('poke_api_key');
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
 
   if (!webhookUrl || !apiKey) {
@@ -83,9 +83,9 @@ Verfügbare Aktionen: erledigt, in_bearbeitung, offen, pin, unpin`;
  * @param {string} replyToken - Sicherheitstoken für die Antwort
  * @returns {Object} { erfolg: boolean, payload: string, fehler?: string }
  */
-async function sendeNotfallbenachrichtigung(user, grund, prioritaet, messageId, replyToken) {
-  const webhookUrl = getSetting('poke_webhook_url');
-  const apiKey = getSetting('poke_api_key');
+async function sendeNotfallbenachrichtigung(user, grund, prioritaet, messageId, replyToken, pokeProfile = null) {
+  const webhookUrl = pokeProfile?.webhook_url || getSetting('poke_webhook_url');
+  const apiKey = pokeProfile?.api_key || getSetting('poke_api_key');
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
 
   if (!webhookUrl || !apiKey) {

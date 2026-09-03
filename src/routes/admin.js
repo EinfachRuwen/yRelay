@@ -19,6 +19,7 @@ router.get('/nutzer', (req, res) => {
   const nutzer = db.prepare(`
     SELECT u.id, u.username, u.email, u.display_name, u.role, u.is_active, u.invite_token,
            u.created_at, u.last_login, u.ntfy_topic, u.email_notifications,
+           u.has_schul_access, u.schul_poke_profile_id,
            (SELECT group_concat(label_id) FROM nutzer_labels WHERE nutzer_id = u.id) as label_ids
     FROM users u
     ORDER BY u.created_at DESC
@@ -36,6 +37,8 @@ router.get('/nutzer', (req, res) => {
     letzterLogin: n.last_login,
     ntfy_topic: n.ntfy_topic || null,
     email_notifications: !!n.email_notifications,
+    has_schul_access: !!n.has_schul_access,
+    schul_poke_profile_id: n.schul_poke_profile_id,
     labelIds: n.label_ids ? n.label_ids.split(',').map(Number) : [],
   })));
 });
@@ -158,7 +161,7 @@ router.patch('/nutzer/:id', async (req, res) => {
 // PUT /api/admin/nutzer/:id - Nutzer bearbeiten
 router.put('/nutzer/:id', (req, res) => {
   const { id } = req.params;
-  const { benutzername, email, anzeigename, ntfy_topic, email_notifications } = req.body;
+  const { benutzername, email, anzeigename, ntfy_topic, email_notifications, has_schul_access, schul_poke_profile_id } = req.body;
 
   if (!benutzername) {
     return res.status(400).json({ fehler: 'Benutzername ist erforderlich.' });
@@ -172,6 +175,8 @@ router.put('/nutzer/:id', (req, res) => {
   const emailVal = email && email.trim() !== '' ? email.trim() : null;
   const ntfyVal = ntfy_topic && ntfy_topic.trim() !== '' ? ntfy_topic.trim() : null;
   const emailNotifVal = email_notifications ? 1 : 0;
+  const schulAccessVal = has_schul_access ? 1 : 0;
+  const schulPokeIdVal = schul_poke_profile_id ? parseInt(schul_poke_profile_id) : null;
 
   if (ntfyVal && !isValidNtfyTopic(ntfyVal)) {
     return res.status(400).json({ fehler: `Das ntfy Topic darf nur Buchstaben, Zahlen, - und _ enthalten und maximal ${NTFY_TOPIC_MAX_LENGTH} Zeichen lang sein.` });
@@ -183,8 +188,8 @@ router.put('/nutzer/:id', (req, res) => {
   }
 
   db.prepare(`
-    UPDATE users SET username = ?, email = ?, display_name = ?, ntfy_topic = ?, email_notifications = ? WHERE id = ?
-  `).run(benutzername, emailVal, anzeigename || null, ntfyVal, emailNotifVal, id);
+    UPDATE users SET username = ?, email = ?, display_name = ?, ntfy_topic = ?, email_notifications = ?, has_schul_access = ?, schul_poke_profile_id = ? WHERE id = ?
+  `).run(benutzername, emailVal, anzeigename || null, ntfyVal, emailNotifVal, schulAccessVal, schulPokeIdVal, id);
 
   logAudit(req.user.id, 'admin_edit_user', { target_user_id: id, username: benutzername });
 
@@ -355,6 +360,7 @@ router.get('/einstellungen', (req, res) => {
     smtpPassGesetzt: !!(getSetting('smtp_pass')),
     smtpFrom: getSetting('smtp_from') || '',
     appUrl: getSetting('app_url') || '',
+    schulDashboardEnabled: getSetting('schul_dashboard_enabled') === 'true',
   });
 });
 
@@ -374,6 +380,7 @@ router.put('/einstellungen', (req, res) => {
   if (smtpPass && smtpPass !== '••••••••') setSetting('smtp_pass', smtpPass);
   if (smtpFrom !== undefined) setSetting('smtp_from', smtpFrom);
   if (appUrl !== undefined) setSetting('app_url', appUrl);
+  if (req.body.schulDashboardEnabled !== undefined) setSetting('schul_dashboard_enabled', req.body.schulDashboardEnabled ? 'true' : 'false');
 
   logAudit(req.user.id, 'admin_settings_updated', {});
 

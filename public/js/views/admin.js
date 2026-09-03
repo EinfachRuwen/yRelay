@@ -38,6 +38,7 @@ const AdminView = {
             <button class="admin-tab" data-tab="labels" role="tab">🏷️ <span class="tab-text">Labels</span></button>
             <button class="admin-tab" data-tab="audit" role="tab">📜 <span class="tab-text">Audit Log</span></button>
             <button class="admin-tab" data-tab="einstellungen" role="tab">🔧 <span class="tab-text">Einstellungen</span></button>
+            <button class="admin-tab" data-tab="poke-profile" role="tab">🤖 <span class="tab-text">Poke-Profile</span></button>
           </div>
 
           <!-- Tab-Inhalt -->
@@ -84,6 +85,7 @@ const AdminView = {
         case 'labels': await this.labelsRendern(container); break;
         case 'einstellungen': await this.einstellungenRendern(container); break;
         case 'audit': await this.auditLogsLaden(container); break;
+        case 'poke-profile': await this.pokeProfileRendern(container); break;
       }
     } catch (err) {
       container.innerHTML = `<div class="info-box fehler"><span>⚠️</span><span>Fehler: ${UI.escapeHtml(err.message)}</span></div>`;
@@ -463,7 +465,7 @@ const AdminView = {
                                 </button>
                               ` : ''}
                               <button class="btn btn-sekundaer btn-klein"
-                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}', '${UI.escapeHtml(n.ntfy_topic || '')}', ${n.email_notifications !== false})"
+                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}', '${UI.escapeHtml(n.ntfy_topic || '')}', ${n.email_notifications !== false}, ${n.has_schul_access !== false}, ${n.schul_poke_profile_id || null})"
                                 title="Nutzer bearbeiten">
                                 ✏️
                               </button>
@@ -471,6 +473,11 @@ const AdminView = {
                                 onclick="AdminView.nutzerLabelsBearbeiten(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
                                 title="Labels zuweisen">
                                 🏷️
+                              </button>
+                              <button class="btn btn-sekundaer btn-klein"
+                                onclick="AdminView.nutzerPokeProfileBearbeiten(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
+                                title="Poke-Profile zuweisen">
+                                🤖
                               </button>
                               <button class="btn btn-sekundaer btn-klein"
                                 onclick="AdminView.passwortReset(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
@@ -484,7 +491,7 @@ const AdminView = {
                               </button>
                             ` : `
                               <button class="btn btn-sekundaer btn-klein"
-                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}', '${UI.escapeHtml(n.ntfy_topic || '')}', ${n.email_notifications !== false})"
+                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}', '${UI.escapeHtml(n.ntfy_topic || '')}', ${n.email_notifications !== false}, ${n.has_schul_access !== false}, ${n.schul_poke_profile_id || null})"
                                 title="Profil bearbeiten">
                                 ✏️
                               </button>
@@ -535,6 +542,64 @@ const AdminView = {
       await this.tabLaden('nutzer');
     } catch (err) {
       UI.fehler(err.message);
+    }
+  },
+
+  async nutzerPokeProfileBearbeiten(nutzerId, name) {
+    try {
+      const [alleProfile, nutzer] = await Promise.all([
+        API.adminPokeProfileLaden(),
+        API.anfrage('GET', `/admin/nutzer/${nutzerId}`)
+      ]);
+
+      const nutzerProfileIds = (nutzer.poke_profile || []).map(p => p.id);
+
+      let html = `<form id="profil-zuweisen-form" style="display:flex; flex-direction:column; gap:15px;">
+        <p>Wähle aus, welche Poke-Profile <strong>${UI.escapeHtml(name)}</strong> nutzen darf:</p>
+        <div style="display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto; padding-right:10px;">
+      `;
+
+      if (alleProfile.length === 0) {
+        html += `<p>Es wurden noch keine Poke-Profile angelegt.</p>`;
+      } else {
+        alleProfile.forEach(p => {
+          const checked = nutzerProfileIds.includes(p.id) ? 'checked' : '';
+          html += `
+            <label style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--hintergrund-karte); border-radius:var(--radius-mittel); cursor:pointer;">
+              <input type="checkbox" name="profil_id" value="${p.id}" ${checked}>
+              <span>${UI.escapeHtml(p.icon)} ${UI.escapeHtml(p.name)}</span>
+              ${p.ist_standard ? '<span class="status-badge" style="background:#3b82f6; margin-left:auto;">Standard</span>' : ''}
+            </label>
+          `;
+        });
+      }
+
+      html += `
+        </div>
+        <button type="submit" class="btn btn-primaer" style="margin-top:10px;">💾 Speichern</button>
+      </form>`;
+
+      UI.zeigeModal(`Poke-Profile für ${UI.escapeHtml(name)}`, html);
+
+      document.getElementById('profil-zuweisen-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = e.target.querySelector('button');
+        UI.btnLaden(btn, true);
+
+        const ausgewaehlte = Array.from(e.target.querySelectorAll('input[name="profil_id"]:checked')).map(cb => parseInt(cb.value));
+        
+        try {
+          await API.adminPokeProfileZuweisen(nutzerId, ausgewaehlte);
+          UI.erfolg('Poke-Profile erfolgreich zugewiesen.');
+          UI.schliesseModal();
+          await this.tabLaden('nutzer');
+        } catch (err) {
+          UI.fehler(err.message);
+          UI.btnLaden(btn, false);
+        }
+      });
+    } catch (err) {
+      UI.fehler('Fehler beim Laden der Profile: ' + err.message);
     }
   },
 
@@ -669,7 +734,17 @@ const AdminView = {
     }
   },
 
-  nutzerBearbeitenModal(id, benutzername, email, anzeigename, ntfy_topic, email_notifications = true) {
+  async nutzerBearbeitenModal(id, benutzername, email, anzeigename, ntfy_topic, email_notifications, has_schul_access, schul_poke_profile_id) {
+    const nutzer = AdminView.nutzerListe.find(n => n.id === id);
+    if (!nutzer) return;
+
+    let profile = [];
+    try {
+      profile = await API.adminPokeProfileLaden();
+    } catch(e) {}
+
+    const profileOptions = profile.map(p => `<option value="${p.id}" ${schul_poke_profile_id == p.id ? 'selected' : ''}>${UI.escapeHtml(p.name)}</option>`).join('');
+
     UI.modalZeigen(`
       <div class="modal-header">
         <span class="modal-titel">✏️ Nutzer bearbeiten</span>
@@ -702,6 +777,19 @@ const AdminView = {
               ✉️ E-Mail-Benachrichtigungen senden
             </label>
           </div>
+          <div class="formular-gruppe" style="margin-top: 5px;">
+            <label class="formular-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="bearbeiten-schul-access" ${has_schul_access ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+              🎒 Zugriff auf Schul-Dashboard erlauben
+            </label>
+          </div>
+          <div class="formular-gruppe" id="schul-poke-auswahl-container" style="${has_schul_access ? '' : 'display:none;'}">
+            <label class="formular-label" for="bearbeiten-schul-poke">Poke für Schul-Dashboard (optional)</label>
+            <select class="formular-select" id="bearbeiten-schul-poke">
+              <option value="">-- Standard Poke --</option>
+              ${profileOptions}
+            </select>
+          </div>
           <div id="bearbeiten-fehler" class="info-box fehler versteckt" style="margin-bottom: 12px;">
             <span>⚠️</span><span id="bearbeiten-fehler-text"></span>
           </div>
@@ -726,6 +814,10 @@ const AdminView = {
       document.getElementById('bearbeiten-ntfy').value = topic;
     });
 
+    document.getElementById('bearbeiten-schul-access')?.addEventListener('change', (e) => {
+      document.getElementById('schul-poke-auswahl-container').style.display = e.target.checked ? 'block' : 'none';
+    });
+
     document.getElementById('bearbeiten-formular')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('bearbeiten-submit-btn');
@@ -737,12 +829,14 @@ const AdminView = {
       const anzeigename = document.getElementById('bearbeiten-anzeigename').value.trim();
       const ntfy = document.getElementById('bearbeiten-ntfy').value.trim();
       const emailNotif = document.getElementById('bearbeiten-email-notifications').checked;
+      const schulAccess = document.getElementById('bearbeiten-schul-access').checked;
+      const schulPokeId = document.getElementById('bearbeiten-schul-poke').value || null;
 
       fehlerBox.classList.add('versteckt');
       UI.btnLaden(btn, true);
 
       try {
-        await API.adminNutzerBearbeiten(id, uname, emailVal, anzeigename, ntfy, emailNotif);
+        await API.adminNutzerBearbeiten(id, uname, emailVal, anzeigename, ntfy, emailNotif, schulAccess, schulPokeId);
         UI.modalSchliessen();
         UI.erfolg('Nutzerdaten erfolgreich aktualisiert.');
         await this.tabLaden('nutzer');
@@ -1020,6 +1114,20 @@ const AdminView = {
               </div>
             </div>
 
+            <hr class="trennlinie">
+
+            <!-- Schul-Dashboard -->
+            <div class="einstellungen-sektion">
+              <div class="einstellungen-sektion-titel">🎒 Schul-Dashboard (Modus)</div>
+              <div class="formular-gruppe">
+                <label class="formular-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" id="schul-dashboard-global" ${einstellungen.schulDashboardEnabled ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+                  Das Schul-Dashboard-Feature global aktivieren
+                </label>
+                <p class="text-gedaempft" style="margin-top: 6px;">Wenn aktiv, können autorisierte Nutzer das Schul-Dashboard nutzen.</p>
+              </div>
+            </div>
+
             <div style="display: flex; justify-content: flex-end;">
               <button type="submit" class="btn btn-primaer" id="einstellungen-speichern-btn">
                 💾 Einstellungen speichern
@@ -1110,6 +1218,7 @@ const AdminView = {
           smtpPass: document.getElementById('smtp-pass').value || '••••••••',
           smtpFrom: document.getElementById('smtp-from').value.trim(),
           appUrl: document.getElementById('app-url').value.trim(),
+          schulDashboardEnabled: document.getElementById('schul-dashboard-global').checked
         });
         UI.erfolg('Einstellungen gespeichert! ✅');
       } catch (err) {
@@ -1207,5 +1316,141 @@ const AdminView = {
     } catch (err) {
       container.innerHTML = `<div class="info-box fehler">⚠️ Fehler beim Laden des Audit Logs: ${err.message}</div>`;
     }
+  },
+
+  // ─── Poke-Profile ───────────────────────────────────────────────────────
+
+  async pokeProfileRendern(container) {
+    const profile = await API.adminPokeProfileLaden();
+
+    let html = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h3 style="margin:0;">Poke-Profile verwalten</h3>
+        <button id="admin-neues-profil-btn" class="btn btn-primaer btn-klein">➕ Neues Profil</button>
+      </div>
+      <p class="hinweis-text" style="margin-bottom:20px;">
+        Hier kannst du verschiedene Profile (Bots) anlegen, die mit unterschiedlichen Webhook-URLs und API-Keys arbeiten. 
+        Nutzer können so z.B. private oder berufliche Instanzen auswählen. Das Standard-Profil wird verwendet, wenn kein anderes Profil gewählt wurde.
+      </p>
+      
+      <div class="karten-grid">
+    `;
+
+    if (profile.length === 0) {
+      html += `<p>Keine Poke-Profile gefunden.</p>`;
+    } else {
+      profile.forEach(p => {
+        html += `
+          <div class="karte" style="border-left: 4px solid ${p.farbe}; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <h4 style="margin:0; font-size:1.2rem;">${UI.escapeHtml(p.icon)} ${UI.escapeHtml(p.name)}</h4>
+                ${p.ist_standard ? '<span class="status-badge" style="background:#3b82f6;">Standard</span>' : ''}
+              </div>
+              <p style="margin-bottom:5px; font-size:0.85rem; color:var(--text-sekundaer);">
+                <strong>Webhook:</strong> ${UI.escapeHtml(p.webhook_url.substring(0, 30))}...
+              </p>
+            </div>
+            <div style="margin-top:15px; display:flex; gap:10px;">
+              <button class="btn btn-sekundaer btn-klein btn-profil-bearbeiten" data-id="${p.id}">✏️ Bearbeiten</button>
+              ${!p.ist_standard ? `<button class="btn btn-notfall btn-klein btn-profil-loeschen" data-id="${p.id}">🗑️ Löschen</button>` : ''}
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
+
+    // Events binden
+    document.getElementById('admin-neues-profil-btn')?.addEventListener('click', () => this.profilModalOeffnen());
+
+    document.querySelectorAll('.btn-profil-bearbeiten').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = profile.find(pr => pr.id == btn.dataset.id);
+        if (p) this.profilModalOeffnen(p);
+      });
+    });
+
+    document.querySelectorAll('.btn-profil-loeschen').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Möchtest du dieses Profil wirklich löschen?')) return;
+        try {
+          await API.adminPokeProfilLoeschen(btn.dataset.id);
+          await this.tabLaden('poke-profile');
+          UI.erfolg('Profil gelöscht.');
+        } catch (err) {
+          UI.fehler(err.message);
+        }
+      });
+    });
+  },
+
+  profilModalOeffnen(profil = null) {
+    const isEdit = !!profil;
+    const formHtml = `
+      <form id="profil-form" style="display:flex; flex-direction:column; gap:15px;">
+        <div class="formular-gruppe">
+          <label class="formular-label">Name</label>
+          <input type="text" id="prof-name" class="eingabefeld" value="${isEdit ? UI.escapeHtml(profil.name) : ''}" required>
+        </div>
+        <div style="display:flex; gap:15px;">
+          <div class="formular-gruppe" style="flex:1;">
+            <label class="formular-label">Icon (Emoji)</label>
+            <input type="text" id="prof-icon" class="eingabefeld" value="${isEdit ? UI.escapeHtml(profil.icon) : '🤖'}" required>
+          </div>
+          <div class="formular-gruppe" style="flex:1;">
+            <label class="formular-label">Farbe (HEX)</label>
+            <input type="color" id="prof-farbe" style="height:38px; width:100%; cursor:pointer;" value="${isEdit ? UI.escapeHtml(profil.farbe) : '#3b82f6'}" required>
+          </div>
+        </div>
+        <div class="formular-gruppe">
+          <label class="formular-label">Pushover Webhook URL</label>
+          <input type="url" id="prof-webhook" class="eingabefeld" value="${isEdit ? UI.escapeHtml(profil.webhook_url) : ''}" required>
+        </div>
+        <div class="formular-gruppe">
+          <label class="formular-label">API Key (Token)</label>
+          <input type="text" id="prof-apikey" class="eingabefeld" value="${isEdit ? UI.escapeHtml(profil.api_key) : ''}" required>
+        </div>
+        <div class="formular-gruppe" style="display:flex; align-items:center; gap:10px;">
+          <input type="checkbox" id="prof-standard" ${isEdit && profil.ist_standard ? 'checked' : ''}>
+          <label for="prof-standard">Als Standard-Profil festlegen</label>
+        </div>
+        <button type="submit" class="btn btn-primaer">💾 Speichern</button>
+      </form>
+    `;
+
+    UI.zeigeModal(isEdit ? 'Profil bearbeiten' : 'Neues Profil', formHtml);
+
+    document.getElementById('profil-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = e.target.querySelector('button');
+      UI.btnLaden(btn, true);
+
+      const daten = {
+        name: document.getElementById('prof-name').value,
+        icon: document.getElementById('prof-icon').value,
+        farbe: document.getElementById('prof-farbe').value,
+        webhook_url: document.getElementById('prof-webhook').value,
+        api_key: document.getElementById('prof-apikey').value,
+        ist_standard: document.getElementById('prof-standard').checked ? 1 : 0
+      };
+
+      try {
+        if (isEdit) {
+          await API.adminPokeProfilBearbeiten(profil.id, daten);
+          UI.erfolg('Profil aktualisiert.');
+        } else {
+          await API.adminPokeProfilErstellen(daten);
+          UI.erfolg('Profil erstellt.');
+        }
+        UI.schliesseModal();
+        await this.tabLaden('poke-profile');
+      } catch (err) {
+        UI.fehler(err.message);
+        UI.btnLaden(btn, false);
+      }
+    });
   }
 };

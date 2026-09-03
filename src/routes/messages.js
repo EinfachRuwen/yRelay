@@ -71,8 +71,28 @@ router.post('/senden', async (req, res) => {
     pokeInhalt += '\n\n[System-Hinweis: Diese Nachricht wurde per Spracheingabe diktiert und von einer KI transkribiert. Sie wurde zu mehr als 50% im Original belassen, weshalb sie Fehler enthalten kann. Bitte bei der Bearbeitung auf Kontext/Rechtschreibung achten.]';
   }
 
+  // Poke-Profil des Nutzers ermitteln (falls mehrere, wird poke_profile_id aus Body genutzt)
+  const pokeProfilId = req.body.pokeProfilId || null;
+  let pokeProfil = null;
+  if (pokeProfilId) {
+    pokeProfil = db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(pokeProfilId);
+  } else {
+    // Erstes zugewiesenes Profil oder Standard-Profil
+    const nutzerProfil = db.prepare(`
+      SELECT pp.* FROM poke_profiles pp
+      JOIN nutzer_poke_profile npp ON pp.id = npp.profil_id
+      WHERE npp.nutzer_id = ? ORDER BY pp.ist_standard DESC LIMIT 1
+    `).get(req.user.id);
+    pokeProfil = nutzerProfil || db.prepare('SELECT * FROM poke_profiles WHERE ist_standard = 1 LIMIT 1').get();
+  }
+
+  // poke_profile_id in Nachricht speichern
+  if (pokeProfil) {
+    db.prepare('UPDATE messages SET poke_profile_id = ? WHERE id = ?').run(pokeProfil.id, messageId);
+  }
+
   // Nachricht an Poke senden
-  const ergebnis = await sendeFreieNachricht(req.user, pokeInhalt, messageId, replyToken);
+  const ergebnis = await sendeFreieNachricht(req.user, pokeInhalt, messageId, replyToken, pokeProfil);
 
   // Status in Datenbank aktualisieren
   db.prepare(`
@@ -125,7 +145,24 @@ router.post('/notfall', async (req, res) => {
     pokeInhalt += '\n\n[System-Hinweis: Diese Nachricht wurde per Spracheingabe diktiert und von einer KI transkribiert. Sie wurde zu mehr als 50% im Original belassen, weshalb sie Fehler enthalten kann. Bitte bei der Bearbeitung auf Kontext/Rechtschreibung achten.]';
   }
 
-  const ergebnis = await sendeNotfallbenachrichtigung(req.user, pokeInhalt, prioritaet, messageId, replyToken);
+  // Poke-Profil des Nutzers ermitteln
+  const pokeProfilIdNotfall = req.body.pokeProfilId || null;
+  let pokeProfilNotfall = null;
+  if (pokeProfilIdNotfall) {
+    pokeProfilNotfall = db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(pokeProfilIdNotfall);
+  } else {
+    const nutzerProfilN = db.prepare(`
+      SELECT pp.* FROM poke_profiles pp
+      JOIN nutzer_poke_profile npp ON pp.id = npp.profil_id
+      WHERE npp.nutzer_id = ? ORDER BY pp.ist_standard DESC LIMIT 1
+    `).get(req.user.id);
+    pokeProfilNotfall = nutzerProfilN || db.prepare('SELECT * FROM poke_profiles WHERE ist_standard = 1 LIMIT 1').get();
+  }
+  if (pokeProfilNotfall) {
+    db.prepare('UPDATE messages SET poke_profile_id = ? WHERE id = ?').run(pokeProfilNotfall.id, messageId);
+  }
+
+  const ergebnis = await sendeNotfallbenachrichtigung(req.user, pokeInhalt, prioritaet, messageId, replyToken, pokeProfilNotfall);
 
   // Status in Datenbank aktualisieren
   db.prepare(`
@@ -180,7 +217,7 @@ router.get('/meine', (req, res) => {
 
 // POST /api/nachrichten/planen - Geplante Nachricht erstellen
 router.post('/planen', async (req, res) => {
-  const { inhalt, sendAt, prioritaet } = req.body;
+  const { inhalt, sendAt, prioritaet, pokeProfilId } = req.body;
   if (!inhalt || !inhalt.trim()) return res.status(400).json({ fehler: 'Die Nachricht darf nicht leer sein.' });
   if (!sendAt) return res.status(400).json({ fehler: 'Sendezeitpunkt (sendAt) ist erforderlich.' });
 
@@ -194,10 +231,24 @@ router.post('/planen', async (req, res) => {
 
   const sendeZeitDb = sendeZeit.toISOString().replace('T', ' ').substring(0, 19);
 
+  // Poke-Profil des Nutzers ermitteln (falls mehrere, wird pokeProfilId aus Body genutzt)
+  let dbPokeProfilId = null;
+  if (pokeProfilId) {
+    const profil = db.prepare('SELECT id FROM poke_profiles WHERE id = ?').get(pokeProfilId);
+    if (profil) dbPokeProfilId = profil.id;
+  } else {
+    const nutzerProfil = db.prepare(`
+      SELECT pp.id FROM poke_profiles pp
+      JOIN nutzer_poke_profile npp ON pp.id = npp.profil_id
+      WHERE npp.nutzer_id = ? ORDER BY pp.ist_standard DESC LIMIT 1
+    `).get(req.user.id);
+    dbPokeProfilId = nutzerProfil ? nutzerProfil.id : db.prepare('SELECT id FROM poke_profiles WHERE ist_standard = 1 LIMIT 1').get()?.id;
+  }
+
   const insertErgebnis = db.prepare(`
-    INSERT INTO messages (user_id, type, priority, content, poke_payload, status, reply_token, send_at)
-    VALUES (?, ?, ?, ?, '', 'geplant', ?, ?)
-  `).run(req.user.id, typ, prioritaet || null, inhalt.trim(), replyToken, sendeZeitDb);
+    INSERT INTO messages (user_id, type, priority, content, poke_payload, status, reply_token, send_at, poke_profile_id)
+    VALUES (?, ?, ?, ?, '', 'geplant', ?, ?, ?)
+  `).run(req.user.id, typ, prioritaet || null, inhalt.trim(), replyToken, sendeZeitDb, dbPokeProfilId);
 
   logAudit(req.user.id, 'schedule_message', { message_id: insertErgebnis.lastInsertRowid, send_at: sendeZeitDb });
 
@@ -225,7 +276,7 @@ router.post('/:id/pinnen', (req, res) => {
 
 
 // Hilfsfunktion zum Verarbeiten eines Button-Klicks
-async function verarbeiteButtonKlick(nachricht, btnId, user) {
+async function verarbeiteKlick(nachricht, btnId, user) {
   let pokeAntworten = [];
   try {
     const parsed = JSON.parse(nachricht.reply_content);
@@ -260,11 +311,20 @@ async function verarbeiteButtonKlick(nachricht, btnId, user) {
   logAudit(user.id, 'button_click', { message_id: nachricht.id, button_id: btnId });
 
   // Poke benachrichtigen
-  const webhookUrl = require('../db').getSetting('poke_webhook_url');
-  const apiKey = require('../db').getSetting('poke_api_key');
+  let webhookUrl = require('../db').getSetting('poke_webhook_url');
+  let apiKey = require('../db').getSetting('poke_api_key');
+
+  if (nachricht.poke_profile_id) {
+    const profil = db.prepare('SELECT webhook_url, api_key FROM poke_profiles WHERE id = ?').get(nachricht.poke_profile_id);
+    if (profil) {
+      webhookUrl = profil.webhook_url;
+      apiKey = profil.api_key;
+    }
+  }
+
   if (webhookUrl && apiKey) {
     const payload = { 
-      message: `[yRelay System] Der Nutzer ${user.username} hat auf deine Rückfrage den Button "${geklickterButton.text}" geklickt.`
+      message: `[yRelay System] Der Nutzer ${user.username} hat auf deine Rückfrage den Button "${geklickterButton.text}" geklickt. Bitte richte deine nächste Antwort direkt an ${user.username}.`
     };
     try {
       await fetch(webhookUrl, {
@@ -284,7 +344,7 @@ async function verarbeiteButtonKlick(nachricht, btnId, user) {
 router.get('/klick/:id/:token/:btnId', async (req, res) => {
   const { id, token, btnId } = req.params;
   const nachricht = db.prepare(`
-    SELECT m.id, m.reply_content, m.user_replies, u.username, u.id as user_id
+    SELECT m.id, m.reply_content, m.user_replies, m.poke_profile_id, u.username, u.id as user_id
     FROM messages m JOIN users u ON m.user_id = u.id 
     WHERE m.id = ? AND m.reply_token = ?
   `).get(id, token);
@@ -296,7 +356,7 @@ router.get('/klick/:id/:token/:btnId', async (req, res) => {
   }
 
   try {
-    await verarbeiteButtonKlick(nachricht, btnId, { id: nachricht.user_id, username: nachricht.username });
+    await verarbeiteKlick(nachricht, btnId, { id: nachricht.user_id, username: nachricht.username });
     res.redirect(`${appUrl}/#dashboard`);
   } catch (err) {
     res.redirect(`${appUrl}/#dashboard?fehler=button`);
@@ -307,8 +367,8 @@ router.get('/klick/:id/:token/:btnId', async (req, res) => {
 router.post('/klick/:id', async (req, res) => {
   const { btnId } = req.body;
   const nachricht = db.prepare(`
-    SELECT id, reply_content, user_replies 
-    FROM messages WHERE id = ? AND user_id = ?
+    SELECT m.id, m.reply_content, m.user_replies, m.poke_profile_id, m.user_id
+    FROM messages m WHERE m.id = ? AND m.user_id = ?
   `).get(req.params.id, req.user.id);
 
   if (!nachricht) return res.status(404).json({ fehler: 'Nachricht nicht gefunden.' });

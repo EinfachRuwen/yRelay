@@ -160,16 +160,18 @@ async function testeSMTP() {
  * @param {boolean} istFolgeantwort
  * @param {Array} gemischterVerlauf - Chronologisch gemischter Verlauf mit { text, time, von, name? }
  */
-async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachricht, neuePokeAntwort, istFolgeantwort = false, gemischterVerlauf = []) {
+async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachricht, neuePokeAntwort, istFolgeantwort = false, gemischterVerlauf = [], pokeName = 'Poke') {
   const transporter = erstelleTransporter();
   if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
 
   const absender = getSetting('smtp_from') || getSetting('smtp_user');
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
 
-  const subject = istFolgeantwort ? 'Poke hat nochmal geantwortet 🤖' : 'Poke hat auf deine Nachricht geantwortet 🤖';
+  const betreff = istFolgeantwort ? `Antwort von ${pokeName} erhalten 🤖` : `${pokeName} hat auf deine Anfrage reagiert! 🚀`;
+  const headerTitel = istFolgeantwort ? 'Folgeantwort' : 'Neue Antwort';
+  const headerIcon = '🤖';
+  const headerSubtitle = `${pokeName} hat eine Nachricht für dich.`;
   const headerAccent = istFolgeantwort ? '#8b5cf6, #6366f1' : '#06b6d4, #38bdf8';
-  const headerTitle = istFolgeantwort ? 'Neue Antwort von Poke' : 'Poke hat geantwortet';
 
   // Bisheriger Verlauf (ohne die aktuelle Antwort von Poke) für Folgeantworten
   const bisherigenVerlauf = gemischterVerlauf.slice(0, -1);
@@ -183,7 +185,7 @@ async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachric
         const bgColor = isPoke ? 'rgba(6,182,212,0.07)' : 'rgba(99,102,241,0.07)';
         const borderColor = isPoke ? '#0e7490' : '#4f46e5';
         const labelColor = isPoke ? '#22d3ee' : '#818cf8';
-        const label = isPoke ? '🤖 Poke' : `👤 ${eintrag.name || empfaengerName}`;
+        const label = isPoke ? `🤖 ${pokeName}` : `👤 ${eintrag.name || empfaengerName}`;
 
         return `
           <div style="margin-bottom:10px;padding:12px 14px;background:${bgColor};border-left:3px solid ${borderColor};border-radius:6px;">
@@ -200,7 +202,7 @@ async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachric
 
     <!-- Neue Poke-Antwort -->
     <div style="margin-bottom:20px;padding:20px;background:rgba(6,182,212,0.08);border-left:4px solid #06b6d4;border-radius:8px;">
-      <p style="margin:0 0 8px;font-weight:700;color:#22d3ee;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">🤖 Pokes ${istFolgeantwort ? 'neue ' : ''}Antwort</p>
+      <p style="margin:0 0 8px;font-weight:700;color:#22d3ee;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">🤖 ${pokeName}s ${istFolgeantwort ? 'neue ' : ''}Antwort</p>
       <p style="margin:0;color:#f8fafc;font-size:15px;line-height:1.7;white-space:pre-wrap;">${neuePokeAntwort}</p>
     </div>
 
@@ -218,15 +220,15 @@ async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachric
     
     <div style="margin-top:24px;padding:16px;background:rgba(239, 68, 68, 0.1);border-left:4px solid #ef4444;border-radius:4px;">
       <p style="margin:0;color:#f87171;font-size:13px;font-weight:600;">⚠️ WICHTIG:</p>
-      <p style="margin:4px 0 0;color:#94a3b8;font-size:13px;">Bitte antworte <strong>NICHT</strong> direkt auf diese E-Mail! Poke kann deine Antwort nur empfangen, wenn du sie über das yRelay Dashboard verschickst.</p>
+      <p style="margin:4px 0 0;color:#94a3b8;font-size:13px;">Bitte antworte <strong>NICHT</strong> direkt auf diese E-Mail! ${pokeName} kann deine Antwort nur empfangen, wenn du sie über das yRelay Dashboard verschickst.</p>
     </div>
   `;
 
   const mailOptionen = {
     from: `"yRelay" <${absender}>`,
     to: empfaengerEmail,
-    subject,
-    html: emailTemplate('🤖', headerTitle, 'Dein Poke-Assistent hat eine Nachricht', headerAccent, body),
+    subject: betreff,
+    html: emailTemplate(headerIcon, headerTitel, headerSubtitle, headerAccent, body),
   };
 
   try {
@@ -393,7 +395,7 @@ async function sendeAusstehendeAntwortMail(empfaengerEmail, empfaengerName, orig
 /**
  * Sendet eine Rückfragen-Mail mit interaktiven Entscheidungs-Buttons.
  */
-async function sendeRueckfrageMail(empfaengerEmail, empfaengerName, originalNachricht, antwortText, buttons, nachrichtId, token, verlauf) {
+async function sendeRueckfrageMail(empfaengerEmail, empfaengerName, originalNachricht, antwortText, buttons, nachrichtId, token, verlauf = [], pokeName = 'Poke') {
   const transporter = erstelleTransporter();
   if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
 
@@ -414,10 +416,10 @@ async function sendeRueckfrageMail(empfaengerEmail, empfaengerName, originalNach
   }).join('');
 
   const bodyContent = `
-    <h2 style="margin:0 0 16px;color:#f1f5f9;font-size:18px;">Rückfrage von Poke an ${empfaengerName},</h2>
+    <h2 style="margin:0 0 16px;color:#f1f5f9;font-size:18px;">Rückfrage von ${pokeName} an ${empfaengerName},</h2>
     
     <div style="background:rgba(255,255,255,0.03);border-left:3px solid #6366f1;padding:16px;margin-bottom:24px;border-radius:0 8px 8px 0;">
-      <p style="margin:0;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Poke fragt:</p>
+      <p style="margin:0;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${pokeName} fragt:</p>
       <p style="margin:0;color:#f1f5f9;font-size:15px;line-height:1.6;white-space:pre-wrap;">${antwortText}</p>
     </div>
     
@@ -433,8 +435,8 @@ async function sendeRueckfrageMail(empfaengerEmail, empfaengerName, originalNach
 
   const html = emailTemplate(
     '❓',
-    'Rückfrage von Poke',
-    'Poke benötigt eine Entscheidung von dir',
+    'Aktion erforderlich',
+    `${pokeName} benötigt eine Entscheidung von dir.`,
     '#f59e0b, #d97706',
     bodyContent
   );

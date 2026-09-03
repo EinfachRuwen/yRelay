@@ -5,8 +5,17 @@ const { sendeAusstehendeAntwortMail } = require('./email');
 
 // Poke direkt über den Webhook antriggern (ohne neue DB-Nachricht zu erstellen)
 async function pokeErinnern(message) {
-  const webhookUrl = getSetting('poke_webhook_url');
-  const apiKey = getSetting('poke_api_key');
+  let webhookUrl = getSetting('poke_webhook_url');
+  let apiKey = getSetting('poke_api_key');
+
+  if (message.poke_profile_id) {
+    const profil = db.prepare('SELECT webhook_url, api_key FROM poke_profiles WHERE id = ?').get(message.poke_profile_id);
+    if (profil) {
+      webhookUrl = profil.webhook_url;
+      apiKey = profil.api_key;
+    }
+  }
+
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
 
   if (!webhookUrl || !apiKey) return false;
@@ -48,7 +57,7 @@ async function pruefe() {
   try {
     // ─── Geplante Nachrichten versenden ──────────────────────────────────────
     const zuSenden = db.prepare(`
-      SELECT m.id, m.content, m.type, m.priority, m.reply_token,
+      SELECT m.id, m.content, m.type, m.priority, m.reply_token, m.poke_profile_id,
              u.email, u.username, u.id as user_id, u.ntfy_topic, u.email_notifications
       FROM messages m
       JOIN users u ON m.user_id = u.id
@@ -61,11 +70,17 @@ async function pruefe() {
       try {
         const { sendeFreieNachricht, sendeNotfallbenachrichtigung } = require('./poke');
         const nutzer = { username: msg.username, email: msg.email };
+        
+        let pokeProfil = null;
+        if (msg.poke_profile_id) {
+          pokeProfil = db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(msg.poke_profile_id);
+        }
+
         let ergebnis;
         if (msg.type === 'emergency') {
-          ergebnis = await sendeNotfallbenachrichtigung(nutzer, msg.content, msg.priority || 'hoch', msg.id, msg.reply_token);
+          ergebnis = await sendeNotfallbenachrichtigung(nutzer, msg.content, msg.priority || 'hoch', msg.id, msg.reply_token, pokeProfil);
         } else {
-          ergebnis = await sendeFreieNachricht(nutzer, msg.content, msg.id, msg.reply_token);
+          ergebnis = await sendeFreieNachricht(nutzer, msg.content, msg.id, msg.reply_token, pokeProfil);
         }
         db.prepare(`
           UPDATE messages
@@ -122,7 +137,7 @@ async function pruefe() {
     // - Vor mehr als 5 Minuten erstellt wurden
     const unbeantwortete = db.prepare(`
       SELECT m.id, m.content, m.reply_token, m.reminder_sent_at, m.user_notified_at,
-             m.created_at, u.email, u.username, u.ntfy_topic, u.email_notifications
+             m.created_at, m.poke_profile_id, u.email, u.username, u.ntfy_topic, u.email_notifications
       FROM messages m
       JOIN users u ON m.user_id = u.id
       WHERE m.status = 'gesendet'
@@ -166,7 +181,7 @@ async function pruefe() {
         // Immer zuerst als "gesendet" markieren (Idempotenz vor dem await)
         db.prepare('UPDATE messages SET user_notified_at = CURRENT_TIMESTAMP WHERE id = ?').run(msg.id);
 
-        if (msg.email && msg.email_notifications !== 0 && msg.email_notifications !== false) {
+        if (msg.email && String(msg.email_notifications) !== '0' && String(msg.email_notifications) !== 'false') {
           sendeAusstehendeAntwortMail(msg.email, msg.username, msg.content).then(ergebnis => {
             if (ergebnis.erfolg) {
               console.log(`[yRelay Reminder] Nutzer ${msg.username} wurde für Nachricht ${msg.id} benachrichtigt.`);

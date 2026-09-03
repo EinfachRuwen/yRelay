@@ -4,7 +4,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { initAdminUser, initSettings } = require('./db');
+const { initAdminUser, initSettings, initPokeProfile } = require('./db');
 const { starteReminderService } = require('./services/reminder');
 
 const app = express();
@@ -73,6 +73,8 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/nachrichten', require('./routes/messages'));
 app.use('/api/webhooks', require('./routes/webhooks'));
+app.use('/api/poke-profile', require('./routes/poke-profiles'));
+app.use('/api/schuldashboard', require('./routes/schuldashboard'));
 
 // Gesundheitscheck
 app.get('/api/gesundheit', (req, res) => {
@@ -124,6 +126,7 @@ app.use((err, req, res, _next) => {
 console.log('[yRelay] Datenbank wird initialisiert...');
 initSettings();
 initAdminUser();
+initPokeProfile();
 console.log('[yRelay] Datenbank bereit.');
 
 // Sicherheitswarnung wenn Standard-JWT-Secret verwendet wird
@@ -147,7 +150,24 @@ backupDatabase('startup')
   .then(path => console.log(`[yRelay] Startup-Backup erstellt: ${path}`))
   .catch(err => console.error(`[yRelay] Fehler beim Startup-Backup:`, err));
 
+// Schul-Dashboard Webhook Secret sicherstellen
+let schulSecret = require('./db').getSetting('schul_webhook_secret');
+if (!schulSecret) {
+  schulSecret = require('crypto').randomBytes(16).toString('hex');
+  require('./db').setSetting('schul_webhook_secret', schulSecret);
+}
+
+const webhookUrl = require('./db').getSetting('poke_webhook_url');
+
+// Reminder Service starten
+starteReminderService();
+
+// Server starten
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[yRelay] Server läuft auf Port ${PORT}`);
   console.log(`[yRelay] Dashboard: http://localhost:${PORT}`);
+  console.log(`[yRelay] Schul-Dashboard Webhook Secret: ${schulSecret}`);
+  if (!webhookUrl) {
+    console.log('[yRelay] ⚠️ WARNUNG: poke_webhook_url ist nicht konfiguriert!');
+  }
 });

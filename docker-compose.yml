@@ -55,7 +55,7 @@ services:
 
     # ─── Healthcheck ─────────────────────────────────────────────────────
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/gesundheit"]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/api/gesundheit', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', () => process.exit(1));"]
       interval: 30s
       timeout: 5s
       retries: 3

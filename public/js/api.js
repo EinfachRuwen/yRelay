@@ -126,12 +126,12 @@ const API = {
   },
 
   // Nachrichten
-  async nachrichtSenden(inhalt, originalTranskript = null) {
-    return this.anfrage('POST', '/nachrichten/senden', { inhalt, originalTranskript }, true);
+  async nachrichtSenden(inhalt, originalTranskript = null, pokeProfilId = null) {
+    return this.anfrage('POST', '/nachrichten/senden', { inhalt, originalTranskript, pokeProfilId }, true);
   },
 
-  async notfallSenden(inhalt, prioritaet, originalTranskript = null) {
-    return this.anfrage('POST', '/nachrichten/notfall', { inhalt, prioritaet, originalTranskript }, true);
+  async notfallSenden(inhalt, prioritaet, originalTranskript = null, pokeProfilId = null) {
+    return this.anfrage('POST', '/nachrichten/notfall', { inhalt, prioritaet, originalTranskript, pokeProfilId }, true);
   },
 
   async buttonKlicken(nachrichtId, btnId) {
@@ -284,8 +284,8 @@ const API = {
   },
 
   // Geplante Nachrichten
-  async nachrichtPlanen(inhalt, sendAt, prioritaet = null) {
-    return this.anfrage('POST', '/nachrichten/planen', { inhalt, sendAt, prioritaet });
+  async nachrichtPlanen(inhalt, sendAt, prioritaet = null, pokeProfilId = null) {
+    return this.anfrage('POST', '/nachrichten/planen', { inhalt, sendAt, prioritaet, pokeProfilId });
   },
 
   async nachrichtAbbrechen(id) {
@@ -295,5 +295,30 @@ const API = {
   // Pinnen
   async nachrichtPinnen(id) {
     return this.anfrage('POST', `/nachrichten/${id}/pinnen`);
+  },
+
+  // Poke-Profile
+  async meinePokeProfile() {
+    return this.anfrage('GET', '/poke-profile/meine');
+  },
+
+  async adminPokeProfileLaden() {
+    return this.anfrage('GET', '/poke-profile');
+  },
+
+  async adminPokeProfilErstellen(daten) {
+    return this.anfrage('POST', '/poke-profile', daten);
+  },
+
+  async adminPokeProfilBearbeiten(id, daten) {
+    return this.anfrage('PUT', `/poke-profile/${id}`, daten);
+  },
+
+  async adminPokeProfilLoeschen(id) {
+    return this.anfrage('DELETE', `/poke-profile/${id}`);
+  },
+
+  async adminPokeProfileZuweisen(nutzerId, profilIds) {
+    return this.anfrage('PUT', `/poke-profile/nutzer/${nutzerId}`, { profilIds });
   },
 };

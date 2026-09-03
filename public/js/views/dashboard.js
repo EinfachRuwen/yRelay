@@ -83,6 +83,7 @@ const DashboardView = {
                 <span class="nav-rolle">Nutzer</span>
               </div>
             </div>
+            ${nutzer.schul_dashboard_global_enabled && nutzer.has_schul_access ? '<button class="btn btn-sekundaer btn-klein" id="schule-btn" title="Schul-Dashboard">🎒 Schule</button>' : ''}
             ${nutzer.rolle === 'admin' ? '<button class="btn btn-primaer btn-klein" id="admin-panel-btn" title="Admin Panel">🛠️ Admin</button>' : ''}
             <button class="btn btn-ghost btn-klein" id="profil-btn" title="Profil bearbeiten">👤</button>
             <button class="btn btn-ghost btn-klein" id="passwort-btn" title="Passwort ändern">🔒</button>
@@ -112,6 +113,9 @@ const DashboardView = {
                 </div>
 
                 <form id="kombi-formular">
+                  <!-- Poke-Profil-Auswahl (wird dynamisch befüllt falls mehrere Profile) -->
+                  <div id="poke-profil-auswahl" style="display:none; margin-bottom: 14px;"></div>
+
                   <!-- Prioritäts-Auswahl (Art) -->
                   <div class="formular-gruppe">
                     <label class="formular-label">Art der Nachricht</label>
@@ -319,6 +323,10 @@ const DashboardView = {
     // Abmelden
     document.getElementById('abmelden-btn')?.addEventListener('click', () => {
       UI.ausloggen();
+    });
+
+    document.getElementById('schule-btn')?.addEventListener('click', () => {
+      window.location.hash = '#schule';
     });
 
     document.getElementById('admin-panel-btn')?.addEventListener('click', () => {
@@ -662,10 +670,14 @@ const DashboardView = {
 
       UI.btnLaden(kombiBtn, true);
       try {
+        // Aktiv gewähltes Poke-Profil ermitteln
+        const aktiverProfilBtn = document.querySelector('.poke-profil-btn.aktiv');
+        const pokeProfilId = aktiverProfilBtn ? parseInt(aktiverProfilBtn.dataset.profilId) : null;
+
         if (typ === 'standard') {
-          await API.nachrichtSenden(inhalt, originalTranskript);
+          await API.nachrichtSenden(inhalt, originalTranskript, pokeProfilId);
         } else {
-          await API.notfallSenden(inhalt, typ, originalTranskript);
+          await API.notfallSenden(inhalt, typ, originalTranskript, pokeProfilId);
         }
         
         UI.erfolg('Nachricht erfolgreich an Poke gesendet! ✅');
@@ -679,6 +691,44 @@ const DashboardView = {
         UI.btnLaden(kombiBtn, false);
       }
     });
+
+    // Poke-Profile laden & Auswahl-UI rendern
+    try {
+      const profile = await API.meinePokeProfile();
+      if (profile && profile.length >= 2) {
+        const pContainer = document.getElementById('poke-profil-auswahl');
+        if (pContainer) {
+          pContainer.style.display = 'flex';
+          pContainer.style.gap = '8px';
+          pContainer.style.overflowX = 'auto';
+          pContainer.style.paddingBottom = '4px';
+          pContainer.style.scrollbarWidth = 'none';
+          
+          pContainer.innerHTML = profile.map((p, idx) => `
+            <button type="button" class="btn btn-sekundaer btn-klein poke-profil-btn ${idx === 0 ? 'aktiv' : ''}" 
+                    data-profil-id="${p.id}" 
+                    style="flex: 0 0 auto; white-space: nowrap; border: 1px solid ${idx === 0 ? p.farbe : 'transparent'};">
+              ${UI.escapeHtml(p.icon)} ${UI.escapeHtml(p.name)}
+            </button>
+          `).join('');
+
+          pContainer.querySelectorAll('.poke-profil-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              pContainer.querySelectorAll('.poke-profil-btn').forEach(b => {
+                b.classList.remove('aktiv');
+                b.style.border = '1px solid transparent';
+              });
+              const clicked = e.currentTarget;
+              clicked.classList.add('aktiv');
+              const p = profile.find(pr => pr.id == clicked.dataset.profilId);
+              if (p) clicked.style.border = \`1px solid \${p.farbe}\`;
+            });
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Fehler beim Laden der Poke-Profile:', e);
+    }
 
     // Verlauf laden
     await this.verlaufLaden();
@@ -718,8 +768,11 @@ const DashboardView = {
       const btn = document.getElementById('plan-senden');
       UI.btnLaden(btn, true);
       try {
+        const aktiverProfilBtn = document.querySelector('.poke-profil-btn.aktiv');
+        const pokeProfilId = aktiverProfilBtn ? parseInt(aktiverProfilBtn.dataset.profilId) : null;
+
         const prio = typ !== 'standard' ? typ : null;
-        await API.nachrichtPlanen(inhalt, utcSendAt, prio);
+        await API.nachrichtPlanen(inhalt, utcSendAt, prio, pokeProfilId);
         const sendeZeit = localDate.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
         UI.erfolg(`Nachricht für ${sendeZeit} Uhr eingeplant! ⏰`);
         kombiTextarea.value = '';

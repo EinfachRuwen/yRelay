@@ -37,7 +37,7 @@ async function sendePushUndMail(user, config) {
     );
   }
 
-  if (user.email && user.email_notifications !== 0 && user.email_notifications !== false) {
+  if (user.email && String(user.email_notifications) !== '0' && String(user.email_notifications) !== 'false') {
     promises.push(
       sendeSystemBenachrichtigung(user.email, user.username, betreff, inhalt, icon, farbe, ctaUrl ? urlToUse : null, ctaText).catch(err => {
         console.error(`[yRelay] Fehler beim Senden von E-Mail an ${user.username}:`, err);

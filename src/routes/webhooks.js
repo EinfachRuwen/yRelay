@@ -26,7 +26,7 @@ router.post('/poke-reply/:id/:token', (req, res) => {
 
   // Nachricht prüfen und zugehörige Nutzer-Daten holen (inkl. user_replies)
   const msg = db.prepare(`
-    SELECT m.id, m.content, m.reply_content, m.user_replies, u.id as user_id, u.email, u.username, u.ntfy_topic, u.email_notifications
+    SELECT m.id, m.content, m.reply_content, m.user_replies, m.poke_profile_id, u.id as user_id, u.email, u.username, u.ntfy_topic, u.email_notifications
     FROM messages m
     JOIN users u ON m.user_id = u.id
     WHERE m.id = ? AND m.reply_token = ?
@@ -59,22 +59,29 @@ router.post('/poke-reply/:id/:token', (req, res) => {
     if (msg.user_replies) nutzerAntworten = JSON.parse(msg.user_replies);
   } catch {}
 
+  // Poke Profil Name laden
+  let pokeName = 'Poke';
+  if (msg.poke_profile_id) {
+    const profil = db.prepare('SELECT name FROM poke_profiles WHERE id = ?').get(msg.poke_profile_id);
+    if (profil) pokeName = profil.name;
+  }
+
   // Gemischten Verlauf (chronologisch: Poke & Nutzer) für die Mail aufbauen
   const gemischterVerlauf = [
-    ...bestehendePokeAntworten.map(a => ({ ...a, von: 'poke' })),
+    ...bestehendePokeAntworten.map(a => ({ ...a, von: 'poke', pokeName })),
     ...nutzerAntworten.map(a => ({ ...a, von: 'nutzer', name: msg.username })),
   ].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
 
   // E-Mail-Benachrichtigung senden (asynchron im Hintergrund)
   const hasButtons = Array.isArray(buttons) && buttons.length > 0;
   
-  if (msg.email && msg.email_notifications !== 0 && msg.email_notifications !== false) {
+  if (msg.email && String(msg.email_notifications) !== '0' && String(msg.email_notifications) !== 'false') {
     if (hasButtons) {
-      sendeRueckfrageMail(msg.email, msg.username, msg.content, message, buttons, msg.id, token, gemischterVerlauf).catch(err => {
+      sendeRueckfrageMail(msg.email, msg.username, msg.content, message, buttons, msg.id, token, gemischterVerlauf, pokeName).catch(err => {
         console.error('[yRelay] Fehler beim Senden der Rückfrage-Mail:', err);
       });
     } else {
-      sendeAntwortMail(msg.email, msg.username, msg.content, message, !istErstantwort, gemischterVerlauf).catch(err => {
+      sendeAntwortMail(msg.email, msg.username, msg.content, message, !istErstantwort, gemischterVerlauf, pokeName).catch(err => {
         console.error('[yRelay] Fehler beim Senden der Antwort-Mail:', err);
       });
     }
@@ -86,7 +93,7 @@ router.post('/poke-reply/:id/:token', (req, res) => {
     const appUrl = require('../db').getSetting('app_url') || 'http://localhost:3000';
     const clickUrl = `${appUrl}/#dashboard`;
     
-    const title = hasButtons ? '❓ Rückfrage von Poke' : '🤖 Poke hat geantwortet';
+    const title = hasButtons ? `❓ Rückfrage von ${pokeName}` : `🤖 ${pokeName} hat geantwortet`;
     const tags = hasButtons ? ['question', 'robot'] : ['robot', 'envelope'];
     const priority = hasButtons ? 4 : 3;
     
@@ -170,6 +177,45 @@ router.post('/poke-action/:id/:token', (req, res) => {
 
   console.log(`[yRelay] Poke hat Nachricht ${id} mit Action "${action}" markiert.`);
   res.json({ success: true });
+});
+
+// POST /api/webhooks/schul-update/:secret
+router.post('/schul-update/:secret', (req, res) => {
+  const { getSetting } = require('../db');
+  const secret = getSetting('schul_webhook_secret');
+  if (!secret || req.params.secret !== secret) {
+    return res.status(403).json({ fehler: 'Ungültiges Secret.' });
+  }
+
+  const { typ, daten } = req.body;
+  
+  try {
+    if (typ === 'kalender') {
+      db.prepare('DELETE FROM schul_kalender_cache').run();
+      const stmt = db.prepare('INSERT INTO schul_kalender_cache (titel, start, ende, ganztaegig, notiz) VALUES (?, ?, ?, ?, ?)');
+      if (Array.isArray(daten)) {
+        for (const t of daten) {
+          stmt.run(t.titel, t.start, t.ende || null, t.ganztaegig ? 1 : 0, t.notiz || null);
+        }
+      }
+    } else if (typ === 'aufgabe') {
+      db.prepare('DELETE FROM schul_aufgaben_cache').run();
+      const stmt = db.prepare('INSERT INTO schul_aufgaben_cache (titel, faellig, erledigt, notiz) VALUES (?, ?, ?, ?)');
+      if (Array.isArray(daten)) {
+        for (const a of daten) {
+          stmt.run(a.titel, a.faellig || null, a.erledigt ? 1 : 0, a.notiz || null);
+        }
+      }
+    } else if (typ === 'feed') {
+      db.prepare('INSERT INTO schul_feed (typ, inhalt) VALUES (?, ?)').run(daten.typ || 'info', daten.inhalt);
+    } else {
+      return res.status(400).json({ fehler: 'Unbekannter Typ' });
+    }
+    res.json({ erfolg: true });
+  } catch (err) {
+    console.error('[yRelay] Fehler beim Schul-Update Webhook:', err);
+    res.status(500).json({ fehler: err.message });
+  }
 });
 
 module.exports = router;

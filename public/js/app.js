@@ -60,6 +60,18 @@ const App = {
       return;
     }
 
+    // Wenn wir nicht auf der Schul-Route sind, ggf. das Polling stoppen
+    if (!hash.startsWith('#schule') && typeof SchulDashboardView !== 'undefined') {
+      SchulDashboardView.zerstoeren();
+    }
+
+    // Schul-Dashboard-Route
+    if (hash === '#schule' || hash === '#schule/') {
+      app.innerHTML = SchulDashboardView.rendern(this.nutzer);
+      SchulDashboardView.initialisieren(this.nutzer);
+      return;
+    }
+
     // Dashboard (Standard für eingeloggte Nutzer)
     app.innerHTML = DashboardView.rendern(this.nutzer);
     DashboardView.initialisieren(this.nutzer);

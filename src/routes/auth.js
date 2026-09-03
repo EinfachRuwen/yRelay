@@ -44,6 +44,8 @@ router.post('/login', (req, res) => {
       email: user.email,
       rolle: user.role,
       has_seen_onboarding: user.has_seen_onboarding === 1,
+      has_schul_access: user.has_schul_access === 1,
+      schul_poke_profile_id: user.schul_poke_profile_id,
     },
   });
 });
@@ -121,6 +123,9 @@ router.get('/ich', requireAuth, (req, res) => {
     has_seen_onboarding: req.user.has_seen_onboarding === 1,
     ntfy_topic: req.user.ntfy_topic || null,
     email_notifications: req.user.email_notifications === 1,
+    has_schul_access: req.user.has_schul_access === 1,
+    schul_poke_profile_id: req.user.schul_poke_profile_id,
+    schul_dashboard_global_enabled: require('../db').getSetting('schul_dashboard_enabled') === 'true'
   });
 });
 
