@@ -28,6 +28,24 @@ function normalisiereStundenplan(daten) {
   });
 }
 
+function normalisiereSchulPayload(body) {
+  let payload = body;
+  if (typeof payload === 'string') {
+    try { payload = JSON.parse(payload); } catch (e) { return null; }
+  }
+  if (!payload || typeof payload !== 'object') return null;
+  if (payload.body && typeof payload.body === 'object') payload = payload.body;
+  if (payload.payload && typeof payload.payload === 'object') payload = payload.payload;
+  const typen = {
+    timetable: 'stundenplan', schedule: 'stundenplan', calendar: 'kalender',
+    events: 'kalender', task: 'aufgabe', tasks: 'aufgabe', notification: 'feed',
+    message: 'feed', tile: 'kachel', card: 'kachel'
+  };
+  const typ = typen[String(payload.typ || payload.type || '').toLowerCase()] || payload.typ || payload.type;
+  const daten = payload.daten !== undefined ? payload.daten : (payload.data !== undefined ? payload.data : payload.entries);
+  return { typ, daten };
+}
+
 // Hilfsfunktion: reply_content als Array lesen (rückwärtskompatibel)
 function leseAntworten(replyContent) {
   if (!replyContent) return [];
@@ -220,7 +238,11 @@ router.post('/schul-update/:token', (req, res) => {
   `).get(req.params.token);
   if (!integration) return res.status(403).json({ fehler: 'Ungültiger Schul-Integrationstoken.' });
 
-  const { typ, daten } = req.body;
+  const schulPayload = normalisiereSchulPayload(req.body);
+  if (!schulPayload || !schulPayload.typ) {
+    return res.status(400).json({ fehler: 'Schul-Webhook erwartet typ/type und daten/data als JSON.' });
+  }
+  const { typ, daten } = schulPayload;
   
   try {
     const update = db.transaction(() => {
@@ -302,3 +324,4 @@ router.post('/schul-update/:token', (req, res) => {
 
 module.exports = router;
 router.normalisiereStundenplan = normalisiereStundenplan;
+router.normalisiereSchulPayload = normalisiereSchulPayload;

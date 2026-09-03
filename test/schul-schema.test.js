@@ -58,6 +58,14 @@ test('Stundenplan akzeptiert Namen und alternative Feldnamen', () => {
   });
 });
 
+test('Schul-Webhook akzeptiert Wrapper und englische Typnamen', () => {
+  const normalisiert = webhookRouter.normalisiereSchulPayload({
+    payload: { type: 'timetable', data: [{ wochentag: 1 }] }
+  });
+  assert.equal(normalisiert.typ, 'stundenplan');
+  assert.deepEqual(normalisiert.daten, [{ wochentag: 1 }]);
+});
+
 test.after(() => {
   db.close();
   fs.rmSync(tempDir, { recursive: true, force: true });

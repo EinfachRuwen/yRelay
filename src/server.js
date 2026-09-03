@@ -53,7 +53,10 @@ app.post('/api/nachrichten/transkribieren', requireAuth, express.raw({ type: '*/
   }
 });
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({
+  limit: '10mb',
+  type: ['application/json', 'application/*+json', 'text/plain']
+}));
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     console.warn(`[yRelay] Ungültiges JSON empfangen (von ${req.ip})`);
