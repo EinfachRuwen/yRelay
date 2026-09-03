@@ -37,10 +37,18 @@ const SchulDashboardView = {
             </div>
           </div>
 
-          <div id="schul-layout" class="schul-grid" style="display:none; grid-template-columns: ${isMobile ? '1fr' : '1fr 350px'}; gap: 20px; align-items: start;">
+          <div id="schul-layout" class="schul-grid" style="display:none; grid-template-columns: ${isMobile ? '1fr' : 'minmax(0, 1fr) 350px'}; gap: 20px; align-items: start;">
             
             <!-- Linke Spalte: Widgets (Kalender & Aufgaben) -->
             <div class="widgets-container" style="display:flex; flex-direction:column; gap:20px;">
+              <div class="karte">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                  <h3 style="margin:0; font-size:1.2rem; color:var(--farbe-erfolg);">📚 Stundenplan</h3>
+                </div>
+                <div id="schul-stundenplan-inhalt" class="widget-inhalt">
+                  <div class="lade-spinner"></div>
+                </div>
+              </div>
               <!-- Kalender Widget -->
               <div class="karte">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
@@ -250,6 +258,7 @@ const SchulDashboardView = {
       
       this.rendereKalender(daten.kalender);
       this.rendereAufgaben(daten.aufgaben);
+      this.rendereStundenplan(daten.stundenplan);
       this.rendereFeed(daten.feed);
     } else {
       badge.textContent = 'Modus: Inaktiv';
@@ -290,6 +299,21 @@ const SchulDashboardView = {
     container.innerHTML = html;
   },
 
+  rendereStundenplan(items) {
+    const container = document.getElementById('schul-stundenplan-inhalt');
+    if (!items || items.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-sekundaer); text-align:center; padding:20px 0;">Noch kein Stundenplan hinterlegt.</p>';
+      return;
+    }
+    const tage = ['', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+    container.innerHTML = items.map(stunde => `
+      <div class="stundenplan-item">
+        <div class="zeit-badge">${UI.escapeHtml(stunde.start)}${stunde.ende ? ` - ${UI.escapeHtml(stunde.ende)}` : ''}</div>
+        <div><strong>${UI.escapeHtml(tage[stunde.wochentag] || 'Tag')}</strong><br>${UI.escapeHtml(stunde.fach)}${stunde.raum ? ` · ${UI.escapeHtml(stunde.raum)}` : ''}</div>
+      </div>
+    `).join('');
+  },
+
   rendereAufgaben(items) {
     const container = document.getElementById('schul-aufgaben-inhalt');
     if (!items || items.length === 0) {
@@ -327,7 +351,7 @@ const SchulDashboardView = {
       html += `
         <div class="feed-item typ-${UI.escapeHtml(f.typ)}">
           <span class="feed-zeit">${zeit}</span>
-          <div>${emoji} ${f.inhalt}</div>
+          <div>${emoji} ${UI.escapeHtml(f.inhalt)}</div>
         </div>
       `;
     });

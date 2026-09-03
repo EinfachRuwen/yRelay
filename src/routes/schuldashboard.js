@@ -77,6 +77,20 @@ function istSchulmodusAktiv(integration) {
   return istAutomatischeSchulzeit();
 }
 
+async function sendeSchulNachricht(user, inhalt, profil) {
+  const replyToken = crypto.randomBytes(16).toString('hex');
+  const insert = db.prepare(`
+    INSERT INTO messages (user_id, type, content, poke_payload, status, reply_token, poke_profile_id)
+    VALUES (?, 'school', ?, '', 'wird_gesendet', ?, ?)
+  `).run(user.id, inhalt, replyToken, profil?.id || null);
+  const messageId = insert.lastInsertRowid;
+  const ergebnis = await sendeFreieNachricht(user, inhalt, messageId, replyToken, profil);
+  db.prepare('UPDATE messages SET poke_payload = ?, status = ?, error_message = ? WHERE id = ?')
+    .run(ergebnis.payload, ergebnis.erfolg ? 'gesendet' : 'fehlgeschlagen', ergebnis.fehler || null, messageId);
+  if (!ergebnis.erfolg) throw new Error(ergebnis.fehler || 'Poke konnte die Schulnachricht nicht empfangen.');
+  return messageId;
+}
+
 async function aktualisiereAutomatischeSchulmodi() {
   const integrations = db.prepare(`
     SELECT si.*, pp.webhook_url, pp.api_key, pp.name AS profil_name,
@@ -97,7 +111,7 @@ async function aktualisiereAutomatischeSchulmodi() {
       ? 'Die konfigurierte Schulzeit hat begonnen. Aktiviere jetzt die Schul-Dashboard-Synchronisierung und sende den aktuellen Kalender-, Aufgaben- und Benachrichtigungsstand.'
       : 'Die konfigurierte Schulzeit ist beendet. Stoppe die Schul-Dashboard-Synchronisierung und sende bis zum nächsten Schulzeitbeginn keine unwichtigen Updates.';
     try {
-      await sendeFreieNachricht(user, nachricht, 0, crypto.randomBytes(16).toString('hex'), profil);
+      await sendeSchulNachricht(user, nachricht, { ...profil, id: integration.profil_id });
     } catch (e) {
       console.error('[yRelay] Automatische Schulmodus-Mitteilung fehlgeschlagen:', e.message);
     }
@@ -116,8 +130,9 @@ Sende JSON mit Content-Type application/json. Beispiele:
 Kalender: POST ${url} mit {"typ":"kalender","daten":[{"titel":"Mathe","start":"2026-09-03T08:00:00+02:00","ende":"2026-09-03T09:00:00+02:00","ganztaegig":false,"notiz":"Raum 204"}]}
 Aufgaben: POST ${url} mit {"typ":"aufgabe","daten":[{"titel":"Hausaufgabe","faellig":"2026-09-03T18:00:00+02:00","erledigt":false,"notiz":""}]}
 Benachrichtigung: POST ${url} mit {"typ":"feed","daten":{"typ":"email","inhalt":"Wichtige Nachricht ..."}}
+Stundenplan: POST ${url} mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","start":"08:00","ende":"08:45","raum":"204","notiz":""}]}
 
-Beim Typ kalender oder aufgabe sendest du immer den vollständigen aktuellen Stand. Beim Typ feed sendest du einzelne neue wichtige Ereignisse. Sende nach Aktivierung, beim Tagesstart und bei Änderungen ein Update. Keine unwichtigen Benachrichtigungen senden.`;
+Beim Typ kalender, aufgabe oder stundenplan sendest du immer den vollständigen aktuellen Stand. Beim Typ feed sendest du einzelne neue wichtige Ereignisse. Sende nach Aktivierung, beim Tagesstart und bei Änderungen ein Update. Keine unwichtigen Benachrichtigungen senden.`;
 }
 
 // GET /api/schuldashboard/daten - Lädt alle Dashboard-Daten
@@ -131,12 +146,15 @@ router.get('/daten', (req, res) => {
       WHERE integration_id = ? AND date(start) >= date('now', 'localtime') ORDER BY start ASC`).all(integration.integration.id);
     const aufgaben = db.prepare(`SELECT * FROM schul_aufgaben_cache
       WHERE integration_id = ? AND erledigt = 0 ORDER BY faellig ASC`).all(integration.integration.id);
+    const stundenplan = db.prepare(`SELECT * FROM schul_stundenplan
+      WHERE integration_id = ? ORDER BY wochentag ASC, start ASC`).all(integration.integration.id);
     const feed = db.prepare('SELECT * FROM schul_feed WHERE integration_id = ? ORDER BY zeitpunkt DESC LIMIT 50').all(integration.integration.id);
 
     res.json({
       schulmodusAktiv,
       kalender,
       aufgaben,
+      stundenplan,
       feed
       ,modus: integration.integration.modus
     });
@@ -173,7 +191,6 @@ router.post('/modus', async (req, res) => {
     .run(neuerModus, integration.integration.id);
   
   // Poke benachrichtigen, dass der Modus geändert wurde
-  const replyToken = crypto.randomBytes(16).toString('hex');
   const inhalt = neuerModus === 'auto'
     ? 'Der Schulmodus läuft jetzt automatisch nach dem konfigurierten Schulzeitplan. Synchronisiere während der berechneten Schulzeit Kalender, Aufgaben und wichtige Benachrichtigungen über die Schul-Dashboard-Integration.'
     : aktiv
@@ -184,7 +201,7 @@ router.post('/modus', async (req, res) => {
   pokeProfile = integration?.profil || null;
 
   try {
-    await sendeFreieNachricht(req.user, inhalt, 0, replyToken, pokeProfile);
+    await sendeSchulNachricht(req.user, inhalt, pokeProfile);
   } catch(e) {
     console.error('Fehler beim Senden der Modusänderung an Poke:', e);
   }
@@ -209,14 +226,13 @@ router.post('/aktion', async (req, res) => {
     return res.status(400).json({ fehler: 'Unbekannter Aktionstyp' });
   }
 
-  const replyToken = require('crypto').randomBytes(16).toString('hex');
   let pokeProfile = null;
   if (req.user.schul_poke_profile_id) {
     pokeProfile = db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(req.user.schul_poke_profile_id);
   }
 
   try {
-    await sendeFreieNachricht(req.user, befehl, 0, replyToken, pokeProfile);
+    await sendeSchulNachricht(req.user, befehl, pokeProfile);
     logAudit(req.user.id, 'schul_aktion_gesendet', { aktionTyp });
     res.json({ erfolg: true });
   } catch(e) {

@@ -214,6 +214,19 @@ router.post('/schul-update/:token', (req, res) => {
       if (!daten || !daten.inhalt) return res.status(400).json({ fehler: 'Feeddaten benötigen inhalt.' });
       db.prepare('INSERT INTO schul_feed (integration_id, typ, inhalt) VALUES (?, ?, ?)')
         .run(integration.id, daten.typ || 'info', daten.inhalt);
+    } else if (typ === 'stundenplan') {
+      if (!Array.isArray(daten)) return res.status(400).json({ fehler: 'Stundenplandaten müssen ein Array sein.' });
+      for (const stunde of daten) {
+        if (!Number.isInteger(stunde.wochentag) || stunde.wochentag < 1 || stunde.wochentag > 7 || !stunde.fach || !/^\d{2}:\d{2}$/.test(stunde.start)) {
+          return res.status(400).json({ fehler: 'Stundenplaneintrag benötigt wochentag (1-7), fach und start (HH:MM).' });
+        }
+      }
+      db.prepare('DELETE FROM schul_stundenplan WHERE integration_id = ?').run(integration.id);
+      const stmt = db.prepare(`INSERT INTO schul_stundenplan
+        (integration_id, wochentag, fach, start, ende, raum, notiz) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+      for (const stunde of daten) {
+        stmt.run(integration.id, stunde.wochentag, stunde.fach, stunde.start, stunde.ende || null, stunde.raum || null, stunde.notiz || null);
+      }
     } else {
       return res.status(400).json({ fehler: 'Unbekannter Typ' });
     }

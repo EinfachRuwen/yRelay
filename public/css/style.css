@@ -810,6 +810,11 @@ body {
 
 .admin-tabs::-webkit-scrollbar { display: none; }
 
+.schul-grid { min-width: 0; }
+.schul-grid > * { min-width: 0; }
+.stundenplan-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px; border-bottom: 1px solid var(--rahmen); }
+.stundenplan-item:last-child { border-bottom: none; }
+
 .admin-tab {
   flex: 0 0 auto;
   padding: 10px 16px;
@@ -1304,6 +1309,9 @@ body {
 
   /* Admin Panel Karten */
   .admin-panel-karte { padding: 16px; }
+  .schulmodus-toggle { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+  .schul-grid { grid-template-columns: 1fr !important; }
+  .feed-container { position: static !important; height: 420px !important; }
 
   /* Toast */
   .toast-container { right: 8px; left: 8px; bottom: 8px; max-width: unset; }

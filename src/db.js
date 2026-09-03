@@ -84,6 +84,18 @@ db.exec(`
     inhalt TEXT NOT NULL,
     zeitpunkt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS schul_stundenplan (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    integration_id INTEGER NOT NULL REFERENCES schul_integrationen(id) ON DELETE CASCADE,
+    wochentag INTEGER NOT NULL,
+    fach TEXT NOT NULL,
+    start TEXT NOT NULL,
+    ende TEXT,
+    raum TEXT,
+    notiz TEXT,
+    aktualisiert_am DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // Migrationen für bestehende Tabellen
