@@ -801,10 +801,17 @@ body {
   padding: 4px;
   margin-bottom: 28px;
   border: 1px solid var(--farbe-rahmen);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  flex-wrap: nowrap;
 }
 
+.admin-tabs::-webkit-scrollbar { display: none; }
+
 .admin-tab {
-  flex: 1;
+  flex: 0 0 auto;
   padding: 10px 16px;
   border-radius: var(--radius-mittel);
   font-size: 14px;
@@ -816,6 +823,7 @@ body {
   color: var(--farbe-text-gedaempft);
   font-family: inherit;
   text-align: center;
+  white-space: nowrap;
 }
 
 .admin-tab:hover { color: var(--farbe-text); }
@@ -1267,24 +1275,35 @@ body {
   .btn-special { font-size: 11px; padding: 8px 10px; }
   .btn-template { font-size: 11px; padding: 5px 10px; }
 
-  /* Admin-Tabs */
-  .admin-tabs { flex-wrap: wrap; gap: 6px; }
-  .admin-tab {
-    flex: 1 1 auto;
-    min-width: calc(50% - 6px);
-    text-align: center;
-    font-size: 12px;
-    padding: 8px 10px;
-  }
+  /* Admin-Tabs (scrollbar, kein Umbrechen) */
+  .admin-tabs { padding: 4px; gap: 3px; margin-bottom: 18px; }
+  .admin-tab { padding: 8px 10px; font-size: 13px; }
+  .admin-tab .tab-text { display: none; }
 
   /* Statistik-Grid */
   .statistik-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
   .statistik-kachel { padding: 16px; }
   .statistik-wert { font-size: 28px; }
 
-  /* Tabelle */
-  .tabelle-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .tabelle { min-width: 600px; }
+  /* Tabelle: mobilfreundlicher */
+  .tabelle-container { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius-klein); }
+  .tabelle { min-width: 0; font-size: 13px; }
+  .tabelle th, .tabelle td { padding: 10px 10px; }
+  /* Weniger wichtige Spalten verstecken */
+  .tabelle .col-erstellt,
+  .tabelle .col-letzter-login { display: none; }
+
+  /* Aktions-Buttons in Tabelle stapeln */
+  .tabellen-aktionen {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+  }
+  .tabellen-aktionen .btn { width: 100%; justify-content: center; }
+
+  /* Admin Panel Karten */
+  .admin-panel-karte { padding: 16px; }
 
   /* Toast */
   .toast-container { right: 8px; left: 8px; bottom: 8px; max-width: unset; }
@@ -1300,6 +1319,7 @@ body {
   .special-actions-grid { grid-template-columns: 1fr; }
   .statistik-grid { grid-template-columns: 1fr; }
   .navbar-logo { font-size: 16px; }
+  .admin-tab { font-size: 12px; padding: 7px 8px; }
 }
 
 /* ─── Gepinnte Nachrichten ─────────────────────────────────── */

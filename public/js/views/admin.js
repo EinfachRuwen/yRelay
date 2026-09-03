@@ -32,12 +32,12 @@ const AdminView = {
 
           <!-- Tabs -->
           <div class="admin-tabs" role="tablist">
-            <button class="admin-tab aktiv" data-tab="uebersicht" role="tab">📊 Übersicht</button>
-            <button class="admin-tab" data-tab="nutzer" role="tab">👥 Nutzer</button>
-            <button class="admin-tab" data-tab="nachrichten" role="tab">📨 Nachrichten</button>
-            <button class="admin-tab" data-tab="labels" role="tab">🏷️ Labels</button>
-            <button class="admin-tab" data-tab="audit" role="tab">📜 Audit Log</button>
-            <button class="admin-tab" data-tab="einstellungen" role="tab">🔧 Einstellungen</button>
+            <button class="admin-tab aktiv" data-tab="uebersicht" role="tab">📊 <span class="tab-text">Übersicht</span></button>
+            <button class="admin-tab" data-tab="nutzer" role="tab">👥 <span class="tab-text">Nutzer</span></button>
+            <button class="admin-tab" data-tab="nachrichten" role="tab">📨 <span class="tab-text">Nachrichten</span></button>
+            <button class="admin-tab" data-tab="labels" role="tab">🏷️ <span class="tab-text">Labels</span></button>
+            <button class="admin-tab" data-tab="audit" role="tab">📜 <span class="tab-text">Audit Log</span></button>
+            <button class="admin-tab" data-tab="einstellungen" role="tab">🔧 <span class="tab-text">Einstellungen</span></button>
           </div>
 
           <!-- Tab-Inhalt -->
@@ -425,7 +425,7 @@ const AdminView = {
                       <th>Nutzer</th>
                       <th>E-Mail</th>
                       <th>Status</th>
-                      <th>Letzter Login</th>
+                      <th class="col-letzter-login">Letzter Login</th>
                       <th>Aktionen</th>
                     </tr>
                   </thead>
@@ -446,9 +446,9 @@ const AdminView = {
                               : '<span class="status-badge inaktiv">Inaktiv</span>'
                           }
                         </td>
-                        <td style="color: var(--farbe-text-schwach); font-size: 13px;">${UI.datumFormatieren(n.letzterLogin)}</td>
+                        <td class="col-letzter-login" style="color: var(--farbe-text-schwach); font-size: 13px;">${UI.datumFormatieren(n.letzterLogin)}</td>
                         <td>
-                          <div class="aktionen-gruppe">
+                          <div class="tabellen-aktionen">
                             ${n.rolle !== 'admin' ? `
                               <button class="btn btn-ghost btn-klein"
                                 onclick="AdminView.nutzerStatusToggle(${n.id}, ${!n.aktiv})"
