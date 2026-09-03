@@ -4,6 +4,30 @@ const { sendeAntwortMail, sendeRueckfrageMail } = require('../services/email');
 
 const router = express.Router();
 
+function normalisiereStundenplan(daten) {
+  const eintraege = Array.isArray(daten) ? daten : daten?.eintraege || daten?.stunden || daten?.stundenplan;
+  if (!Array.isArray(eintraege)) return null;
+  const wochentage = {
+    sonntag: 7, sunday: 7, montag: 1, monday: 1, dienstag: 2, tuesday: 2,
+    mittwoch: 3, wednesday: 3, donnerstag: 4, thursday: 4, freitag: 5,
+    friday: 5, samstag: 6, saturday: 6, sonntag: 7
+  };
+  return eintraege.map(stunde => {
+    const tag = typeof stunde.wochentag === 'string'
+      ? wochentage[stunde.wochentag.trim().toLowerCase()] || Number(stunde.wochentag)
+      : stunde.wochentag;
+    return {
+      wochentag: Number(tag),
+      fach: stunde.fach || stunde.fachname || stunde.subject,
+      lehrer: stunde.lehrer || stunde.lehrername || stunde.teacher || null,
+      start: stunde.start || stunde.startzeit || stunde.von,
+      ende: stunde.ende || stunde.endzeit || stunde.bis || null,
+      raum: stunde.raum || stunde.raumname || stunde.room || null,
+      notiz: stunde.notiz || stunde.hinweis || null,
+    };
+  });
+}
+
 // Hilfsfunktion: reply_content als Array lesen (rückwärtskompatibel)
 function leseAntworten(replyContent) {
   if (!replyContent) return [];
@@ -225,16 +249,17 @@ router.post('/schul-update/:token', (req, res) => {
       db.prepare('INSERT INTO schul_feed (integration_id, typ, inhalt) VALUES (?, ?, ?)')
         .run(integration.id, daten.typ || 'info', daten.inhalt);
     } else if (typ === 'stundenplan') {
-      if (!Array.isArray(daten)) return res.status(400).json({ fehler: 'Stundenplandaten müssen ein Array sein.' });
-      for (const stunde of daten) {
-        if (!Number.isInteger(stunde.wochentag) || stunde.wochentag < 1 || stunde.wochentag > 7 || !stunde.fach || !/^\d{2}:\d{2}$/.test(stunde.start)) {
+      const stunden = normalisiereStundenplan(daten);
+      if (!stunden) return res.status(400).json({ fehler: 'Stundenplandaten müssen ein Array oder ein Objekt mit eintraege/stunden/stundenplan sein.' });
+      for (const stunde of stunden) {
+        if (!Number.isInteger(stunde.wochentag) || stunde.wochentag < 1 || stunde.wochentag > 7 || !stunde.fach || !/^\d{1,2}:\d{2}$/.test(stunde.start) || (stunde.ende && !/^\d{1,2}:\d{2}$/.test(stunde.ende))) {
           return res.status(400).json({ fehler: 'Stundenplaneintrag benötigt wochentag (1-7), fach und start (HH:MM).' });
         }
       }
       db.prepare('DELETE FROM schul_stundenplan WHERE integration_id = ?').run(integration.id);
       const stmt = db.prepare(`INSERT INTO schul_stundenplan
         (integration_id, wochentag, fach, lehrer, start, ende, raum, notiz) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-      for (const stunde of daten) {
+      for (const stunde of stunden) {
         stmt.run(integration.id, stunde.wochentag, stunde.fach, stunde.lehrer || null, stunde.start, stunde.ende || null, stunde.raum || null, stunde.notiz || null);
       }
     } else if (typ === 'kachel') {
@@ -276,3 +301,4 @@ router.post('/schul-update/:token', (req, res) => {
 });
 
 module.exports = router;
+router.normalisiereStundenplan = normalisiereStundenplan;

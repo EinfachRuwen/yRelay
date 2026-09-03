@@ -7,6 +7,7 @@ const test = require('node:test');
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yrelay-test-'));
 process.env.DB_PATH = path.join(tempDir, 'yrelay.db');
 const { db } = require('../src/db');
+const webhookRouter = require('../src/routes/webhooks');
 
 test('Schul-Integration und isolierte Cache-Spalten existieren', () => {
   const integrationColumns = db.prepare('PRAGMA table_info(schul_integrationen)').all().map(column => column.name);
@@ -39,6 +40,22 @@ test('Webhook-Daten koennen einer Integration zugeordnet werden', () => {
 
   const row = db.prepare('SELECT titel FROM schul_kalender_cache WHERE integration_id = ?').get(integration.lastInsertRowid);
   assert.equal(row.titel, 'Testtermin');
+});
+
+test('Stundenplan akzeptiert Namen und alternative Feldnamen', () => {
+  const normalisiert = webhookRouter.normalisiereStundenplan({ eintraege: [
+    { wochentag: 'Montag', fachname: 'Mathe', lehrername: 'Frau Müller', startzeit: '8:00', endzeit: '08:45', raumname: '204' }
+  ] });
+
+  assert.deepEqual(normalisiert[0], {
+    wochentag: 1,
+    fach: 'Mathe',
+    lehrer: 'Frau Müller',
+    start: '8:00',
+    ende: '08:45',
+    raum: '204',
+    notiz: null,
+  });
 });
 
 test.after(() => {
