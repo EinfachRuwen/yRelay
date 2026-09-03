@@ -6,7 +6,7 @@ const SchulDashboardView = {
     const isMobile = window.innerWidth <= 768;
 
     return `
-      <div class="seite haupt-seite">
+      <div class="seite haupt-seite schul-dashboard-seite">
         <!-- Navigation -->
         <nav class="navbar">
           <span class="navbar-logo" style="cursor: pointer; user-select: none;" onclick="window.location.hash='#dashboard'">
@@ -27,7 +27,7 @@ const SchulDashboardView = {
         </nav>
 
         <main class="hauptinhalt" style="padding-top: 20px;">
-          <div class="sektion-titel" style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="sektion-titel schul-dashboard-kopf">
             <div>🎒 Schul-Dashboard <span id="schulzeit-hinweis" class="text-gedaempft"></span></div>
             <div class="schulmodus-toggle" style="display:flex; align-items:center; gap:10px;">
               <button id="integration-btn" class="btn btn-ghost btn-klein" title="Poke-Integration anzeigen">🔗 Integration</button>
@@ -80,7 +80,7 @@ const SchulDashboardView = {
               <!-- Schnelle Notiz -->
               <div class="karte" style="padding: 15px;">
                 <h3 style="margin:0 0 10px 0; font-size:1rem;">📝 Schnelle Notiz</h3>
-                <div style="display:flex; gap:10px;">
+                <div class="schul-schnellnotiz">
                   <input type="text" id="schnell-notiz-input" class="eingabefeld" placeholder="Notiz an Poke..." style="flex:1;">
                   <button id="schnell-notiz-btn" class="btn btn-primaer">Senden</button>
                 </div>
@@ -88,7 +88,7 @@ const SchulDashboardView = {
             </div>
 
             <!-- Rechte Spalte: Live-Feed -->
-            <div class="karte feed-container" style="height: calc(100vh - 150px); display:flex; flex-direction:column; position: sticky; top: 20px;">
+            <div class="karte feed-container schul-feed-karte">
               <h3 style="margin:0 0 15px 0; font-size:1.2rem; display:flex; align-items:center; gap:8px;">
                 <span class="pulsing-dot" style="width:10px; height:10px; background:#ef4444; border-radius:50%; display:inline-block; animation: pulse 2s infinite;"></span>
                 Live-Feed
@@ -111,6 +111,11 @@ const SchulDashboardView = {
       </div>
       
       <style>
+        .schul-dashboard-kopf { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+        .schulmodus-toggle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+        .schul-feed-karte { height: calc(100vh - 150px); display: flex; flex-direction: column; position: sticky; top: 20px; }
+        .schul-schnellnotiz { display: flex; gap: 10px; }
+        .schul-schnellnotiz .eingabefeld { min-width: 0; }
         @keyframes pulse {
           0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
           70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
@@ -322,7 +327,7 @@ const SchulDashboardView = {
     container.innerHTML = heuteItems.map(stunde => `
       <div class="stundenplan-item">
         <div class="zeit-badge">${UI.escapeHtml(stunde.start)}${stunde.ende ? ` - ${UI.escapeHtml(stunde.ende)}` : ''}</div>
-        <div><strong>${UI.escapeHtml(stunde.fach)}</strong><br>${[stunde.lehrer, stunde.raum].filter(Boolean).map(wert => UI.escapeHtml(wert)).join(' · ')}</div>
+        <div><strong>${UI.escapeHtml(stunde.fach)}</strong><br>${[stunde.lehrer ? `Lehrer: ${stunde.lehrer}` : '', stunde.raum ? `Raum: ${stunde.raum}` : ''].filter(Boolean).map(wert => UI.escapeHtml(wert)).join(' · ')}</div>
       </div>
     `).join('');
   },

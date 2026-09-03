@@ -132,7 +132,7 @@ Aufgaben: POST ${url} mit {"typ":"aufgabe","daten":[{"titel":"Hausaufgabe","fael
 Benachrichtigung: POST ${url} mit {"typ":"feed","daten":{"typ":"email","inhalt":"Wichtige Nachricht ..."}}
 Stundenplan: POST ${url} mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","lehrer":"Frau Müller","start":"08:00","ende":"08:45","raum":"204","notiz":""}]}
 
-Beim Typ kalender, aufgabe oder stundenplan sendest du immer den vollständigen aktuellen Stand. Beim Typ feed sendest du einzelne neue wichtige Ereignisse. Sende nach Aktivierung, beim Tagesstart und bei Änderungen ein Update. Keine unwichtigen Benachrichtigungen senden.`;
+Beim Typ kalender und aufgabe sendest du ausschließlich Einträge für den aktuellen Tag in der konfigurierten Zeitzone, niemals gestrige Einträge. Beim Typ stundenplan sendest du den vollständigen Stundenplan; yRelay zeigt daraus nur den heutigen Wochentag. Beim Typ feed sendest du einzelne neue wichtige Ereignisse. Sende nach Aktivierung, beim Tagesstart und bei Änderungen ein Update. Keine unwichtigen Benachrichtigungen senden.`;
 }
 
 // GET /api/schuldashboard/daten - Lädt alle Dashboard-Daten
@@ -143,9 +143,9 @@ router.get('/daten', (req, res) => {
     if (!integration) return res.status(409).json({ fehler: 'Für das Schul-Dashboard ist kein Poke-Profil verfügbar.' });
     const schulmodusAktiv = istSchulmodusAktiv(integration.integration);
     const kalender = db.prepare(`SELECT * FROM schul_kalender_cache
-      WHERE integration_id = ? AND date(start) >= date('now', 'localtime') ORDER BY start ASC`).all(integration.integration.id);
+      WHERE integration_id = ? AND date(start) = date('now', 'localtime') ORDER BY start ASC`).all(integration.integration.id);
     const aufgaben = db.prepare(`SELECT * FROM schul_aufgaben_cache
-      WHERE integration_id = ? AND erledigt = 0 ORDER BY faellig ASC`).all(integration.integration.id);
+      WHERE integration_id = ? AND erledigt = 0 AND (faellig IS NULL OR date(faellig) = date('now', 'localtime')) ORDER BY faellig ASC`).all(integration.integration.id);
     const stundenplan = db.prepare(`SELECT * FROM schul_stundenplan
       WHERE integration_id = ? ORDER BY wochentag ASC, start ASC`).all(integration.integration.id);
     const feed = db.prepare('SELECT * FROM schul_feed WHERE integration_id = ? ORDER BY zeitpunkt DESC LIMIT 50').all(integration.integration.id);
