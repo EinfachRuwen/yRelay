@@ -49,6 +49,9 @@ const API = {
       if (!antwort.ok) {
         if (antwort.status === 401) {
           this.setToken(null);
+          if (window.App) {
+            window.App.nutzer = null;
+          }
           if (window.location.hash !== '#login' && window.location.hash !== '#einladung' && !window.location.hash.startsWith('#einladung/')) {
             window.location.hash = '#login';
           }
