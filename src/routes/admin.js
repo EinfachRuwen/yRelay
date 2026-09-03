@@ -382,6 +382,8 @@ router.get('/einstellungen', (req, res) => {
     schulWochentage: getSetting('schul_wochentage') || '1,2,3,4,5',
     schulFerien: getSetting('schul_ferien') || '[]',
     schulZeitzone: getSetting('schul_zeitzone') || 'Europe/Berlin',
+    schulVorlaufMinuten: getSetting('schul_vorlauf_minuten') || '15',
+    schulNachlaufMinuten: getSetting('schul_nachlauf_minuten') || '15',
   });
 });
 
@@ -413,6 +415,8 @@ router.put('/einstellungen', (req, res) => {
       return res.status(400).json({ fehler: 'Ungültige Zeitzone.' });
     }
   }
+  if (req.body.schulVorlaufMinuten !== undefined && /^\d{1,3}$/.test(String(req.body.schulVorlaufMinuten))) setSetting('schul_vorlauf_minuten', String(Math.min(180, Number(req.body.schulVorlaufMinuten))));
+  if (req.body.schulNachlaufMinuten !== undefined && /^\d{1,3}$/.test(String(req.body.schulNachlaufMinuten))) setSetting('schul_nachlauf_minuten', String(Math.min(180, Number(req.body.schulNachlaufMinuten))));
   if (req.body.schulFerien !== undefined) {
     try {
       const ferien = JSON.parse(req.body.schulFerien);

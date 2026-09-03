@@ -142,6 +142,8 @@ setInterval(() => {
   schulDashboardRouter.aktualisiereAutomatischeSchulmodi()
     .catch(err => console.error('[yRelay] Fehler beim automatischen Schulmodus:', err));
 }, 60 * 1000);
+schulDashboardRouter.aktualisiereAutomatischeSchulmodi()
+  .catch(err => console.error('[yRelay] Fehler beim initialen automatischen Schulmodus:', err));
 
 const { backupDatabase } = require('./services/backup');
 const DAILY_MS = 24 * 60 * 60 * 1000;

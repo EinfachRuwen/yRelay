@@ -328,6 +328,8 @@ function initSettings() {
     ['schul_wochentage', '1,2,3,4,5'],
     ['schul_ferien', '[]'],
     ['schul_zeitzone', 'Europe/Berlin'],
+    ['schul_vorlauf_minuten', '15'],
+    ['schul_nachlauf_minuten', '15'],
   ];
 
   const upsert = db.prepare(`

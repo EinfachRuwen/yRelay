@@ -1165,6 +1165,16 @@ const AdminView = {
                 <label class="formular-label" for="schul-zeitzone">Zeitzone</label>
                 <input class="formular-eingabe" type="text" id="schul-zeitzone" value="${UI.escapeHtml(einstellungen.schulZeitzone)}" placeholder="Europe/Berlin">
               </div>
+              <div class="einstellungen-grid">
+                <div class="formular-gruppe">
+                  <label class="formular-label" for="schul-vorlauf">Minuten vor erster Stunde</label>
+                  <input class="formular-eingabe" type="number" id="schul-vorlauf" min="0" max="180" value="${UI.escapeHtml(einstellungen.schulVorlaufMinuten)}">
+                </div>
+                <div class="formular-gruppe">
+                  <label class="formular-label" for="schul-nachlauf">Minuten nach letzter Stunde</label>
+                  <input class="formular-eingabe" type="number" id="schul-nachlauf" min="0" max="180" value="${UI.escapeHtml(einstellungen.schulNachlaufMinuten)}">
+                </div>
+              </div>
               <div class="formular-gruppe">
                 <label class="formular-label" for="schul-ferien">Ferienzeiträume (JSON, z. B. [{"von":"2026-10-12","bis":"2026-10-24"}])</label>
                 <textarea class="formular-textarea" id="schul-ferien" rows="3">${UI.escapeHtml(einstellungen.schulFerien)}</textarea>
@@ -1266,6 +1276,8 @@ const AdminView = {
           schulEndzeit: document.getElementById('schul-endzeit').value,
           schulWochentage: document.getElementById('schul-wochentage').value.trim(),
           schulZeitzone: document.getElementById('schul-zeitzone').value.trim(),
+          schulVorlaufMinuten: document.getElementById('schul-vorlauf').value,
+          schulNachlaufMinuten: document.getElementById('schul-nachlauf').value,
           schulFerien: document.getElementById('schul-ferien').value.trim()
         });
         UI.erfolg('Einstellungen gespeichert! ✅');

@@ -60,25 +60,42 @@ function heutigesDatum() {
   return `${teile.find(t => t.type === 'year').value}-${teile.find(t => t.type === 'month').value}-${teile.find(t => t.type === 'day').value}`;
 }
 
-function istAutomatischeSchulzeit() {
+function lokaleZeit() {
   if (istFerienHeute()) return false;
   const zeitzone = getSetting('schul_zeitzone') || 'Europe/Berlin';
   const teile = new Intl.DateTimeFormat('en-US', {
     timeZone: zeitzone, weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false
   }).formatToParts(new Date());
   const wochentag = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(teile.find(t => t.type === 'weekday').value);
-  const wochentage = (getSetting('schul_wochentage') || '1,2,3,4,5').split(',').map(Number);
-  if (!wochentage.includes(wochentag)) return false;
   const minuten = Number(teile.find(t => t.type === 'hour').value) * 60 + Number(teile.find(t => t.type === 'minute').value);
-  const [startStunde, startMinute] = (getSetting('schul_startzeit') || '08:00').split(':').map(Number);
-  const [endeStunde, endeMinute] = (getSetting('schul_endzeit') || '15:00').split(':').map(Number);
-  return minuten >= startStunde * 60 + startMinute && minuten < endeStunde * 60 + endeMinute;
+  return { wochentag: wochentag || 7, minuten };
+}
+
+function istAutomatischeSchulzeit(integrationId) {
+  const zeit = lokaleZeit();
+  if (!zeit) return false;
+  const stunden = db.prepare(`SELECT start, ende FROM schul_stundenplan
+    WHERE integration_id = ? AND wochentag = ? ORDER BY start ASC`).all(integrationId, zeit.wochentag);
+  let start = getSetting('schul_startzeit') || '08:00';
+  let ende = getSetting('schul_endzeit') || '15:00';
+  if (stunden.length > 0) {
+    start = stunden[0].start;
+    ende = stunden[stunden.length - 1].ende || stunden[stunden.length - 1].start;
+  } else {
+    const wochentage = (getSetting('schul_wochentage') || '1,2,3,4,5').split(',').map(Number);
+    if (!wochentage.includes(zeit.wochentag)) return false;
+  }
+  const [startStunde, startMinute] = start.split(':').map(Number);
+  const [endeStunde, endeMinute] = ende.split(':').map(Number);
+  const vorlauf = Number(getSetting('schul_vorlauf_minuten') || 15);
+  const nachlauf = Number(getSetting('schul_nachlauf_minuten') || 15);
+  return zeit.minuten >= startStunde * 60 + startMinute - vorlauf && zeit.minuten < endeStunde * 60 + endeMinute + nachlauf;
 }
 
 function istSchulmodusAktiv(integration) {
   if (integration.modus === 'manual_on') return true;
   if (integration.modus === 'manual_off') return false;
-  return istAutomatischeSchulzeit();
+  return istAutomatischeSchulzeit(integration.id);
 }
 
 async function sendeSchulNachricht(user, inhalt, profil) {
