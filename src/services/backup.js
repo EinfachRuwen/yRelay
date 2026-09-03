@@ -31,6 +31,10 @@ async function backupDatabase(prefix = 'manual') {
         }
       })
       .then(() => {
+        const pruefDb = new Database(backupPath, { readonly: true });
+        const pruefung = pruefDb.prepare('PRAGMA integrity_check').get();
+        pruefDb.close();
+        if (pruefung.integrity_check !== 'ok') throw new Error('Backup-Integritätsprüfung fehlgeschlagen.');
         db.close();
         _cleanupOldBackups();
         resolve(backupPath);
@@ -73,6 +77,9 @@ function _cleanupOldBackups() {
  * @param {string} filename Name der Backup-Datei im Backup-Ordner
  */
 function restoreBackup(filename) {
+  if (!filename || filename !== path.basename(filename) || !filename.endsWith('.db')) {
+    throw new Error('Ungültiger Backup-Dateiname.');
+  }
   const backupPath = path.join(BACKUP_DIR, filename);
   if (!fs.existsSync(backupPath)) {
     throw new Error('Backup-Datei nicht gefunden.');

@@ -189,27 +189,37 @@ router.post('/schul-update/:token', (req, res) => {
   const { typ, daten } = req.body;
   
   try {
+    const update = db.transaction(() => {
     if (typ === 'kalender') {
-      db.prepare('DELETE FROM schul_kalender_cache').run();
-      const stmt = db.prepare('INSERT INTO schul_kalender_cache (titel, start, ende, ganztaegig, notiz) VALUES (?, ?, ?, ?, ?)');
-      if (Array.isArray(daten)) {
-        for (const t of daten) {
-          stmt.run(t.titel, t.start, t.ende || null, t.ganztaegig ? 1 : 0, t.notiz || null);
-        }
+      if (!Array.isArray(daten)) return res.status(400).json({ fehler: 'Kalenderdaten müssen ein Array sein.' });
+      for (const t of daten) {
+        if (!t.titel || !t.start) return res.status(400).json({ fehler: 'Kalendereintrag benötigt titel und start.' });
+      }
+      db.prepare('DELETE FROM schul_kalender_cache WHERE integration_id = ?').run(integration.id);
+      const stmt = db.prepare('INSERT INTO schul_kalender_cache (integration_id, titel, start, ende, ganztaegig, notiz) VALUES (?, ?, ?, ?, ?, ?)');
+      for (const t of daten) {
+        stmt.run(integration.id, t.titel, t.start, t.ende || null, t.ganztaegig ? 1 : 0, t.notiz || null);
       }
     } else if (typ === 'aufgabe') {
-      db.prepare('DELETE FROM schul_aufgaben_cache').run();
-      const stmt = db.prepare('INSERT INTO schul_aufgaben_cache (titel, faellig, erledigt, notiz) VALUES (?, ?, ?, ?)');
-      if (Array.isArray(daten)) {
-        for (const a of daten) {
-          stmt.run(a.titel, a.faellig || null, a.erledigt ? 1 : 0, a.notiz || null);
-        }
+      if (!Array.isArray(daten)) return res.status(400).json({ fehler: 'Aufgabendaten müssen ein Array sein.' });
+      for (const a of daten) {
+        if (!a.titel) return res.status(400).json({ fehler: 'Aufgabe benötigt einen titel.' });
+      }
+      db.prepare('DELETE FROM schul_aufgaben_cache WHERE integration_id = ?').run(integration.id);
+      const stmt = db.prepare('INSERT INTO schul_aufgaben_cache (integration_id, titel, faellig, erledigt, notiz) VALUES (?, ?, ?, ?, ?)');
+      for (const a of daten) {
+        stmt.run(integration.id, a.titel, a.faellig || null, a.erledigt ? 1 : 0, a.notiz || null);
       }
     } else if (typ === 'feed') {
-      db.prepare('INSERT INTO schul_feed (typ, inhalt) VALUES (?, ?)').run(daten.typ || 'info', daten.inhalt);
+      if (!daten || !daten.inhalt) return res.status(400).json({ fehler: 'Feeddaten benötigen inhalt.' });
+      db.prepare('INSERT INTO schul_feed (integration_id, typ, inhalt) VALUES (?, ?, ?)')
+        .run(integration.id, daten.typ || 'info', daten.inhalt);
     } else {
       return res.status(400).json({ fehler: 'Unbekannter Typ' });
     }
+    });
+    update();
+    db.prepare('UPDATE schul_integrationen SET zuletzt_aktualisiert = CURRENT_TIMESTAMP WHERE id = ?').run(integration.id);
     res.json({ erfolg: true });
   } catch (err) {
     console.error('[yRelay] Fehler beim Schul-Update Webhook:', err);

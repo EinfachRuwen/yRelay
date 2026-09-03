@@ -60,6 +60,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS schul_kalender_cache (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    integration_id INTEGER REFERENCES schul_integrationen(id) ON DELETE CASCADE,
     titel TEXT NOT NULL,
     start DATETIME NOT NULL,
     ende DATETIME,
@@ -69,6 +70,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS schul_aufgaben_cache (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    integration_id INTEGER REFERENCES schul_integrationen(id) ON DELETE CASCADE,
     titel TEXT NOT NULL,
     faellig DATETIME,
     erledigt INTEGER NOT NULL DEFAULT 0,
@@ -77,6 +79,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS schul_feed (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    integration_id INTEGER REFERENCES schul_integrationen(id) ON DELETE CASCADE,
     typ TEXT NOT NULL,
     inhalt TEXT NOT NULL,
     zeitpunkt DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -230,10 +233,24 @@ db.exec(`
     nutzer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     profil_id INTEGER NOT NULL REFERENCES poke_profiles(id) ON DELETE CASCADE,
     token TEXT NOT NULL UNIQUE,
+    modus TEXT NOT NULL DEFAULT 'auto',
+    letzter_status INTEGER,
+    zuletzt_aktualisiert DATETIME,
     erstellt_am DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (nutzer_id, profil_id)
   );
 `);
+
+// Die Schul-Cache-Tabellen wurden vor den Integrationen angelegt. Bestehende
+// Installationen erhalten die neue Zuordnung deshalb separat.
+for (const table of ['schul_kalender_cache', 'schul_aufgaben_cache', 'schul_feed']) {
+  try {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN integration_id INTEGER REFERENCES schul_integrationen(id) ON DELETE CASCADE;`);
+  } catch (e) {}
+}
+try { db.exec("ALTER TABLE schul_integrationen ADD COLUMN modus TEXT NOT NULL DEFAULT 'auto';"); } catch (e) {}
+try { db.exec('ALTER TABLE schul_integrationen ADD COLUMN letzter_status INTEGER;'); } catch (e) {}
+try { db.exec('ALTER TABLE schul_integrationen ADD COLUMN zuletzt_aktualisiert DATETIME;'); } catch (e) {}
 
 // Migration: poke_profile_id zu messages hinzufügen
 try {
@@ -277,6 +294,11 @@ function initSettings() {
     ['smtp_pass', process.env.SMTP_PASS || ''],
     ['smtp_from', process.env.SMTP_FROM || ''],
     ['app_url', process.env.APP_URL || 'http://localhost:3000'],
+    ['schul_startzeit', '08:00'],
+    ['schul_endzeit', '15:00'],
+    ['schul_wochentage', '1,2,3,4,5'],
+    ['schul_ferien', '[]'],
+    ['schul_zeitzone', 'Europe/Berlin'],
   ];
 
   const upsert = db.prepare(`

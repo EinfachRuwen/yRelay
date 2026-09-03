@@ -74,7 +74,8 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/nachrichten', require('./routes/messages'));
 app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/api/poke-profile', require('./routes/poke-profiles'));
-app.use('/api/schuldashboard', require('./routes/schuldashboard'));
+const schulDashboardRouter = require('./routes/schuldashboard');
+app.use('/api/schuldashboard', schulDashboardRouter);
 
 // Gesundheitscheck
 app.get('/api/gesundheit', (req, res) => {
@@ -137,6 +138,10 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'yrelay-geheimnis-bitt
 
 // Reminder-Service & Backup-Service starten
 starteReminderService();
+setInterval(() => {
+  schulDashboardRouter.aktualisiereAutomatischeSchulmodi()
+    .catch(err => console.error('[yRelay] Fehler beim automatischen Schulmodus:', err));
+}, 60 * 1000);
 
 const { backupDatabase } = require('./services/backup');
 const DAILY_MS = 24 * 60 * 60 * 1000;

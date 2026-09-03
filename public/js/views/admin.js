@@ -1147,6 +1147,28 @@ const AdminView = {
                 </label>
                 <p class="text-gedaempft" style="margin-top: 6px;">Wenn aktiv, können autorisierte Nutzer das Schul-Dashboard nutzen.</p>
               </div>
+              <div class="einstellungen-grid">
+                <div class="formular-gruppe">
+                  <label class="formular-label" for="schul-startzeit">Schulbeginn</label>
+                  <input class="formular-eingabe" type="time" id="schul-startzeit" value="${UI.escapeHtml(einstellungen.schulStartzeit)}">
+                </div>
+                <div class="formular-gruppe">
+                  <label class="formular-label" for="schul-endzeit">Schulende</label>
+                  <input class="formular-eingabe" type="time" id="schul-endzeit" value="${UI.escapeHtml(einstellungen.schulEndzeit)}">
+                </div>
+              </div>
+              <div class="formular-gruppe">
+                <label class="formular-label" for="schul-wochentage">Schultage (0 Sonntag bis 6 Samstag, kommasepariert)</label>
+                <input class="formular-eingabe" type="text" id="schul-wochentage" value="${UI.escapeHtml(einstellungen.schulWochentage)}" placeholder="1,2,3,4,5">
+              </div>
+              <div class="formular-gruppe">
+                <label class="formular-label" for="schul-zeitzone">Zeitzone</label>
+                <input class="formular-eingabe" type="text" id="schul-zeitzone" value="${UI.escapeHtml(einstellungen.schulZeitzone)}" placeholder="Europe/Berlin">
+              </div>
+              <div class="formular-gruppe">
+                <label class="formular-label" for="schul-ferien">Ferienzeiträume (JSON, z. B. [{"von":"2026-10-12","bis":"2026-10-24"}])</label>
+                <textarea class="formular-textarea" id="schul-ferien" rows="3">${UI.escapeHtml(einstellungen.schulFerien)}</textarea>
+              </div>
             </div>
 
             <div style="display: flex; justify-content: flex-end;">
@@ -1239,7 +1261,12 @@ const AdminView = {
           smtpPass: document.getElementById('smtp-pass').value || '••••••••',
           smtpFrom: document.getElementById('smtp-from').value.trim(),
           appUrl: document.getElementById('app-url').value.trim(),
-          schulDashboardEnabled: document.getElementById('schul-dashboard-global').checked
+          schulDashboardEnabled: document.getElementById('schul-dashboard-global').checked,
+          schulStartzeit: document.getElementById('schul-startzeit').value,
+          schulEndzeit: document.getElementById('schul-endzeit').value,
+          schulWochentage: document.getElementById('schul-wochentage').value.trim(),
+          schulZeitzone: document.getElementById('schul-zeitzone').value.trim(),
+          schulFerien: document.getElementById('schul-ferien').value.trim()
         });
         UI.erfolg('Einstellungen gespeichert! ✅');
       } catch (err) {

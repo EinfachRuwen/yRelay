@@ -28,9 +28,10 @@ const SchulDashboardView = {
 
         <main class="hauptinhalt" style="padding-top: 20px;">
           <div class="sektion-titel" style="display:flex; justify-content:space-between; align-items:center;">
-            <div>🎒 Schul-Dashboard</div>
+            <div>🎒 Schul-Dashboard <span id="schulzeit-hinweis" class="text-gedaempft"></span></div>
             <div class="schulmodus-toggle" style="display:flex; align-items:center; gap:10px;">
               <button id="integration-btn" class="btn btn-ghost btn-klein" title="Poke-Integration anzeigen">🔗 Integration</button>
+              <button id="auto-modus-btn" class="btn btn-ghost btn-klein" title="Automatischen Zeitplan verwenden">⏱️ Auto</button>
               <span id="modus-status-badge" class="status-badge" style="background:var(--text-sekundaer);">Modus: Inaktiv</span>
               <button id="toggle-modus-btn" class="btn btn-sekundaer btn-klein">Aktivieren</button>
             </div>
@@ -164,6 +165,16 @@ const SchulDashboardView = {
       }
     });
 
+    document.getElementById('auto-modus-btn')?.addEventListener('click', async () => {
+      try {
+        await API.anfrage('POST', '/schuldashboard/modus', { modus: 'auto' });
+        await this.datenLaden();
+        UI.erfolg('Automatischer Schulzeitplan aktiviert.');
+      } catch (e) {
+        UI.fehler(e.message);
+      }
+    });
+
     // Modus umschalten
     document.getElementById('toggle-modus-btn')?.addEventListener('click', async () => {
       const neuerStatus = !this._schulmodusAktiv;
@@ -225,6 +236,9 @@ const SchulDashboardView = {
     const btn = document.getElementById('toggle-modus-btn');
     const layout = document.getElementById('schul-layout');
     const meldung = document.getElementById('schul-inaktiv-meldung');
+    const autoButton = document.getElementById('auto-modus-btn');
+
+    if (autoButton) autoButton.style.display = daten.modus === 'auto' ? 'none' : '';
 
     if (this._schulmodusAktiv) {
       badge.textContent = 'Modus: Aktiv';
@@ -342,6 +356,10 @@ const SchulDashboardView = {
               <input type="time" id="aktion-ende" class="eingabefeld">
             </div>
           </div>
+          <div class="formular-gruppe">
+            <label class="formular-label">Standort (optional)</label>
+            <input type="text" id="aktion-standort" class="eingabefeld" placeholder="z. B. Raum 204">
+          </div>
           <div class="formular-gruppe" style="display:flex; align-items:center; gap:10px;">
             <input type="checkbox" id="aktion-ganztaegig">
             <label for="aktion-ganztaegig">Ganztägig</label>
@@ -388,7 +406,8 @@ const SchulDashboardView = {
       
       const daten = {
         titel: document.getElementById('aktion-titel').value,
-        notiz: document.getElementById('aktion-notiz').value
+        notiz: document.getElementById('aktion-notiz').value,
+        standort: document.getElementById('aktion-standort')?.value || ''
       };
       
       if (isTermin) {

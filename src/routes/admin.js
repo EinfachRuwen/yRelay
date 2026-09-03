@@ -377,6 +377,11 @@ router.get('/einstellungen', (req, res) => {
     smtpFrom: getSetting('smtp_from') || '',
     appUrl: getSetting('app_url') || '',
     schulDashboardEnabled: getSetting('schul_dashboard_enabled') === 'true',
+    schulStartzeit: getSetting('schul_startzeit') || '08:00',
+    schulEndzeit: getSetting('schul_endzeit') || '15:00',
+    schulWochentage: getSetting('schul_wochentage') || '1,2,3,4,5',
+    schulFerien: getSetting('schul_ferien') || '[]',
+    schulZeitzone: getSetting('schul_zeitzone') || 'Europe/Berlin',
   });
 });
 
@@ -397,6 +402,28 @@ router.put('/einstellungen', (req, res) => {
   if (smtpFrom !== undefined) setSetting('smtp_from', smtpFrom);
   if (appUrl !== undefined) setSetting('app_url', appUrl);
   if (req.body.schulDashboardEnabled !== undefined) setSetting('schul_dashboard_enabled', req.body.schulDashboardEnabled ? 'true' : 'false');
+  if (req.body.schulStartzeit !== undefined && /^([01]\d|2[0-3]):[0-5]\d$/.test(req.body.schulStartzeit)) setSetting('schul_startzeit', req.body.schulStartzeit);
+  if (req.body.schulEndzeit !== undefined && /^([01]\d|2[0-3]):[0-5]\d$/.test(req.body.schulEndzeit)) setSetting('schul_endzeit', req.body.schulEndzeit);
+  if (req.body.schulWochentage !== undefined && /^([0-6],?)+$/.test(req.body.schulWochentage)) setSetting('schul_wochentage', req.body.schulWochentage);
+  if (req.body.schulZeitzone !== undefined) {
+    try {
+      new Intl.DateTimeFormat('de-DE', { timeZone: req.body.schulZeitzone }).format();
+      setSetting('schul_zeitzone', req.body.schulZeitzone);
+    } catch (e) {
+      return res.status(400).json({ fehler: 'Ungültige Zeitzone.' });
+    }
+  }
+  if (req.body.schulFerien !== undefined) {
+    try {
+      const ferien = JSON.parse(req.body.schulFerien);
+      if (!Array.isArray(ferien) || ferien.some(f => !/^\d{4}-\d{2}-\d{2}$/.test(f.von) || !/^\d{4}-\d{2}-\d{2}$/.test(f.bis) || f.von > f.bis)) {
+        return res.status(400).json({ fehler: 'Ferien müssen als gültige Zeiträume mit von und bis angegeben werden.' });
+      }
+      setSetting('schul_ferien', JSON.stringify(ferien));
+    } catch (e) {
+      return res.status(400).json({ fehler: 'Ferien müssen gültiges JSON sein.' });
+    }
+  }
 
   logAudit(req.user.id, 'admin_settings_updated', {});
 
