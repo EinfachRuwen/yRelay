@@ -721,7 +721,7 @@ const DashboardView = {
               const clicked = e.currentTarget;
               clicked.classList.add('aktiv');
               const p = profile.find(pr => pr.id == clicked.dataset.profilId);
-              if (p) clicked.style.border = \`1px solid \${p.farbe}\`;
+              if (p) clicked.style.border = `1px solid ${p.farbe}`;
             });
           });
         }
