@@ -26,10 +26,10 @@ const SchulDashboardView = {
           </div>
         </nav>
 
-        <main class="hauptinhalt" style="padding-top: 20px;">
+        <main class="hauptinhalt schul-dashboard-inhalt">
           <div class="sektion-titel schul-dashboard-kopf">
             <div>🎒 Schul-Dashboard <span id="schulzeit-hinweis" class="text-gedaempft"></span></div>
-            <div class="schulmodus-toggle" style="display:flex; align-items:center; gap:10px;">
+            <div class="schulmodus-toggle">
               <button id="integration-btn" class="btn btn-ghost btn-klein" title="Poke-Integration anzeigen">🔗 Integration</button>
               <button id="auto-modus-btn" class="btn btn-ghost btn-klein" title="Automatischen Zeitplan verwenden">⏱️ Auto</button>
               <span id="modus-status-badge" class="status-badge" style="background:var(--text-sekundaer);">Modus: Inaktiv</span>
@@ -37,28 +37,28 @@ const SchulDashboardView = {
             </div>
           </div>
 
-          <div id="schul-layout" class="schul-grid" style="display:none; grid-template-columns: ${isMobile ? '1fr' : 'minmax(0, 1fr) 350px'}; gap: 20px; align-items: start;">
+          <div id="schul-layout" class="schul-grid">
             
             <!-- Linke Spalte: Widgets (Kalender & Aufgaben) -->
-            <div class="widgets-container" style="display:flex; flex-direction:column; gap:20px;">
-              <div class="karte">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                  <h3 style="margin:0; font-size:1.2rem; color:var(--farbe-erfolg);">📚 Stundenplan</h3>
+            <div class="widgets-container">
+              <div class="karte schul-widget">
+                <div class="schul-widget-kopf">
+                  <h3 class="schul-widget-titel schul-widget-titel-erfolg">📚 Stundenplan</h3>
                 </div>
                 <div id="schul-stundenplan-inhalt" class="widget-inhalt">
                   <div class="lade-spinner"></div>
                 </div>
               </div>
-              <div class="karte schul-wetter-karte">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                  <h3 style="margin:0; font-size:1.2rem; color:#38bdf8;">☀️ Wetter</h3>
+              <div class="karte schul-widget schul-wetter-karte">
+                <div class="schul-widget-kopf">
+                  <h3 class="schul-widget-titel schul-widget-titel-wetter">☀️ Wetter</h3>
                 </div>
                 <div id="schul-wetter-inhalt" class="widget-inhalt">Wetter wird geladen ...</div>
               </div>
               <!-- Kalender Widget -->
-              <div class="karte">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                  <h3 style="margin:0; font-size:1.2rem; color:var(--farbe-primaer);">📅 Heute</h3>
+              <div class="karte schul-widget">
+                <div class="schul-widget-kopf">
+                  <h3 class="schul-widget-titel schul-widget-titel-primaer">📅 Heute</h3>
                   <button class="btn btn-sekundaer btn-klein btn-aktion" data-typ="termin">➕</button>
                 </div>
                 <div id="schul-kalender-inhalt" class="widget-inhalt">
@@ -67,9 +67,9 @@ const SchulDashboardView = {
               </div>
 
               <!-- Aufgaben Widget -->
-              <div class="karte">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                  <h3 style="margin:0; font-size:1.2rem; color:var(--farbe-warnung);">📋 Aufgaben</h3>
+              <div class="karte schul-widget">
+                <div class="schul-widget-kopf">
+                  <h3 class="schul-widget-titel schul-widget-titel-warnung">📋 Aufgaben</h3>
                   <button class="btn btn-sekundaer btn-klein btn-aktion" data-typ="aufgabe">➕</button>
                 </div>
                 <div id="schul-aufgaben-inhalt" class="widget-inhalt">
@@ -78,10 +78,10 @@ const SchulDashboardView = {
               </div>
               
               <!-- Schnelle Notiz -->
-              <div class="karte" style="padding: 15px;">
-                <h3 style="margin:0 0 10px 0; font-size:1rem;">📝 Schnelle Notiz</h3>
+              <div class="karte schul-widget schul-notiz-widget">
+                <h3 class="schul-widget-titel">📝 Schnelle Notiz</h3>
                 <div class="schul-schnellnotiz">
-                  <input type="text" id="schnell-notiz-input" class="eingabefeld" placeholder="Notiz an Poke..." style="flex:1;">
+                  <input type="text" id="schnell-notiz-input" class="formular-eingabe" placeholder="Notiz an Poke...">
                   <button id="schnell-notiz-btn" class="btn btn-primaer">Senden</button>
                 </div>
               </div>
@@ -89,18 +89,18 @@ const SchulDashboardView = {
 
             <!-- Rechte Spalte: Live-Feed -->
             <div class="karte feed-container schul-feed-karte">
-              <h3 style="margin:0 0 15px 0; font-size:1.2rem; display:flex; align-items:center; gap:8px;">
+              <h3 class="schul-feed-titel">
                 <span class="pulsing-dot" style="width:10px; height:10px; background:#ef4444; border-radius:50%; display:inline-block; animation: pulse 2s infinite;"></span>
                 Live-Feed
               </h3>
-              <div id="schul-feed-inhalt" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:5px;">
+              <div id="schul-feed-inhalt" class="schul-feed-inhalt">
                 <div class="lade-spinner"></div>
               </div>
             </div>
             
           </div>
 
-          <div id="schul-inaktiv-meldung" style="text-align:center; padding: 50px 20px; background:var(--hintergrund-karte); border-radius:var(--radius-gross); margin-top:20px;">
+          <div id="schul-inaktiv-meldung" class="schul-inaktiv-meldung">
             <div style="font-size:3rem; margin-bottom:20px;">😴</div>
             <h2>Der Schulmodus ist momentan inaktiv.</h2>
             <p style="color:var(--text-sekundaer); max-width:500px; margin:0 auto;">
@@ -114,8 +114,10 @@ const SchulDashboardView = {
         .schul-dashboard-kopf { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
         .schulmodus-toggle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
         .schul-feed-karte { height: calc(100vh - 150px); display: flex; flex-direction: column; position: sticky; top: 20px; }
+        .schul-feed-titel { margin: 0 0 15px; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; }
+        .schul-feed-inhalt { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px; }
         .schul-schnellnotiz { display: flex; gap: 10px; }
-        .schul-schnellnotiz .eingabefeld { min-width: 0; }
+        .schul-schnellnotiz .formular-eingabe { min-width: 0; }
         @keyframes pulse {
           0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
           70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
@@ -364,7 +366,7 @@ const SchulDashboardView = {
     
     let html = '';
     items.forEach(f => {
-      const emoji = f.typ === 'email' ? '📧' : (f.typ === 'notfall' ? '🚨' : 'ℹ️');
+      const emoji = f.typ === 'email' ? '📧' : (f.typ === 'notfall' ? '🚨' : (f.typ === 'briefing' ? '🌅' : 'ℹ️'));
       const zeit = new Date(f.zeitpunkt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
       html += `
         <div class="feed-item typ-${UI.escapeHtml(f.typ)}">
@@ -398,23 +400,23 @@ const SchulDashboardView = {
       <form id="aktion-form" style="display:flex; flex-direction:column; gap:15px;">
         <div class="formular-gruppe">
           <label class="formular-label">Titel</label>
-          <input type="text" id="aktion-titel" class="eingabefeld" required>
+          <input type="text" id="aktion-titel" class="formular-eingabe" required>
         </div>
         
         ${isTermin ? `
           <div style="display:flex; gap:10px;">
             <div class="formular-gruppe" style="flex:1;">
               <label class="formular-label">Von (Uhrzeit)</label>
-              <input type="time" id="aktion-start" class="eingabefeld" required>
+              <input type="time" id="aktion-start" class="formular-eingabe" required>
             </div>
             <div class="formular-gruppe" style="flex:1;">
               <label class="formular-label">Bis (Optional)</label>
-              <input type="time" id="aktion-ende" class="eingabefeld">
+              <input type="time" id="aktion-ende" class="formular-eingabe">
             </div>
           </div>
           <div class="formular-gruppe">
             <label class="formular-label">Standort (optional)</label>
-            <input type="text" id="aktion-standort" class="eingabefeld" placeholder="z. B. Raum 204">
+            <input type="text" id="aktion-standort" class="formular-eingabe" placeholder="z. B. Raum 204">
           </div>
           <div class="formular-gruppe" style="display:flex; align-items:center; gap:10px;">
             <input type="checkbox" id="aktion-ganztaegig">
@@ -423,13 +425,13 @@ const SchulDashboardView = {
         ` : `
           <div class="formular-gruppe">
             <label class="formular-label">Fällig (Uhrzeit, Optional)</label>
-            <input type="time" id="aktion-faellig" class="eingabefeld">
+            <input type="time" id="aktion-faellig" class="formular-eingabe">
           </div>
         `}
         
         <div class="formular-gruppe">
           <label class="formular-label">Zusätzliche Notiz an Poke (Optional)</label>
-          <textarea id="aktion-notiz" class="eingabefeld" style="height:60px;"></textarea>
+          <textarea id="aktion-notiz" class="formular-textarea" style="height:60px;"></textarea>
         </div>
         
         <button type="submit" class="btn btn-primaer">Speichern & an Poke senden</button>

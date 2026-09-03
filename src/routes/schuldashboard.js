@@ -48,12 +48,16 @@ function holeOderErzeugeIntegration(req) {
 function istFerienHeute() {
   let ferien = [];
   try { ferien = JSON.parse(getSetting('schul_ferien') || '[]'); } catch (e) {}
+  const heute = heutigesDatum();
+  return ferien.some(zeitraum => zeitraum.von <= heute && heute <= zeitraum.bis);
+}
+
+function heutigesDatum() {
   const teile = new Intl.DateTimeFormat('en-CA', {
     timeZone: getSetting('schul_zeitzone') || 'Europe/Berlin',
     year: 'numeric', month: '2-digit', day: '2-digit'
   }).formatToParts(new Date());
-  const heute = `${teile.find(t => t.type === 'year').value}-${teile.find(t => t.type === 'month').value}-${teile.find(t => t.type === 'day').value}`;
-  return ferien.some(zeitraum => zeitraum.von <= heute && heute <= zeitraum.bis);
+  return `${teile.find(t => t.type === 'year').value}-${teile.find(t => t.type === 'month').value}-${teile.find(t => t.type === 'day').value}`;
 }
 
 function istAutomatischeSchulzeit() {
@@ -108,7 +112,7 @@ async function aktualisiereAutomatischeSchulmodi() {
     const user = { id: integration.user_id, username: integration.username, email: integration.email };
     const profil = { webhook_url: integration.webhook_url, api_key: integration.api_key };
     const nachricht = aktiv
-      ? 'Die konfigurierte Schulzeit hat begonnen. Aktiviere jetzt die Schul-Dashboard-Synchronisierung und sende den aktuellen Kalender-, Aufgaben- und Benachrichtigungsstand.'
+      ? schulMorgenbriefingAnweisung(`${getSetting('app_url') || 'http://localhost:3000'}/api/webhooks/schul-update/${integration.token}`)
       : 'Die konfigurierte Schulzeit ist beendet. Stoppe die Schul-Dashboard-Synchronisierung und sende bis zum nächsten Schulzeitbeginn keine unwichtigen Updates.';
     try {
       await sendeSchulNachricht(user, nachricht, { ...profil, id: integration.profil_id });
@@ -118,21 +122,16 @@ async function aktualisiereAutomatischeSchulmodi() {
   }
 }
 
+function schulMorgenbriefingAnweisung(url) {
+  return `Die Schulzeit hat begonnen. Aktualisiere jetzt das Schul-Dashboard und sende danach ein freundliches, ausführliches Morgenbriefing als feed-Ereignis. Begrüße mich warm und positiv, nenne zuerst die wichtigsten Dinge und fasse meinen heutigen Stundenplan, Kalender, offenen Aufgaben, Erinnerungen und relevante Nachrichten übersichtlich zusammen. Weise auch auf Änderungen, Konflikte oder baldige Termine hin. Das Briefing soll mich gut informiert und mit einem guten Gefühl in den Tag starten lassen.
+
+Sende ausschließlich Daten für heute in der konfigurierten Zeitzone; niemals gestrige Kalendertermine oder Aufgaben. Verwende für den Stundenplan fach, lehrer, raum, start und ende. Sende vollständige aktuelle Stände an ${url}: Kalender mit {"typ":"kalender","daten":[...]}, Aufgaben mit {"typ":"aufgabe","daten":[...]}, Stundenplan mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","lehrer":"Frau Müller","start":"08:00","ende":"08:45","raum":"204"}]}. Sende das Morgenbriefing danach als einzelne wichtige Meldung mit {"typ":"feed","daten":{"typ":"briefing","inhalt":"..."}}. Sende später bei Änderungen erneut die vollständigen heutigen Kalender-/Aufgabenstände und wichtige neue Meldungen, aber keine unwichtigen Benachrichtigungen.`;
+}
+
 function schulApiAnleitung(req, integration) {
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
   const url = `${appUrl}/api/webhooks/schul-update/${integration.integration.token}`;
-  return `Schul-Dashboard-Integration für yRelay:
-
-Der Schulmodus ist jetzt aktiv. Du bist dafür verantwortlich, regelmässig aktuelle Kalender-, Aufgaben- und wichtige Benachrichtigungsdaten an yRelay zu senden. Der echte Kalender bleibt dein normaler Kalender; yRelay zeigt nur eine Schulansicht davon.
-
-Callback-URL: ${url}
-Sende JSON mit Content-Type application/json. Beispiele:
-Kalender: POST ${url} mit {"typ":"kalender","daten":[{"titel":"Mathe","start":"2026-09-03T08:00:00+02:00","ende":"2026-09-03T09:00:00+02:00","ganztaegig":false,"notiz":"Raum 204"}]}
-Aufgaben: POST ${url} mit {"typ":"aufgabe","daten":[{"titel":"Hausaufgabe","faellig":"2026-09-03T18:00:00+02:00","erledigt":false,"notiz":""}]}
-Benachrichtigung: POST ${url} mit {"typ":"feed","daten":{"typ":"email","inhalt":"Wichtige Nachricht ..."}}
-Stundenplan: POST ${url} mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","lehrer":"Frau Müller","start":"08:00","ende":"08:45","raum":"204","notiz":""}]}
-
-Beim Typ kalender und aufgabe sendest du ausschließlich Einträge für den aktuellen Tag in der konfigurierten Zeitzone, niemals gestrige Einträge. Beim Typ stundenplan sendest du den vollständigen Stundenplan; yRelay zeigt daraus nur den heutigen Wochentag. Beim Typ feed sendest du einzelne neue wichtige Ereignisse. Sende nach Aktivierung, beim Tagesstart und bei Änderungen ein Update. Keine unwichtigen Benachrichtigungen senden.`;
+  return `Schul-Dashboard-Integration für yRelay. Der echte Kalender bleibt dein normaler Kalender; yRelay zeigt nur eine Schulansicht davon. Callback-URL: ${url}\n\n${schulMorgenbriefingAnweisung(url)}`;
 }
 
 // GET /api/schuldashboard/daten - Lädt alle Dashboard-Daten
@@ -142,10 +141,11 @@ router.get('/daten', (req, res) => {
     const integration = holeOderErzeugeIntegration(req);
     if (!integration) return res.status(409).json({ fehler: 'Für das Schul-Dashboard ist kein Poke-Profil verfügbar.' });
     const schulmodusAktiv = istSchulmodusAktiv(integration.integration);
+    const heute = heutigesDatum();
     const kalender = db.prepare(`SELECT * FROM schul_kalender_cache
-      WHERE integration_id = ? AND date(start) = date('now', 'localtime') ORDER BY start ASC`).all(integration.integration.id);
+      WHERE integration_id = ? AND substr(start, 1, 10) = ? ORDER BY start ASC`).all(integration.integration.id, heute);
     const aufgaben = db.prepare(`SELECT * FROM schul_aufgaben_cache
-      WHERE integration_id = ? AND erledigt = 0 AND (faellig IS NULL OR date(faellig) = date('now', 'localtime')) ORDER BY faellig ASC`).all(integration.integration.id);
+      WHERE integration_id = ? AND erledigt = 0 AND (faellig IS NULL OR substr(faellig, 1, 10) = ?) ORDER BY faellig ASC`).all(integration.integration.id, heute);
     const stundenplan = db.prepare(`SELECT * FROM schul_stundenplan
       WHERE integration_id = ? ORDER BY wochentag ASC, start ASC`).all(integration.integration.id);
     const feed = db.prepare('SELECT * FROM schul_feed WHERE integration_id = ? ORDER BY zeitpunkt DESC LIMIT 50').all(integration.integration.id);
@@ -192,7 +192,7 @@ router.post('/modus', async (req, res) => {
   
   // Poke benachrichtigen, dass der Modus geändert wurde
   const inhalt = neuerModus === 'auto'
-    ? 'Der Schulmodus läuft jetzt automatisch nach dem konfigurierten Schulzeitplan. Synchronisiere während der berechneten Schulzeit Kalender, Aufgaben und wichtige Benachrichtigungen über die Schul-Dashboard-Integration.'
+    ? schulMorgenbriefingAnweisung(`${getSetting('app_url') || 'http://localhost:3000'}/api/webhooks/schul-update/${integration.integration.token}`)
     : aktiv
     ? schulApiAnleitung(req, integration)
     : 'Der Schulmodus ist jetzt deaktiviert. Sende keine Schul-Dashboard-Updates mehr, bis ich ihn wieder aktiviere.';
