@@ -465,7 +465,7 @@ const AdminView = {
                                 </button>
                               ` : ''}
                               <button class="btn btn-sekundaer btn-klein"
-                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}', '${UI.escapeHtml(n.ntfy_topic || '')}', ${n.email_notifications !== false}, ${n.has_schul_access !== false}, ${n.schul_poke_profile_id || null})"
+                                onclick="AdminView.nutzerBearbeitenModal(${n.id})"
                                 title="Nutzer bearbeiten">
                                 ✏️
                               </button>
@@ -475,7 +475,7 @@ const AdminView = {
                                 🏷️
                               </button>
                               <button class="btn btn-sekundaer btn-klein"
-                                onclick="AdminView.nutzerPokeProfileBearbeiten(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
+                                onclick="AdminView.nutzerPokeProfileBearbeiten(${n.id})"
                                 title="Poke-Profile zuweisen">
                                 🤖
                               </button>
@@ -491,7 +491,7 @@ const AdminView = {
                               </button>
                             ` : `
                               <button class="btn btn-sekundaer btn-klein"
-                                onclick="AdminView.nutzerBearbeitenModal(${n.id}, '${UI.escapeHtml(n.benutzername)}', '${UI.escapeHtml(n.email || '')}', '${UI.escapeHtml(n.anzeigename || '')}', '${UI.escapeHtml(n.ntfy_topic || '')}', ${n.email_notifications !== false}, ${n.has_schul_access !== false}, ${n.schul_poke_profile_id || null})"
+                                onclick="AdminView.nutzerBearbeitenModal(${n.id})"
                                 title="Profil bearbeiten">
                                 ✏️
                               </button>
@@ -545,7 +545,11 @@ const AdminView = {
     }
   },
 
-  async nutzerPokeProfileBearbeiten(nutzerId, name) {
+  async nutzerPokeProfileBearbeiten(nutzerId) {
+    const n = this.nutzerListe.find(u => u.id === nutzerId);
+    if (!n) return;
+    const name = n.benutzername;
+
     try {
       const [alleProfile, nutzer] = await Promise.all([
         API.adminPokeProfileLaden(),
@@ -734,9 +738,17 @@ const AdminView = {
     }
   },
 
-  async nutzerBearbeitenModal(id, benutzername, email, anzeigename, ntfy_topic, email_notifications, has_schul_access, schul_poke_profile_id) {
+  async nutzerBearbeitenModal(id) {
     const nutzer = AdminView.nutzerListe.find(n => n.id === id);
     if (!nutzer) return;
+    const benutzername = nutzer.benutzername;
+    const email = nutzer.email;
+    const anzeigename = nutzer.anzeigename;
+    const ntfy_topic = nutzer.ntfy_topic;
+    const email_notifications = nutzer.email_notifications;
+    const has_schul_access = nutzer.has_schul_access;
+    const schul_poke_profile_id = nutzer.schul_poke_profile_id;
+
 
     let profile = [];
     try {
