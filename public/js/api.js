@@ -47,6 +47,12 @@ const API = {
       const json = await antwort.json();
 
       if (!antwort.ok) {
+        if (antwort.status === 401) {
+          this.setToken(null);
+          if (window.location.hash !== '#login' && window.location.hash !== '#einladung' && !window.location.hash.startsWith('#einladung/')) {
+            window.location.hash = '#login';
+          }
+        }
         throw new Error(json.fehler || `Serverfehler ${antwort.status}`);
       }
 
