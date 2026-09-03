@@ -125,6 +125,8 @@ async function aktualisiereAutomatischeSchulmodi() {
 function schulMorgenbriefingAnweisung(url) {
   return `Die Schulzeit hat begonnen. Aktualisiere jetzt das Schul-Dashboard und sende danach ein freundliches, ausführliches Morgenbriefing als feed-Ereignis. Begrüße mich warm und positiv, nenne zuerst die wichtigsten Dinge und fasse meinen heutigen Stundenplan, Kalender, offenen Aufgaben, Erinnerungen und relevante Nachrichten übersichtlich zusammen. Weise auch auf Änderungen, Konflikte oder baldige Termine hin. Das Briefing soll mich gut informiert und mit einem guten Gefühl in den Tag starten lassen.
 
+Das Feld daten.inhalt des Briefings darf und soll mehrere Zeilen enthalten. Verwende gut lesbares Markdown mit kurzen Überschriften (##), Aufzählungen (-), **Fettdruck**, *Kursivschrift* und einzelnen Zeilenumbrüchen. Schreibe keine HTML-Tags. Eine sinnvolle Reihenfolge ist: Begrüßung, „Heute im Stundenplan“, „Kalender und Aufgaben“, „Wichtig für dich“ und ein kurzer freundlicher Abschluss.
+
 Sende ausschließlich Daten für heute in der konfigurierten Zeitzone; niemals gestrige Kalendertermine oder Aufgaben. Verwende für den Stundenplan fach, lehrer, raum, start und ende. Sende vollständige aktuelle Stände an ${url}: Kalender mit {"typ":"kalender","daten":[...]}, Aufgaben mit {"typ":"aufgabe","daten":[...]}, Stundenplan mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","lehrer":"Frau Müller","start":"08:00","ende":"08:45","raum":"204"}]}. Sende das Morgenbriefing danach als einzelne wichtige Meldung mit {"typ":"feed","daten":{"typ":"briefing","inhalt":"..."}}. Sende später bei Änderungen erneut die vollständigen heutigen Kalender-/Aufgabenstände und wichtige neue Meldungen, aber keine unwichtigen Benachrichtigungen.`;
 }
 

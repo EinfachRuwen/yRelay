@@ -132,8 +132,16 @@ const SchulDashboardView = {
         }
         .feed-item.typ-email { border-color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
         .feed-item.typ-info { border-color: #10b981; }
+        .feed-item.typ-briefing { border-color: #f59e0b; background: rgba(245, 158, 11, 0.08); }
         .feed-item.typ-notfall { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
         .feed-zeit { font-size: 0.75rem; color: var(--text-sekundaer); margin-bottom: 4px; display:block; }
+        .feed-inhalt { line-height: 1.65; overflow-wrap: anywhere; }
+        .feed-inhalt h4 { margin: 10px 0 4px; color: var(--farbe-text); font-size: 1rem; }
+        .feed-inhalt h4:first-child { margin-top: 0; }
+        .feed-inhalt p { margin: 5px 0; }
+        .feed-inhalt ul { margin: 6px 0 8px 20px; padding: 0; }
+        .feed-inhalt li { margin: 3px 0; }
+        .feed-inhalt code { padding: 2px 5px; border-radius: 4px; background: rgba(0,0,0,0.25); color: #fbbf24; }
         
         .kalender-item, .aufgabe-item {
           display:flex; align-items:flex-start; gap:10px;
@@ -371,11 +379,55 @@ const SchulDashboardView = {
       html += `
         <div class="feed-item typ-${UI.escapeHtml(f.typ)}">
           <span class="feed-zeit">${zeit}</span>
-          <div>${emoji} ${UI.escapeHtml(f.inhalt)}</div>
+          <div class="feed-inhalt">${emoji} ${this.markdownSicherRendern(f.inhalt)}</div>
         </div>
       `;
     });
     container.innerHTML = html;
+  },
+
+  markdownSicherRendern(text) {
+    const escaped = UI.escapeHtml(String(text || ''));
+    const zeilen = escaped.split(/\r?\n/);
+    const html = [];
+    let listeOffen = false;
+    const schliesseListe = () => {
+      if (listeOffen) {
+        html.push('</ul>');
+        listeOffen = false;
+      }
+    };
+    for (const zeile of zeilen) {
+      const getext = zeile.trim();
+      if (!getext) {
+        schliesseListe();
+        continue;
+      }
+      if (/^###\s+/.test(getext) || /^##\s+/.test(getext) || /^#\s+/.test(getext)) {
+        schliesseListe();
+        html.push(`<h4>${this.markdownInline(getext.replace(/^#{1,3}\s+/, ''))}</h4>`);
+      } else if (/^[-*]\s+/.test(getext)) {
+        if (!listeOffen) {
+          html.push('<ul>');
+          listeOffen = true;
+        }
+        html.push(`<li>${this.markdownInline(getext.replace(/^[-*]\s+/, ''))}</li>`);
+      } else {
+        schliesseListe();
+        html.push(`<p>${this.markdownInline(zeile)}</p>`);
+      }
+    }
+    schliesseListe();
+    return html.join('');
+  },
+
+  markdownInline(text) {
+    return text
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      .replace(/_([^_]+)_/g, '<em>$1</em>');
   },
 
   async wetterLaden() {
