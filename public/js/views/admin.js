@@ -396,6 +396,7 @@ const AdminView = {
 
   async nutzerRendern(container) {
     const nutzer = await API.adminNutzerLaden();
+    this.nutzerListe = nutzer;
     let labels = [];
     try { labels = await API.adminLabelsLaden(); } catch(e) {}
 
@@ -583,7 +584,15 @@ const AdminView = {
         <button type="submit" class="btn btn-primaer" style="margin-top:10px;">💾 Speichern</button>
       </form>`;
 
-      UI.zeigeModal(`Poke-Profile für ${UI.escapeHtml(name)}`, html);
+      UI.modalZeigen(`
+        <div class="modal-header">
+          <span class="modal-titel">🤖 Poke-Profile für ${UI.escapeHtml(name)}</span>
+          <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+        </div>
+        <div class="modal-koerper">
+          ${html}
+        </div>
+      `);
 
       document.getElementById('profil-zuweisen-form').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1433,7 +1442,15 @@ const AdminView = {
       </form>
     `;
 
-    UI.zeigeModal(isEdit ? 'Profil bearbeiten' : 'Neues Profil', formHtml);
+    UI.modalZeigen(`
+      <div class="modal-header">
+        <span class="modal-titel">${isEdit ? '✏️ Profil bearbeiten' : '➕ Neues Profil'}</span>
+        <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+      </div>
+      <div class="modal-koerper">
+        ${formHtml}
+      </div>
+    `);
 
     document.getElementById('profil-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -1457,7 +1474,7 @@ const AdminView = {
           await API.adminPokeProfilErstellen(daten);
           UI.erfolg('Profil erstellt.');
         }
-        UI.schliesseModal();
+        UI.modalSchliessen();
         await this.tabLaden('poke-profile');
       } catch (err) {
         UI.fehler(err.message);
