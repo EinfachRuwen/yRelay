@@ -130,7 +130,7 @@ Sende JSON mit Content-Type application/json. Beispiele:
 Kalender: POST ${url} mit {"typ":"kalender","daten":[{"titel":"Mathe","start":"2026-09-03T08:00:00+02:00","ende":"2026-09-03T09:00:00+02:00","ganztaegig":false,"notiz":"Raum 204"}]}
 Aufgaben: POST ${url} mit {"typ":"aufgabe","daten":[{"titel":"Hausaufgabe","faellig":"2026-09-03T18:00:00+02:00","erledigt":false,"notiz":""}]}
 Benachrichtigung: POST ${url} mit {"typ":"feed","daten":{"typ":"email","inhalt":"Wichtige Nachricht ..."}}
-Stundenplan: POST ${url} mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","start":"08:00","ende":"08:45","raum":"204","notiz":""}]}
+Stundenplan: POST ${url} mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","lehrer":"Frau Müller","start":"08:00","ende":"08:45","raum":"204","notiz":""}]}
 
 Beim Typ kalender, aufgabe oder stundenplan sendest du immer den vollständigen aktuellen Stand. Beim Typ feed sendest du einzelne neue wichtige Ereignisse. Sende nach Aktivierung, beim Tagesstart und bei Änderungen ein Update. Keine unwichtigen Benachrichtigungen senden.`;
 }

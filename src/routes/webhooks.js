@@ -26,7 +26,7 @@ router.post('/poke-reply/:id/:token', (req, res) => {
 
   // Nachricht prüfen und zugehörige Nutzer-Daten holen (inkl. user_replies)
   const msg = db.prepare(`
-    SELECT m.id, m.content, m.reply_content, m.user_replies, m.poke_profile_id, u.id as user_id, u.email, u.username, u.ntfy_topic, u.email_notifications
+    SELECT m.id, m.type, m.content, m.reply_content, m.user_replies, m.poke_profile_id, u.id as user_id, u.email, u.username, u.ntfy_topic, u.email_notifications
     FROM messages m
     JOIN users u ON m.user_id = u.id
     WHERE m.id = ? AND m.reply_token = ?
@@ -52,6 +52,16 @@ router.post('/poke-reply/:id/:token', (req, res) => {
     SET reply_content = ?, replied_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `).run(JSON.stringify(bestehendePokeAntworten), id);
+
+  if (msg.type === 'school') {
+    const integration = db.prepare(`
+      SELECT id FROM schul_integrationen WHERE nutzer_id = ? AND profil_id = ?
+    `).get(msg.user_id, msg.poke_profile_id);
+    if (integration) {
+      db.prepare('INSERT INTO schul_feed (integration_id, typ, inhalt) VALUES (?, ?, ?)')
+        .run(integration.id, Array.isArray(buttons) && buttons.length > 0 ? 'aktion' : 'info', message);
+    }
+  }
 
   // Nutzer-Antworten laden (für vollständigen Verlauf in der Mail)
   let nutzerAntworten = [];
@@ -223,9 +233,9 @@ router.post('/schul-update/:token', (req, res) => {
       }
       db.prepare('DELETE FROM schul_stundenplan WHERE integration_id = ?').run(integration.id);
       const stmt = db.prepare(`INSERT INTO schul_stundenplan
-        (integration_id, wochentag, fach, start, ende, raum, notiz) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+        (integration_id, wochentag, fach, lehrer, start, ende, raum, notiz) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
       for (const stunde of daten) {
-        stmt.run(integration.id, stunde.wochentag, stunde.fach, stunde.start, stunde.ende || null, stunde.raum || null, stunde.notiz || null);
+        stmt.run(integration.id, stunde.wochentag, stunde.fach, stunde.lehrer || null, stunde.start, stunde.ende || null, stunde.raum || null, stunde.notiz || null);
       }
     } else {
       return res.status(400).json({ fehler: 'Unbekannter Typ' });

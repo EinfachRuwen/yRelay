@@ -90,6 +90,7 @@ db.exec(`
     integration_id INTEGER NOT NULL REFERENCES schul_integrationen(id) ON DELETE CASCADE,
     wochentag INTEGER NOT NULL,
     fach TEXT NOT NULL,
+    lehrer TEXT,
     start TEXT NOT NULL,
     ende TEXT,
     raum TEXT,
@@ -262,6 +263,7 @@ for (const table of ['schul_kalender_cache', 'schul_aufgaben_cache', 'schul_feed
 }
 try { db.exec("ALTER TABLE schul_integrationen ADD COLUMN modus TEXT NOT NULL DEFAULT 'auto';"); } catch (e) {}
 try { db.exec('ALTER TABLE schul_integrationen ADD COLUMN letzter_status INTEGER;'); } catch (e) {}
+try { db.exec('ALTER TABLE schul_stundenplan ADD COLUMN lehrer TEXT;'); } catch (e) {}
 try { db.exec('ALTER TABLE schul_integrationen ADD COLUMN zuletzt_aktualisiert DATETIME;'); } catch (e) {}
 
 // Migration: poke_profile_id zu messages hinzufügen

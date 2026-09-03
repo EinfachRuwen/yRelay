@@ -49,6 +49,12 @@ const SchulDashboardView = {
                   <div class="lade-spinner"></div>
                 </div>
               </div>
+              <div class="karte schul-wetter-karte">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                  <h3 style="margin:0; font-size:1.2rem; color:#38bdf8;">☀️ Wetter</h3>
+                </div>
+                <div id="schul-wetter-inhalt" class="widget-inhalt">Wetter wird geladen ...</div>
+              </div>
               <!-- Kalender Widget -->
               <div class="karte">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
@@ -145,6 +151,7 @@ const SchulDashboardView = {
 
     this._schulmodusAktiv = false;
     await this.datenLaden();
+    this.wetterLaden();
 
     document.getElementById('integration-btn')?.addEventListener('click', async () => {
       try {
@@ -305,11 +312,17 @@ const SchulDashboardView = {
       container.innerHTML = '<p style="color:var(--text-sekundaer); text-align:center; padding:20px 0;">Noch kein Stundenplan hinterlegt.</p>';
       return;
     }
+    const heute = new Date().getDay() || 7;
     const tage = ['', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
-    container.innerHTML = items.map(stunde => `
+    const heuteItems = items.filter(stunde => Number(stunde.wochentag) === heute);
+    if (heuteItems.length === 0) {
+      container.innerHTML = `<p style="color:var(--text-sekundaer); text-align:center; padding:20px 0;">Heute kein Unterricht.</p>`;
+      return;
+    }
+    container.innerHTML = heuteItems.map(stunde => `
       <div class="stundenplan-item">
         <div class="zeit-badge">${UI.escapeHtml(stunde.start)}${stunde.ende ? ` - ${UI.escapeHtml(stunde.ende)}` : ''}</div>
-        <div><strong>${UI.escapeHtml(tage[stunde.wochentag] || 'Tag')}</strong><br>${UI.escapeHtml(stunde.fach)}${stunde.raum ? ` · ${UI.escapeHtml(stunde.raum)}` : ''}</div>
+        <div><strong>${UI.escapeHtml(stunde.fach)}</strong><br>${[stunde.lehrer, stunde.raum].filter(Boolean).map(wert => UI.escapeHtml(wert)).join(' · ')}</div>
       </div>
     `).join('');
   },
@@ -358,6 +371,20 @@ const SchulDashboardView = {
     container.innerHTML = html;
   },
 
+  async wetterLaden() {
+    const container = document.getElementById('schul-wetter-inhalt');
+    if (!container) return;
+    try {
+      const response = await fetch('https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.405&current=temperature_2m,weather_code&timezone=auto');
+      if (!response.ok) throw new Error('Wetter nicht verfügbar');
+      const daten = await response.json();
+      const symbole = { 0: 'Klar', 1: 'Überwiegend klar', 2: 'Bewölkt', 3: 'Bedeckt', 45: 'Nebel', 61: 'Regen', 63: 'Regen', 65: 'Starker Regen', 71: 'Schnee', 80: 'Schauer', 95: 'Gewitter' };
+      container.innerHTML = `<strong>${Math.round(daten.current.temperature_2m)} °C</strong> · ${symbole[daten.current.weather_code] || 'Aktuelles Wetter'}`;
+    } catch (e) {
+      container.textContent = 'Wetter momentan nicht verfügbar.';
+    }
+  },
+
   aktionModalOeffnen(typ) {
     const isTermin = typ === 'termin';
     const titel = isTermin ? 'Neuer Termin' : 'Neue Aufgabe';
@@ -404,7 +431,10 @@ const SchulDashboardView = {
       </form>
     `;
     
-    UI.zeigeModal(titel, html);
+    UI.modalZeigen(`
+      <div class="modal-header"><span class="modal-titel">${UI.escapeHtml(titel)}</span><button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button></div>
+      <div class="modal-koerper">${html}</div>
+    `);
     
     // UI Logik für Ganztägig
     if (isTermin) {
