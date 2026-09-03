@@ -198,8 +198,8 @@ const API = {
     return this.anfrage('POST', '/admin/nutzer/einladen', { benutzername, email, anzeigename });
   },
 
-  async adminNutzerBearbeiten(id, benutzername, email, anzeigename, ntfy_topic, email_notifications) {
-    return this.anfrage('PUT', `/admin/nutzer/${id}`, { benutzername, email, anzeigename, ntfy_topic, email_notifications });
+  async adminNutzerBearbeiten(id, benutzername, email, anzeigename, ntfy_topic, email_notifications, has_schul_access, schul_poke_profile_id) {
+    return this.anfrage('PUT', `/admin/nutzer/${id}`, { benutzername, email, anzeigename, ntfy_topic, email_notifications, has_schul_access, schul_poke_profile_id });
   },
 
   async adminNutzerStatus(id, aktiv) {
