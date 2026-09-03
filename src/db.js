@@ -231,6 +231,14 @@ try {
   db.exec('ALTER TABLE messages ADD COLUMN poke_profile_id INTEGER REFERENCES poke_profiles(id) ON DELETE SET NULL;');
 } catch (e) {}
 
+// Migration: Schul-Dashboard Berechtigungen
+try {
+  db.exec('ALTER TABLE users ADD COLUMN has_schul_access BOOLEAN DEFAULT 0;');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE users ADD COLUMN schul_poke_profile_id INTEGER REFERENCES poke_profiles(id) ON DELETE SET NULL;');
+} catch (e) {}
+
 // Initialen Admin-Nutzer anlegen falls noch keiner existiert
 function initAdminUser() {
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@yrelay.local';
