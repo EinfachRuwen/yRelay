@@ -97,6 +97,21 @@ db.exec(`
     notiz TEXT,
     aktualisiert_am DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS schul_kacheln (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    integration_id INTEGER NOT NULL REFERENCES schul_integrationen(id) ON DELETE CASCADE,
+    schluessel TEXT NOT NULL,
+    titel TEXT NOT NULL,
+    icon TEXT DEFAULT '🧩',
+    farbe TEXT DEFAULT '#6366f1',
+    inhalt TEXT NOT NULL,
+    formular TEXT,
+    sortierung INTEGER NOT NULL DEFAULT 0,
+    erstellt_am DATETIME DEFAULT CURRENT_TIMESTAMP,
+    aktualisiert_am DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (integration_id, schluessel)
+  );
 `);
 
 // Migrationen für bestehende Tabellen

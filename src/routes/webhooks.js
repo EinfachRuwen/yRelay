@@ -237,6 +237,31 @@ router.post('/schul-update/:token', (req, res) => {
       for (const stunde of daten) {
         stmt.run(integration.id, stunde.wochentag, stunde.fach, stunde.lehrer || null, stunde.start, stunde.ende || null, stunde.raum || null, stunde.notiz || null);
       }
+    } else if (typ === 'kachel') {
+      if (!daten || typeof daten !== 'object' || !daten.schluessel || !daten.aktion) {
+        return res.status(400).json({ fehler: 'Kachel benötigt aktion und schluessel.' });
+      }
+      if (daten.aktion === 'delete') {
+        db.prepare('DELETE FROM schul_kacheln WHERE integration_id = ? AND schluessel = ?').run(integration.id, daten.schluessel);
+      } else if (daten.aktion === 'upsert') {
+        if (!daten.titel || !daten.inhalt) return res.status(400).json({ fehler: 'Kachel benötigt titel und inhalt.' });
+        const formular = Array.isArray(daten.formular) ? daten.formular.slice(0, 12) : [];
+        const erlaubteTypen = ['text', 'date', 'time', 'textarea', 'select'];
+        if ((daten.farbe && !/^#[0-9a-f]{6}$/i.test(daten.farbe)) || formular.some(f => typeof f.name !== 'string' || typeof f.label !== 'string' || !f.name || !f.label || !erlaubteTypen.includes(f.type) || (f.type === 'select' && (!Array.isArray(f.options) || f.options.some(option => typeof option !== 'string'))))) {
+          return res.status(400).json({ fehler: 'Ungültige Kachel-Formularfelder.' });
+        }
+        db.prepare(`INSERT INTO schul_kacheln
+          (integration_id, schluessel, titel, icon, farbe, inhalt, formular, sortierung, aktualisiert_am)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(integration_id, schluessel) DO UPDATE SET titel=excluded.titel, icon=excluded.icon,
+          farbe=excluded.farbe, inhalt=excluded.inhalt, formular=excluded.formular,
+          sortierung=excluded.sortierung, aktualisiert_am=CURRENT_TIMESTAMP`).run(
+          integration.id, daten.schluessel, daten.titel, daten.icon || '🧩', daten.farbe || '#6366f1',
+          daten.inhalt, JSON.stringify(formular), Number.isInteger(daten.sortierung) ? daten.sortierung : 0
+        );
+      } else {
+        return res.status(400).json({ fehler: 'Kachel-Aktion muss upsert oder delete sein.' });
+      }
     } else {
       return res.status(400).json({ fehler: 'Unbekannter Typ' });
     }

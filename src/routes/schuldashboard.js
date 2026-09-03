@@ -127,7 +127,7 @@ function schulMorgenbriefingAnweisung(url) {
 
 Das Feld daten.inhalt des Briefings darf und soll mehrere Zeilen enthalten. Verwende gut lesbares Markdown mit kurzen Überschriften (##), Aufzählungen (-), **Fettdruck**, *Kursivschrift* und einzelnen Zeilenumbrüchen. Schreibe keine HTML-Tags. Eine sinnvolle Reihenfolge ist: Begrüßung, „Heute im Stundenplan“, „Kalender und Aufgaben“, „Wichtig für dich“ und ein kurzer freundlicher Abschluss.
 
-Sende ausschließlich Daten für heute in der konfigurierten Zeitzone; niemals gestrige Kalendertermine oder Aufgaben. Verwende für den Stundenplan fach, lehrer, raum, start und ende. Sende vollständige aktuelle Stände an ${url}: Kalender mit {"typ":"kalender","daten":[...]}, Aufgaben mit {"typ":"aufgabe","daten":[...]}, Stundenplan mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","lehrer":"Frau Müller","start":"08:00","ende":"08:45","raum":"204"}]}. Sende das Morgenbriefing danach als einzelne wichtige Meldung mit {"typ":"feed","daten":{"typ":"briefing","inhalt":"..."}}. Sende später bei Änderungen erneut die vollständigen heutigen Kalender-/Aufgabenstände und wichtige neue Meldungen, aber keine unwichtigen Benachrichtigungen.`;
+Sende ausschließlich Daten für heute in der konfigurierten Zeitzone; niemals gestrige Kalendertermine oder Aufgaben. Verwende für den Stundenplan fach, lehrer, raum, start und ende. Sende vollständige aktuelle Stände an ${url}: Kalender mit {"typ":"kalender","daten":[...]}, Aufgaben mit {"typ":"aufgabe","daten":[...]}, Stundenplan mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","lehrer":"Frau Müller","start":"08:00","ende":"08:45","raum":"204"}]}. Eigene Kacheln verwaltest du mit {"typ":"kachel","daten":{"aktion":"upsert","schluessel":"pausen","titel":"Pausen","icon":"☕","farbe":"#f59e0b","inhalt":"## Pause\n- Entspann dich","formular":[{"name":"ort","label":"Wo bist du?","type":"text","required":true}]}}; zum Entfernen verwendest du aktion delete mit demselben schluessel. Kacheln dürfen Markdown und optionale Formularfelder (text, date, time, textarea, select) enthalten. Sende das Morgenbriefing danach als einzelne wichtige Meldung mit {"typ":"feed","daten":{"typ":"briefing","inhalt":"..."}}. Sende später bei Änderungen erneut die vollständigen heutigen Kalender-/Aufgabenstände und wichtige neue Meldungen, aber keine unwichtigen Benachrichtigungen.`;
 }
 
 function schulApiAnleitung(req, integration) {
@@ -150,6 +150,12 @@ router.get('/daten', (req, res) => {
       WHERE integration_id = ? AND erledigt = 0 AND (faellig IS NULL OR substr(faellig, 1, 10) = ?) ORDER BY faellig ASC`).all(integration.integration.id, heute);
     const stundenplan = db.prepare(`SELECT * FROM schul_stundenplan
       WHERE integration_id = ? ORDER BY wochentag ASC, start ASC`).all(integration.integration.id);
+    const kacheln = db.prepare(`SELECT * FROM schul_kacheln
+      WHERE integration_id = ? ORDER BY sortierung ASC, id ASC`).all(integration.integration.id).map(kachel => {
+      let formular = [];
+      try { formular = kachel.formular ? JSON.parse(kachel.formular) : []; } catch (e) {}
+      return { ...kachel, formular };
+    });
     const feed = db.prepare('SELECT * FROM schul_feed WHERE integration_id = ? ORDER BY zeitpunkt DESC LIMIT 50').all(integration.integration.id);
 
     res.json({
@@ -157,6 +163,7 @@ router.get('/daten', (req, res) => {
       kalender,
       aufgaben,
       stundenplan,
+      kacheln,
       feed
       ,modus: integration.integration.modus
     });
@@ -224,6 +231,12 @@ router.post('/aktion', async (req, res) => {
     befehl = `Trage folgende Aufgabe ein:\nTitel: ${daten.titel}\nFällig: ${daten.faellig}\nNotiz: ${daten.notiz}`;
   } else if (aktionTyp === 'notiz') {
     befehl = `Notiere dir folgendes:\n${daten.text}`;
+  } else if (aktionTyp === 'kachel_formular') {
+    const integration = holeOderErzeugeIntegration(req);
+    const kachel = db.prepare('SELECT titel FROM schul_kacheln WHERE id = ? AND integration_id = ?')
+      .get(daten.kachelId, integration?.integration.id);
+    if (!kachel) return res.status(404).json({ fehler: 'Kachel nicht gefunden.' });
+    befehl = `Das Formular der Schul-Dashboard-Kachel "${kachel.titel}" wurde ausgefüllt. Verarbeite diese Eingaben nach deiner Kachel-Anleitung:\n${JSON.stringify(daten.werte || {})}`;
   } else {
     return res.status(400).json({ fehler: 'Unbekannter Aktionstyp' });
   }

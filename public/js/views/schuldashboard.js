@@ -55,6 +55,7 @@ const SchulDashboardView = {
                 </div>
                 <div id="schul-wetter-inhalt" class="widget-inhalt">Wetter wird geladen ...</div>
               </div>
+              <div id="schul-kacheln" class="schul-kacheln"></div>
               <!-- Kalender Widget -->
               <div class="karte schul-widget">
                 <div class="schul-widget-kopf">
@@ -281,6 +282,7 @@ const SchulDashboardView = {
       this.rendereKalender(daten.kalender);
       this.rendereAufgaben(daten.aufgaben);
       this.rendereStundenplan(daten.stundenplan);
+      this.rendereKacheln(daten.kacheln);
       this.rendereFeed(daten.feed);
     } else {
       badge.textContent = 'Modus: Inaktiv';
@@ -363,6 +365,46 @@ const SchulDashboardView = {
       `;
     });
     container.innerHTML = html;
+  },
+
+  rendereKacheln(kacheln) {
+    const container = document.getElementById('schul-kacheln');
+    if (!container) return;
+    container.innerHTML = (kacheln || []).map(kachel => {
+      const felder = Array.isArray(kachel.formular) ? kachel.formular : [];
+      const formular = felder.length ? `
+        <form class="schul-kachel-formular" data-kachel-id="${kachel.id}">
+          ${felder.map(feld => {
+            const required = feld.required ? 'required' : '';
+            const label = UI.escapeHtml(feld.label);
+            if (feld.type === 'textarea') return `<label class="formular-label">${label}<textarea name="${UI.escapeHtml(feld.name)}" class="formular-textarea" placeholder="${UI.escapeHtml(feld.placeholder || '')}" ${required}></textarea></label>`;
+            if (feld.type === 'select') return `<label class="formular-label">${label}<select name="${UI.escapeHtml(feld.name)}" class="formular-select" ${required}><option value="">Auswählen ...</option>${feld.options.map(option => `<option value="${UI.escapeHtml(option)}">${UI.escapeHtml(option)}</option>`).join('')}</select></label>`;
+            return `<label class="formular-label">${label}<input name="${UI.escapeHtml(feld.name)}" type="${UI.escapeHtml(feld.type)}" class="formular-eingabe" placeholder="${UI.escapeHtml(feld.placeholder || '')}" ${required}></label>`;
+          }).join('')}
+          <button type="submit" class="btn btn-sekundaer btn-klein">Absenden</button>
+        </form>` : '';
+      return `<article class="schul-kachel" style="--kachel-farbe:${UI.escapeHtml(kachel.farbe || '#6366f1')}">
+        <div class="schul-kachel-kopf"><h3>${UI.escapeHtml(kachel.icon || '🧩')} ${UI.escapeHtml(kachel.titel)}</h3></div>
+        <div class="schul-kachel-inhalt">${this.markdownSicherRendern(kachel.inhalt)}</div>${formular}
+      </article>`;
+    }).join('');
+    container.querySelectorAll('.schul-kachel-formular').forEach(formular => {
+      formular.addEventListener('submit', async event => {
+        event.preventDefault();
+        const werte = Object.fromEntries(new FormData(formular).entries());
+        const button = formular.querySelector('button[type="submit"]');
+        UI.btnLaden(button, true);
+        try {
+          await API.anfrage('POST', '/schuldashboard/aktion', { aktionTyp: 'kachel_formular', daten: { kachelId: formular.dataset.kachelId, werte } });
+          formular.reset();
+          UI.erfolg('Kachel-Formular an Poke gesendet.');
+        } catch (error) {
+          UI.fehler(error.message);
+        } finally {
+          UI.btnLaden(button, false);
+        }
+      });
+    });
   },
 
   rendereFeed(items) {

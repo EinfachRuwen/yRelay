@@ -826,6 +826,21 @@ body {
 .schul-widget-titel-primaer { color: var(--farbe-primaer-hell); }
 .schul-widget-titel-warnung { color: var(--farbe-warnung); }
 .schul-notiz-widget .schul-widget-titel { margin-bottom: 12px; }
+.schul-kacheln { display: flex; flex-direction: column; gap: 20px; }
+.schul-kachel {
+  border: 1px solid color-mix(in srgb, var(--kachel-farbe) 45%, var(--farbe-rahmen));
+  border-left: 4px solid var(--kachel-farbe);
+  border-radius: var(--radius-gross);
+  padding: 20px;
+  background: var(--farbe-karte);
+  box-shadow: var(--schatten-karte);
+  overflow-wrap: anywhere;
+}
+.schul-kachel-kopf { margin-bottom: 12px; }
+.schul-kachel-kopf h3 { font-size: 17px; line-height: 1.3; }
+.schul-kachel-inhalt { color: var(--farbe-text-gedaempft); }
+.schul-kachel-formular { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.schul-kachel-formular .formular-label { display: flex; flex-direction: column; gap: 6px; }
 .schul-inaktiv-meldung {
   text-align: center;
   padding: 56px 24px;

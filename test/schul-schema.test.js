@@ -11,10 +11,12 @@ const { db } = require('../src/db');
 test('Schul-Integration und isolierte Cache-Spalten existieren', () => {
   const integrationColumns = db.prepare('PRAGMA table_info(schul_integrationen)').all().map(column => column.name);
   const cacheColumns = db.prepare('PRAGMA table_info(schul_kalender_cache)').all().map(column => column.name);
+  const tileColumns = db.prepare('PRAGMA table_info(schul_kacheln)').all().map(column => column.name);
 
   assert.ok(integrationColumns.includes('token'));
   assert.ok(integrationColumns.includes('modus'));
   assert.ok(cacheColumns.includes('integration_id'));
+  assert.ok(tileColumns.includes('formular'));
 });
 
 test('Webhook-Daten koennen einer Integration zugeordnet werden', () => {
