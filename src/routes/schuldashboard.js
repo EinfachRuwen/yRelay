@@ -144,7 +144,13 @@ function schulMorgenbriefingAnweisung(url) {
 
 Das Feld daten.inhalt des Briefings darf und soll mehrere Zeilen enthalten. Verwende gut lesbares Markdown mit kurzen Überschriften (##), Aufzählungen (-), **Fettdruck**, *Kursivschrift* und einzelnen Zeilenumbrüchen. Schreibe keine HTML-Tags. Eine sinnvolle Reihenfolge ist: Begrüßung, „Heute im Stundenplan“, „Kalender und Aufgaben“, „Wichtig für dich“ und ein kurzer freundlicher Abschluss.
 
-Sende ausschließlich Daten für heute in der konfigurierten Zeitzone; niemals gestrige Kalendertermine oder Aufgaben. Verwende für den Stundenplan fach, lehrer, raum, start und ende. Sende vollständige aktuelle Stände an ${url}: Kalender mit {"typ":"kalender","daten":[...]}, Aufgaben mit {"typ":"aufgabe","daten":[...]}, Stundenplan mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","lehrer":"Frau Müller","start":"08:00","ende":"08:45","raum":"204"}]}, Klausuren (lese diese unbedingt aus dem Kalender "Schule: Termine & Arbeiten" aus) mit {"typ":"klausuren","daten":[{"titel":"Mathe", "datum":"2026-09-15"}]}. Eigene Kacheln verwaltest du mit {"typ":"kachel","daten":{"aktion":"upsert","schluessel":"pausen","titel":"Pausen","icon":"☕","farbe":"#f59e0b","inhalt":"## Pause\n- Entspann dich","formular":[{"name":"ort","label":"Wo bist du?","type":"text","required":true}]}}; zum Entfernen verwendest du aktion delete mit demselben schluessel. Kacheln dürfen Markdown und optionale Formularfelder (text, date, time, textarea, select) enthalten. Sende das Morgenbriefing danach als einzelne wichtige Meldung mit {"typ":"feed","daten":{"typ":"briefing","inhalt":"..."}}. Sende später bei Änderungen erneut die vollständigen heutigen Kalender-/Aufgabenstände und wichtige neue Meldungen, aber keine unwichtigen Benachrichtigungen.`;
+Sende ausschließlich Daten für heute in der konfigurierten Zeitzone; niemals gestrige Kalendertermine oder Aufgaben. Verwende für den Stundenplan fach, lehrer, raum, start und ende. Sende vollständige aktuelle Stände an ${url}: Kalender mit {"typ":"kalender","daten":[...]}, Aufgaben mit {"typ":"aufgabe","daten":[...]}, Stundenplan mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","lehrer":"Frau Müller","start":"08:00","ende":"08:45","raum":"204"}]}, Klausuren (lese diese unbedingt aus dem Kalender "Schule: Termine & Arbeiten" aus) mit {"typ":"klausuren","daten":[{"titel":"Mathe", "datum":"2026-09-15"}]}. Eigene Kacheln verwaltest du mit {"typ":"kachel","daten":{"aktion":"upsert","schluessel":"pausen","titel":"Pausen","icon":"☕","farbe":"#f59e0b","inhalt":"## Pause\n- Entspann dich","formular":[{"name":"ort","label":"Wo bist du?","type":"text","required":true}]}}; zum Entfernen verwendest du aktion delete mit demselben schluessel. Kacheln dürfen Markdown und optionale Formularfelder (text, date, time, textarea, select) enthalten. Sende das Morgenbriefing danach als einzelne wichtige Meldung mit {"typ":"feed","daten":{"typ":"briefing","inhalt":"..."}}.
+
+WICHTIG: Das Schul-Dashboard hat einen integrierten Chat-Bereich. Wenn ich dir eine Nachricht schreibe, kommt diese direkt aus dem Dashboard-Chat und ich erwarte eine direkte Antwort im Chat. Antworte auf Chat-Nachrichten ausschließlich mit {"typ":"chat","daten":{"inhalt":"..."}}, nicht als Feed. Nutze den Feed nur für wichtige Systemmeldungen, Briefings und Statusupdates. Chat-Antworten sollen kurz, freundlich und hilfreich sein - kein langes Markdown, normaler Gesprächsstil.
+
+Für unwichtige, aber interessante Infos, die ich später in Ruhe lesen kann (z.B. Witze, Fun Facts, Erinnerungen für später, Tipps), nutze {"typ":"ping","daten":{"inhalt":"..."}}. Das erzeugt KEINEN Alert und KEINE Push-Benachrichtigung - nur eine stille Notiz im Dashboard, die ich mir in der Pause anschauen kann.
+
+Sende später bei Änderungen erneut die vollständigen heutigen Kalender-/Aufgabenstände und wichtige neue Meldungen, aber keine unwichtigen Benachrichtigungen.`;
 }
 
 function schulApiAnleitung(req, integration) {
@@ -176,17 +182,32 @@ router.get('/daten', (req, res) => {
     const klausuren = db.prepare(`SELECT * FROM schul_klausuren_cache
       WHERE integration_id = ? ORDER BY datum ASC`).all(integration.integration.id);
     const feed = db.prepare('SELECT * FROM schul_feed WHERE integration_id = ? ORDER BY zeitpunkt DESC LIMIT 50').all(integration.integration.id);
+    const chat = db.prepare('SELECT * FROM schul_chat WHERE integration_id = ? ORDER BY zeitpunkt ASC').all(integration.integration.id);
     const nutzer = db.prepare('SELECT schul_wetter_ort FROM users WHERE id = ?').get(req.user.id);
+
+    // Wochenvorschau: Kalendereintraege der naechsten 7 Tage
+    const wocheStart = heute;
+    const wocheEndDatum = new Date();
+    wocheEndDatum.setDate(wocheEndDatum.getDate() + 7);
+    const wocheEnde = wocheEndDatum.toISOString().slice(0, 10);
+    const wocheKalender = db.prepare(`SELECT * FROM schul_kalender_cache
+      WHERE integration_id = ? AND substr(start, 1, 10) > ? AND substr(start, 1, 10) <= ? ORDER BY start ASC LIMIT 20`)
+      .all(integration.integration.id, wocheStart, wocheEnde);
+
+    const pings = db.prepare('SELECT * FROM schul_pings WHERE integration_id = ? ORDER BY zeitpunkt DESC LIMIT 50').all(integration.integration.id);
 
     res.json({
       schulmodusAktiv,
       kalender,
+      wocheKalender,
       aufgaben,
       stundenplan,
       kacheln,
       klausuren,
       wetterOrt: nutzer ? nutzer.schul_wetter_ort : null,
-      feed
+      feed,
+      chat,
+      pings
       ,modus: integration.integration.modus
     });
   } catch (err) {
@@ -385,6 +406,64 @@ router.post('/aktion', async (req, res) => {
   } catch(e) {
     res.status(500).json({ fehler: e.message });
   }
+});
+
+// POST /api/schuldashboard/chat - Nutzer sendet Chat-Nachricht an Poke
+router.post('/chat', async (req, res) => {
+  if (!pruefeSchulZugriff(req, res)) return;
+  const { nachricht } = req.body;
+  if (typeof nachricht !== 'string' || !nachricht.trim()) {
+    return res.status(400).json({ fehler: 'Nachricht darf nicht leer sein.' });
+  }
+  const integration = holeOderErzeugeIntegration(req);
+  if (!integration) return res.status(409).json({ fehler: 'Kein Poke-Profil verfügbar.' });
+
+  // Nutzer-Nachricht in Chat-History speichern
+  db.prepare('INSERT INTO schul_chat (integration_id, absender, inhalt) VALUES (?, ?, ?)')
+    .run(integration.integration.id, 'nutzer', nachricht.trim());
+
+  const befehl = `[SCHUL-DASHBOARD CHAT] ${nachricht.trim()}`;
+
+  let pokeProfile = integration.profil;
+  if (req.user.schul_poke_profile_id) {
+    pokeProfile = db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(req.user.schul_poke_profile_id) || pokeProfile;
+  }
+
+  try {
+    await sendeSchulNachricht(req.user, befehl, pokeProfile);
+    logAudit(req.user.id, 'schul_chat_nachricht', { laenge: nachricht.length });
+    res.json({ erfolg: true });
+  } catch(e) {
+    res.status(500).json({ fehler: e.message });
+  }
+});
+
+// DELETE /api/schuldashboard/chat - Chat-Verlauf löschen
+router.delete('/chat', (req, res) => {
+  if (!pruefeSchulZugriff(req, res)) return;
+  const integration = holeOderErzeugeIntegration(req);
+  if (!integration) return res.status(409).json({ fehler: 'Kein Poke-Profil verfügbar.' });
+  db.prepare('DELETE FROM schul_chat WHERE integration_id = ?').run(integration.integration.id);
+  res.json({ erfolg: true });
+});
+
+// PATCH /api/schuldashboard/pings/:id/gelesen - Ping als gelesen markieren
+router.patch('/pings/:id/gelesen', (req, res) => {
+  if (!pruefeSchulZugriff(req, res)) return;
+  const integration = holeOderErzeugeIntegration(req);
+  if (!integration) return res.status(409).json({ fehler: 'Kein Poke-Profil verfügbar.' });
+  db.prepare('UPDATE schul_pings SET gelesen = 1 WHERE id = ? AND integration_id = ?')
+    .run(req.params.id, integration.integration.id);
+  res.json({ erfolg: true });
+});
+
+// DELETE /api/schuldashboard/pings - Alle gelesenen Pings löschen
+router.delete('/pings', (req, res) => {
+  if (!pruefeSchulZugriff(req, res)) return;
+  const integration = holeOderErzeugeIntegration(req);
+  if (!integration) return res.status(409).json({ fehler: 'Kein Poke-Profil verfügbar.' });
+  db.prepare('DELETE FROM schul_pings WHERE integration_id = ? AND gelesen = 1').run(integration.integration.id);
+  res.json({ erfolg: true });
 });
 
 router.aktualisiereAutomatischeSchulmodi = aktualisiereAutomatischeSchulmodi;

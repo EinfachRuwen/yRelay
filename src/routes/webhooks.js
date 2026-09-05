@@ -39,7 +39,9 @@ function normalisiereSchulPayload(body) {
   const typen = {
     timetable: 'stundenplan', schedule: 'stundenplan', calendar: 'kalender',
     events: 'kalender', task: 'aufgabe', tasks: 'aufgabe', notification: 'feed',
-    message: 'feed', tile: 'kachel', card: 'kachel', exams: 'klausuren', klausur: 'klausuren'
+    message: 'feed', tile: 'kachel', card: 'kachel', exams: 'klausuren', klausur: 'klausuren',
+    chat: 'chat', chat_antwort: 'chat',
+    ping: 'ping', gemerkt: 'ping', spaeter: 'ping', reminder: 'ping', note: 'ping'
   };
   const typ = typen[String(payload.typ || payload.type || '').toLowerCase()] || payload.typ || payload.type;
   const daten = payload.daten !== undefined ? payload.daten : (payload.data !== undefined ? payload.data : payload.entries);
@@ -280,6 +282,18 @@ router.post('/schul-update/:token', (req, res) => {
       if (!daten || !daten.inhalt) return res.status(400).json({ fehler: 'Feeddaten benötigen inhalt.' });
       db.prepare('INSERT INTO schul_feed (integration_id, typ, inhalt) VALUES (?, ?, ?)')
         .run(integration.id, daten.typ || 'info', daten.inhalt);
+    } else if (typ === 'chat') {
+      // Poke-Chat-Antwort im Dashboard anzeigen
+      const chatInhalt = daten?.inhalt || (typeof daten === 'string' ? daten : null);
+      if (!chatInhalt) return res.status(400).json({ fehler: 'Chat-Nachricht benötigt inhalt.' });
+      db.prepare('INSERT INTO schul_chat (integration_id, absender, inhalt) VALUES (?, ?, ?)')
+        .run(integration.id, 'poke', chatInhalt);
+    } else if (typ === 'ping') {
+      // Stiller Poke-Ping: kein Alert, landet in "Gemerkt für später"
+      const pingInhalt = daten?.inhalt || (typeof daten === 'string' ? daten : null);
+      if (!pingInhalt) return res.status(400).json({ fehler: 'Ping benötigt inhalt.' });
+      db.prepare('INSERT INTO schul_pings (integration_id, inhalt) VALUES (?, ?)')
+        .run(integration.id, pingInhalt);
     } else if (typ === 'stundenplan') {
       const stunden = normalisiereStundenplan(daten);
       if (!stunden) return res.status(400).json({ fehler: 'Stundenplandaten müssen ein Array oder ein Objekt mit eintraege/stunden/stundenplan sein.' });

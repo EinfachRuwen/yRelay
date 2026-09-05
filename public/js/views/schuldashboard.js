@@ -106,16 +106,63 @@ const SchulDashboardView = {
                   <button id="schnell-notiz-btn" class="btn btn-primaer">Senden</button>
                 </div>
               </div>
+
+              <!-- Stille Pings Widget -->
+              <div class="karte schul-widget schul-pings-karte" id="schul-pings-widget" style="display:none;">
+                <div class="schul-widget-kopf">
+                  <h3 class="schul-widget-titel schul-widget-titel-pings">
+                    🔔 Gemerkt für später
+                    <span id="ping-ungelesen-badge" class="ping-badge">0</span>
+                  </h3>
+                  <button class="btn btn-ghost btn-klein" id="btn-pings-gelesen" title="Alle als gelesen markieren" style="margin-left:auto; font-size:0.75rem;">✓ Alle</button>
+                </div>
+                <div id="schul-pings-inhalt" class="widget-inhalt"></div>
+              </div>
+
+              <!-- Pomodoro Timer Widget -->
+              <div class="karte schul-widget schul-pomodoro-karte">
+                <div class="schul-widget-kopf">
+                  <h3 class="schul-widget-titel schul-widget-titel-pomodoro">⏱️ Fokus-Timer</h3>
+                  <span id="pomodoro-session-count" style="font-size:0.8rem; color:var(--text-sekundaer); margin-left:auto;">0 / 4</span>
+                </div>
+                <div class="pomodoro-display">
+                  <div id="pomodoro-modus" style="font-size:0.75rem; color:var(--text-sekundaer); text-transform:uppercase; letter-spacing:1px;">Fokus</div>
+                  <div id="pomodoro-zeit" style="font-size:2.5rem; font-weight:bold; letter-spacing:2px; font-variant-numeric:tabular-nums;">25:00</div>
+                </div>
+                <div class="pomodoro-controls">
+                  <button id="btn-pomodoro-start" class="btn btn-primaer btn-klein">▶ Start</button>
+                  <button id="btn-pomodoro-skip" class="btn btn-ghost btn-klein" style="display:none;">⏭ Überspringen</button>
+                  <button id="btn-pomodoro-reset" class="btn btn-ghost btn-klein">↺ Reset</button>
+                </div>
+              </div>
+
             </div>
 
-            <!-- Rechte Spalte: Live-Feed -->
+            <!-- Rechte Spalte: Chat + Feed mit Tabs -->
             <div class="karte feed-container schul-feed-karte">
-              <h3 class="schul-feed-titel">
-                <span class="pulsing-dot" style="width:10px; height:10px; background:#ef4444; border-radius:50%; display:inline-block; animation: pulse 2s infinite;"></span>
-                Live-Feed
-              </h3>
-              <div id="schul-feed-inhalt" class="schul-feed-inhalt">
-                <div class="lade-spinner"></div>
+              <div class="schul-panel-tabs">
+                <button class="schul-panel-tab aktiv" id="tab-chat" onclick="SchulDashboardView._tabWechseln('chat')">💬 Chat</button>
+                <button class="schul-panel-tab" id="tab-feed" onclick="SchulDashboardView._tabWechseln('feed')">
+                  <span class="pulsing-dot" style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;animation:pulse 2s infinite;"></span>
+                  Feed
+                </button>
+                <button class="btn btn-ghost btn-klein" id="btn-chat-loeschen" title="Chat leeren" style="margin-left:auto; font-size:0.75rem;">🗑️</button>
+              </div>
+
+              <!-- Chat -->
+              <div id="panel-chat" class="schul-panel-inhalt">
+                <div id="schul-chat-nachrichten" class="schul-chat-nachrichten"></div>
+                <div class="schul-chat-eingabe">
+                  <textarea id="schul-chat-input" class="formular-textarea schul-chat-textarea" placeholder="Schreib Poke etwas..." rows="2"></textarea>
+                  <button id="schul-chat-senden" class="btn btn-primaer">➤</button>
+                </div>
+              </div>
+
+              <!-- Feed -->
+              <div id="panel-feed" class="schul-panel-inhalt" style="display:none;">
+                <div id="schul-feed-inhalt" class="schul-feed-inhalt">
+                  <div class="lade-spinner"></div>
+                </div>
               </div>
             </div>
             
@@ -192,6 +239,49 @@ const SchulDashboardView = {
         .abfahrt-bald { color: #f87171; font-weight: bold; }
         .abfahrt-bald-ok { color: #f59e0b; }
         .abfahrt-entspannt { color: #34d399; }
+
+        /* Panel Tabs (Chat/Feed) */
+        .schul-panel-tabs { display:flex; gap:6px; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--rahmen); padding-bottom:10px; }
+        .schul-panel-tab { background:none; border:none; padding:5px 12px; border-radius: var(--radius-klein); color:var(--text-sekundaer); cursor:pointer; font-size:0.9rem; font-family: inherit; transition: all 0.15s; display:flex; align-items:center; gap:5px; }
+        .schul-panel-tab.aktiv { background: rgba(99,102,241,0.15); color: #818cf8; font-weight:600; }
+        .schul-panel-tab:hover:not(.aktiv) { background: var(--eingabe-hintergrund); }
+        .schul-panel-inhalt { display:flex; flex-direction:column; flex:1; min-height:0; }
+
+        /* Chat */
+        .schul-chat-nachrichten { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding: 4px 2px; min-height:0; }
+        .chat-bubble { max-width:85%; padding:10px 14px; border-radius:16px; line-height:1.5; font-size:0.9rem; word-break:break-word; }
+        .chat-bubble.nutzer { align-self:flex-end; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; border-bottom-right-radius:4px; }
+        .chat-bubble.poke { align-self:flex-start; background:var(--eingabe-hintergrund); border:1px solid var(--rahmen); color:var(--farbe-text); border-bottom-left-radius:4px; }
+        .chat-bubble .chat-zeit { font-size:0.7rem; opacity:0.65; margin-top:4px; display:block; }
+        .chat-bubble.nutzer .chat-zeit { text-align:right; }
+        .schul-chat-eingabe { display:flex; gap:8px; margin-top:10px; align-items:flex-end; border-top:1px solid var(--rahmen); padding-top:10px; flex-shrink:0; }
+        .schul-chat-textarea { flex:1; min-width:0; resize:none; min-height:38px; max-height:120px; font-size:0.9rem; }
+        .chat-typing { align-self:flex-start; padding:8px 14px; border-radius:16px; border-bottom-left-radius:4px; background:var(--eingabe-hintergrund); border:1px solid var(--rahmen); }
+        .chat-typing span { display:inline-block; width:6px; height:6px; background:var(--text-sekundaer); border-radius:50%; animation: typing 1.2s ease-in-out infinite; margin:0 2px; }
+        .chat-typing span:nth-child(2) { animation-delay:0.2s; }
+        .chat-typing span:nth-child(3) { animation-delay:0.4s; }
+        @keyframes typing { 0%,80%,100% { transform:scale(0.7); opacity:0.4; } 40% { transform:scale(1); opacity:1; } }
+
+        /* Pomodoro */
+        .pomodoro-display { text-align:center; padding:10px 0 8px; }
+        .pomodoro-controls { display:flex; gap:8px; justify-content:center; }
+
+        /* Stille Pings */
+        .ping-badge { display:inline-flex; align-items:center; justify-content:center; background:#f59e0b; color:#000; border-radius:999px; font-size:0.7rem; font-weight:700; min-width:18px; height:18px; padding:0 5px; margin-left:6px; vertical-align:middle; }
+        .ping-item { display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-bottom:1px solid var(--rahmen); }
+        .ping-item:last-child { border-bottom:none; }
+        .ping-item.gelesen { opacity:0.45; }
+        .ping-inhalt { flex:1; font-size:0.88rem; line-height:1.5; }
+        .ping-zeit { font-size:0.72rem; color:var(--text-sekundaer); white-space:nowrap; margin-top:2px; }
+        .ping-ok { background:none; border:none; cursor:pointer; color:var(--text-sekundaer); font-size:1rem; padding:0 2px; transition:color 0.15s; }
+        .ping-ok:hover { color:#34d399; }
+
+        /* Wochenvorschau */
+        .woche-tag { padding:6px 0; border-bottom:1px solid var(--rahmen); }
+        .woche-tag:last-child { border-bottom:none; }
+        .woche-tag-titel { font-size:0.8rem; color:var(--text-sekundaer); font-weight:600; margin-bottom:3px; text-transform:uppercase; }
+        .woche-event { font-size:0.85rem; padding:2px 0; display:flex; gap:6px; align-items:center; }
+        .woche-event-zeit { font-size:0.75rem; color:#3b82f6; white-space:nowrap; }
       </style>
     `;
   },
@@ -308,6 +398,50 @@ const SchulDashboardView = {
       this._haltestelleEingabeOeffnen();
     });
 
+    // Chat senden
+    const chatSenden = async () => {
+      const input = document.getElementById('schul-chat-input');
+      const nachricht = input?.value.trim();
+      if (!nachricht) return;
+      const btn = document.getElementById('schul-chat-senden');
+      UI.btnLaden(btn, true);
+      input.value = '';
+      // Sofort in UI einfügen
+      this._chatNachrichtAppenden({ absender: 'nutzer', inhalt: nachricht, zeitpunkt: new Date().toISOString() });
+      this._chatTypingZeigen(true);
+      try {
+        await API.anfrage('POST', '/schuldashboard/chat', { nachricht });
+      } catch (e) {
+        UI.fehler(e.message);
+      } finally {
+        UI.btnLaden(btn, false);
+        this._chatTypingZeigen(false);
+      }
+    };
+    document.getElementById('schul-chat-senden')?.addEventListener('click', chatSenden);
+    document.getElementById('schul-chat-input')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSenden(); }
+    });
+
+    document.getElementById('btn-chat-loeschen')?.addEventListener('click', async () => {
+      if (!confirm('Chat-Verlauf löschen?')) return;
+      try {
+        await API.anfrage('DELETE', '/schuldashboard/chat');
+        document.getElementById('schul-chat-nachrichten').innerHTML = '';
+      } catch (e) { UI.fehler(e.message); }
+    });
+
+    document.getElementById('btn-pings-gelesen')?.addEventListener('click', async () => {
+      try {
+        await API.anfrage('DELETE', '/schuldashboard/pings');
+        document.querySelectorAll('.ping-item').forEach(el => el.remove());
+        await this.datenLaden(true);
+      } catch (e) { UI.fehler(e.message); }
+    });
+
+    // Pomodoro initialisieren
+    this._pomodoroInitialisieren();
+
     // Polling alle 30s für Daten, alle 60s für Abfahrten
     this._pollInterval = setInterval(() => this.datenLaden(true), 30000);
     this._opnvInterval = setInterval(() => this.abfahrtenLaden(true), 60000);
@@ -316,6 +450,7 @@ const SchulDashboardView = {
   zerstoeren() {
     if (this._pollInterval) clearInterval(this._pollInterval);
     if (this._opnvInterval) clearInterval(this._opnvInterval);
+    if (this._pomodoroTimer) clearInterval(this._pomodoroTimer);
   },
 
   async datenLaden(silent = false) {
@@ -351,6 +486,9 @@ const SchulDashboardView = {
       this.rendereKacheln(daten.kacheln);
       this.rendereFeed(daten.feed);
       this.rendereKlausuren(daten.klausuren);
+      this.rendereChat(daten.chat || []);
+      this.rendereWocheKalender(daten.wocheKalender || []);
+      this.renderePings(daten.pings || []);
     } else {
       badge.textContent = 'Modus: Inaktiv';
       badge.style.background = 'var(--text-sekundaer)';
@@ -404,6 +542,189 @@ const SchulDashboardView = {
         </div>
       </div>
     `;
+  },
+
+  _tabWechseln(tab) {
+    document.getElementById('panel-chat').style.display = tab === 'chat' ? 'flex' : 'none';
+    document.getElementById('panel-feed').style.display = tab === 'feed' ? 'flex' : 'none';
+    document.getElementById('tab-chat').classList.toggle('aktiv', tab === 'chat');
+    document.getElementById('tab-feed').classList.toggle('aktiv', tab === 'feed');
+  },
+
+  rendereChat(items) {
+    const container = document.getElementById('schul-chat-nachrichten');
+    if (!container) return;
+    // Nur komplett neu rendern wenn container leer (beim ersten Laden)
+    if (container.children.length > 0) return;
+    if (!items || items.length === 0) {
+      container.innerHTML = `<p style="color:var(--text-sekundaer); text-align:center; font-size:0.9rem; margin-top:30px;">Schreib Poke etwas - er antwortet direkt hier. 💬</p>`;
+      return;
+    }
+    items.forEach(msg => this._chatNachrichtAppenden(msg));
+  },
+
+  _chatNachrichtAppenden(msg) {
+    const container = document.getElementById('schul-chat-nachrichten');
+    if (!container) return;
+    // Platzhalter entfernen falls vorhanden
+    const placeholder = container.querySelector('p');
+    if (placeholder) placeholder.remove();
+
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${msg.absender}`;
+    const zeit = new Date(msg.zeitpunkt + (msg.zeitpunkt.includes('Z') ? '' : 'Z'));
+    const zeitStr = zeit.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    const inhalt = msg.absender === 'poke'
+      ? this.markdownSicherRendern(msg.inhalt)
+      : `<span>${UI.escapeHtml(msg.inhalt)}</span>`;
+    bubble.innerHTML = `${inhalt}<span class="chat-zeit">${zeitStr}</span>`;
+    container.appendChild(bubble);
+    container.scrollTop = container.scrollHeight;
+  },
+
+  _chatTypingZeigen(zeigen) {
+    const container = document.getElementById('schul-chat-nachrichten');
+    if (!container) return;
+    const existing = container.querySelector('.chat-typing');
+    if (zeigen && !existing) {
+      const typing = document.createElement('div');
+      typing.className = 'chat-typing';
+      typing.innerHTML = '<span></span><span></span><span></span>';
+      container.appendChild(typing);
+      container.scrollTop = container.scrollHeight;
+    } else if (!zeigen && existing) {
+      existing.remove();
+    }
+  },
+
+  rendereWocheKalender(items) {
+    // Wochenvorschau im Kalender-Widget ergänzen falls vorhanden
+    const container = document.getElementById('schul-kalender-inhalt');
+    if (!container || !items || items.length === 0) return;
+
+    // Nur anfügen, wenn heute keine Einträge schon angezeigt werden ODER auch wenn schon was da ist
+    const tage = {};
+    items.forEach(t => {
+      const datum = t.start.slice(0, 10);
+      if (!tage[datum]) tage[datum] = [];
+      tage[datum].push(t);
+    });
+
+    if (Object.keys(tage).length === 0) return;
+
+    let wocheHtml = `<div style="margin-top:10px; border-top:1px solid var(--rahmen); padding-top:8px;"><div style="font-size:0.75rem; color:var(--text-sekundaer); font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:1px;">Diese Woche</div>`;
+    Object.entries(tage).forEach(([datum, termine]) => {
+      const d = new Date(datum + 'T12:00:00');
+      const tagName = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+      wocheHtml += `<div class="woche-tag"><div class="woche-tag-titel">${tagName}</div>`;
+      termine.forEach(t => {
+        const zeit = t.ganztaegig ? 'ganztägig' : t.start.slice(11, 16);
+        wocheHtml += `<div class="woche-event"><span class="woche-event-zeit">${zeit}</span>${UI.escapeHtml(t.titel)}</div>`;
+      });
+      wocheHtml += `</div>`;
+    });
+    wocheHtml += `</div>`;
+    container.insertAdjacentHTML('beforeend', wocheHtml);
+  },
+
+  renderePings(items) {
+    const widget = document.getElementById('schul-pings-widget');
+    const container = document.getElementById('schul-pings-inhalt');
+    const badge = document.getElementById('ping-ungelesen-badge');
+    if (!widget || !container) return;
+
+    if (!items || items.length === 0) {
+      widget.style.display = 'none';
+      return;
+    }
+
+    widget.style.display = 'block';
+    const ungelesen = items.filter(p => !p.gelesen).length;
+    if (badge) {
+      badge.textContent = ungelesen;
+      badge.style.display = ungelesen > 0 ? 'inline-flex' : 'none';
+    }
+
+    container.innerHTML = items.map(ping => {
+      const zeit = new Date(ping.zeitpunkt + (ping.zeitpunkt.includes('Z') ? '' : 'Z'));
+      const zeitStr = zeit.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      return `
+        <div class="ping-item ${ping.gelesen ? 'gelesen' : ''}" data-ping-id="${ping.id}">
+          <div class="ping-inhalt">
+            <div>${UI.escapeHtml(ping.inhalt)}</div>
+            <div class="ping-zeit">${zeitStr}</div>
+          </div>
+          ${!ping.gelesen ? `<button class="ping-ok" title="Als gelesen markieren" onclick="SchulDashboardView._pingGelesen(${ping.id}, this)">✓</button>` : ''}
+        </div>
+      `;
+    }).join('');
+  },
+
+  async _pingGelesen(id, btn) {
+    try {
+      await API.anfrage('PATCH', `/schuldashboard/pings/${id}/gelesen`);
+      const item = btn?.closest('.ping-item');
+      if (item) { item.classList.add('gelesen'); btn.remove(); }
+      // Badge aktualisieren
+      const ungelesen = document.querySelectorAll('.ping-item:not(.gelesen)').length;
+      const badge = document.getElementById('ping-ungelesen-badge');
+      if (badge) { badge.textContent = ungelesen; badge.style.display = ungelesen > 0 ? 'inline-flex' : 'none'; }
+    } catch (e) { UI.fehler(e.message); }
+  },
+
+  _pomodoroInitialisieren() {
+    const ZEITEN = { fokus: 25 * 60, kurze_pause: 5 * 60, lange_pause: 15 * 60 };
+    let modus = 'fokus';
+    let restSekunden = ZEITEN.fokus;
+    let laeuft = false;
+    let sessionen = 0;
+
+    const zeitEl = document.getElementById('pomodoro-zeit');
+    const modusEl = document.getElementById('pomodoro-modus');
+    const sessionEl = document.getElementById('pomodoro-session-count');
+    const startBtn = document.getElementById('btn-pomodoro-start');
+    const skipBtn = document.getElementById('btn-pomodoro-skip');
+    const resetBtn = document.getElementById('btn-pomodoro-reset');
+    if (!zeitEl || !startBtn) return;
+
+    const anzeigenAktualisieren = () => {
+      const min = Math.floor(restSekunden / 60).toString().padStart(2, '0');
+      const sek = (restSekunden % 60).toString().padStart(2, '0');
+      zeitEl.textContent = `${min}:${sek}`;
+      modusEl.textContent = modus === 'fokus' ? 'Fokus' : (modus === 'kurze_pause' ? 'Kurze Pause' : 'Lange Pause');
+      sessionEl.textContent = `${sessionen} / 4`;
+      // Farbe je nach Modus
+      zeitEl.style.color = modus === 'fokus' ? '#818cf8' : '#34d399';
+    };
+
+    const naechsterModus = () => {
+      if (modus === 'fokus') {
+        sessionen++;
+        modus = sessionen % 4 === 0 ? 'lange_pause' : 'kurze_pause';
+      } else {
+        modus = 'fokus';
+      }
+      restSekunden = ZEITEN[modus];
+      anzeigenAktualisieren();
+    };
+
+    startBtn.addEventListener('click', () => {
+      laeuft = !laeuft;
+      startBtn.textContent = laeuft ? '⏸ Pause' : '▶ Weiter';
+      if (skipBtn) skipBtn.style.display = laeuft ? 'block' : 'none';
+      if (!this._pomodoroTimer) {
+        this._pomodoroTimer = setInterval(() => {
+          if (!laeuft) return;
+          restSekunden--;
+          if (restSekunden <= 0) { naechsterModus(); laeuft = false; startBtn.textContent = '▶ Start'; if (skipBtn) skipBtn.style.display = 'none'; }
+          anzeigenAktualisieren();
+        }, 1000);
+      }
+    });
+
+    skipBtn?.addEventListener('click', () => { naechsterModus(); laeuft = false; startBtn.textContent = '▶ Start'; skipBtn.style.display = 'none'; });
+    resetBtn?.addEventListener('click', () => { laeuft = false; modus = 'fokus'; restSekunden = ZEITEN.fokus; sessionen = 0; startBtn.textContent = '▶ Start'; if (skipBtn) skipBtn.style.display = 'none'; anzeigenAktualisieren(); });
+    anzeigenAktualisieren();
   },
 
   rendereKalender(items) {

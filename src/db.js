@@ -93,6 +93,22 @@ db.exec(`
     notiz TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS schul_chat (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    integration_id INTEGER REFERENCES schul_integrationen(id) ON DELETE CASCADE,
+    absender TEXT NOT NULL CHECK(absender IN ('nutzer', 'poke')),
+    inhalt TEXT NOT NULL,
+    zeitpunkt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS schul_pings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    integration_id INTEGER REFERENCES schul_integrationen(id) ON DELETE CASCADE,
+    inhalt TEXT NOT NULL,
+    gelesen INTEGER NOT NULL DEFAULT 0,
+    zeitpunkt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS schul_stundenplan (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     integration_id INTEGER NOT NULL REFERENCES schul_integrationen(id) ON DELETE CASCADE,
