@@ -268,12 +268,6 @@ const SchulDashboardView = {
         .chat-typing span:nth-child(3) { animation-delay:0.4s; }
         @keyframes typing { 0%, 100% { transform:translateY(0); } 50% { transform:translateY(-4px); } }
 
-        @media (max-width: 900px) {
-          .schul-dashboard { flex-direction: column; }
-          .schul-sidebar { flex: none; width: 100%; }
-          .schul-main-panel { height: 75vh; max-height: none; padding: 12px; }
-        }
-
         /* Pomodoro */
         .pomodoro-display { text-align:center; padding:10px 0 8px; }
         .pomodoro-controls { display:flex; gap:8px; justify-content:center; }

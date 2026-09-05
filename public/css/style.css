@@ -118,6 +118,8 @@ body {
   position: relative;
   z-index: 1;
   min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 /* ─── Ladebildschirm ────────────────────────────────────────── */
@@ -632,6 +634,9 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 24px;
   margin-bottom: 32px;
+}
+.dashboard-grid > * {
+  min-width: 0;
 }
 
 @media (max-width: 768px) {
@@ -1261,6 +1266,25 @@ body {
 /* ─── Responsive ────────────────────────────────────────────── */
 
 /* Tablet */
+@media (max-width: 900px) {
+  .schul-grid { 
+    display: flex !important; 
+    flex-direction: column; 
+  }
+  .widgets-container { 
+    width: 100%; 
+    order: 2; 
+  }
+  .feed-container.schul-feed-karte { 
+    width: 100%; 
+    order: 1; 
+    position: static !important; 
+    height: 55vh !important; 
+    min-height: 400px;
+    margin-bottom: 20px;
+  }
+}
+
 @media (max-width: 768px) {
   .dashboard-grid { grid-template-columns: 1fr; }
   .statistik-grid { grid-template-columns: 1fr 1fr; }
@@ -1368,7 +1392,7 @@ body {
   /* Admin Panel Karten */
   .admin-panel-karte { padding: 16px; }
   .schulmodus-toggle { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
-  .schul-grid { grid-template-columns: 1fr !important; }
+  
   .schul-dashboard-inhalt { padding-top: 20px; }
   .schul-dashboard-kopf { align-items: flex-start; flex-direction: column; }
   .schul-widget { padding: 16px; }
@@ -1376,8 +1400,6 @@ body {
   .schul-feed-inhalt { padding-right: 0; }
   .schul-schnellnotiz { flex-direction: column; }
   .schul-schnellnotiz .btn { width: 100%; }
-  .feed-container { position: static !important; height: 420px !important; }
-
   /* Toast */
   .toast-container { right: 8px; left: 8px; bottom: 8px; max-width: unset; }
   .toast { font-size: 13px; padding: 10px 14px; }
