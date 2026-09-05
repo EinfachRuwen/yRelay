@@ -1384,43 +1384,55 @@ const AdminView = {
     const profile = await API.adminPokeProfileLaden();
 
     let html = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <h3 style="margin:0;">Poke-Profile verwalten</h3>
-        <button id="admin-neues-profil-btn" class="btn btn-primaer btn-klein">➕ Neues Profil</button>
-      </div>
-      <p class="hinweis-text" style="margin-bottom:20px;">
-        Hier kannst du verschiedene Profile (Bots) anlegen, die mit unterschiedlichen Webhook-URLs und API-Keys arbeiten. 
-        Nutzer können so z.B. private oder berufliche Instanzen auswählen. Das Standard-Profil wird verwendet, wenn kein anderes Profil gewählt wurde.
-      </p>
-      
-      <div class="karten-grid">
+      <div class="karte">
+        <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+          <div class="karte-icon karte-icon-primaer">🤖</div>
+          <div style="flex: 1; min-width: 200px;">
+            <div class="karte-titel">Poke-Profile verwalten</div>
+            <div class="karte-untertitel">${profile.length} Profile (Bots) aktiv</div>
+          </div>
+          <div>
+            <button id="admin-neues-profil-btn" class="btn btn-primaer btn-klein">+ Neues Profil</button>
+          </div>
+        </div>
+        <div class="karte-koerper">
+          <div class="info-box info" style="margin-bottom: 20px;">
+            <span>ℹ️</span>
+            <span>Hier kannst du verschiedene Profile (Bots) anlegen, die mit unterschiedlichen Webhook-URLs und API-Keys arbeiten. Das Standard-Profil wird verwendet, wenn kein anderes Profil gewählt wurde.</span>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
     `;
 
     if (profile.length === 0) {
-      html += `<p>Keine Poke-Profile gefunden.</p>`;
+      html += `<p style="grid-column: 1 / -1; color: var(--farbe-text-schwach); text-align: center; padding: 20px;">Keine Poke-Profile gefunden.</p>`;
     } else {
       profile.forEach(p => {
         html += `
-          <div class="karte" style="border-left: 4px solid ${p.farbe}; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-left: 4px solid ${p.farbe}; border-radius: var(--radius-mittel); padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
             <div>
-              <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                <h4 style="margin:0; font-size:1.2rem;">${UI.escapeHtml(p.icon)} ${UI.escapeHtml(p.name)}</h4>
-                ${p.ist_standard ? '<span class="status-badge" style="background:#3b82f6;">Standard</span>' : ''}
+              <div style="display:flex; justify-content:space-between; align-items: flex-start; margin-bottom:12px;">
+                <h4 style="margin:0; font-size:16px; color: var(--farbe-text);">${UI.escapeHtml(p.icon)} ${UI.escapeHtml(p.name)}</h4>
+                ${p.ist_standard ? '<span class="status-badge aktiv" style="padding: 2px 8px; font-size: 11px;">Standard</span>' : ''}
               </div>
-              <p style="margin-bottom:5px; font-size:0.85rem; color:var(--text-sekundaer);">
-                <strong>Webhook:</strong> ${UI.escapeHtml(p.webhook_url.substring(0, 30))}...
+              <p style="margin:0 0 16px 0; font-size:12px; color:var(--farbe-text-gedaempft); word-break: break-all;">
+                <strong>Webhook:</strong><br> ${UI.escapeHtml(p.webhook_url.substring(0, 40))}...
               </p>
             </div>
-            <div style="margin-top:15px; display:flex; gap:10px;">
-              <button class="btn btn-sekundaer btn-klein btn-profil-bearbeiten" data-id="${p.id}">✏️ Bearbeiten</button>
-              ${!p.ist_standard ? `<button class="btn btn-notfall btn-klein btn-profil-loeschen" data-id="${p.id}">🗑️ Löschen</button>` : ''}
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-sekundaer btn-klein btn-profil-bearbeiten" style="flex: 1;" data-id="${p.id}">✏️ Bearbeiten</button>
+              ${!p.ist_standard ? `<button class="btn btn-gefahr btn-klein btn-profil-loeschen" data-id="${p.id}" title="Löschen">🗑️</button>` : ''}
             </div>
           </div>
         `;
       });
     }
 
-    html += `</div>`;
+    html += `
+          </div>
+        </div>
+      </div>
+    `;
     container.innerHTML = html;
 
     // Events binden
@@ -1453,31 +1465,31 @@ const AdminView = {
       <form id="profil-form" style="display:flex; flex-direction:column; gap:15px;">
         <div class="formular-gruppe">
           <label class="formular-label">Name</label>
-          <input type="text" id="prof-name" class="eingabefeld" value="${isEdit ? UI.escapeHtml(profil.name) : ''}" required>
+          <input type="text" id="prof-name" class="formular-eingabe" value="${isEdit ? UI.escapeHtml(profil.name) : ''}" required>
         </div>
         <div style="display:flex; gap:15px;">
           <div class="formular-gruppe" style="flex:1;">
             <label class="formular-label">Icon (Emoji)</label>
-            <input type="text" id="prof-icon" class="eingabefeld" value="${isEdit ? UI.escapeHtml(profil.icon) : '🤖'}" required>
+            <input type="text" id="prof-icon" class="formular-eingabe" value="${isEdit ? UI.escapeHtml(profil.icon) : '🤖'}" required>
           </div>
           <div class="formular-gruppe" style="flex:1;">
             <label class="formular-label">Farbe (HEX)</label>
-            <input type="color" id="prof-farbe" style="height:38px; width:100%; cursor:pointer;" value="${isEdit ? UI.escapeHtml(profil.farbe) : '#3b82f6'}" required>
+            <input type="color" id="prof-farbe" style="height:46px; padding: 4px; width:100%; cursor:pointer; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-mittel);" value="${isEdit ? UI.escapeHtml(profil.farbe) : '#3b82f6'}" required>
           </div>
         </div>
         <div class="formular-gruppe">
           <label class="formular-label">Pushover Webhook URL</label>
-          <input type="url" id="prof-webhook" class="eingabefeld" value="${isEdit ? UI.escapeHtml(profil.webhook_url) : ''}" required>
+          <input type="url" id="prof-webhook" class="formular-eingabe" value="${isEdit ? UI.escapeHtml(profil.webhook_url) : ''}" required>
         </div>
         <div class="formular-gruppe">
           <label class="formular-label">API Key (Token)</label>
-          <input type="password" id="prof-apikey" class="eingabefeld" value="" placeholder="${isEdit && profil.api_key_gesetzt ? 'Gespeicherter Key bleibt unverändert' : 'Bearer-Token eingeben'}" ${isEdit ? '' : 'required'}>
+          <input type="password" id="prof-apikey" class="formular-eingabe" value="" placeholder="${isEdit && profil.api_key_gesetzt ? 'Gespeicherter Key bleibt unverändert' : 'Bearer-Token eingeben'}" ${isEdit ? '' : 'required'}>
         </div>
         <div class="formular-gruppe" style="display:flex; align-items:center; gap:10px;">
-          <input type="checkbox" id="prof-standard" ${isEdit && profil.ist_standard ? 'checked' : ''}>
-          <label for="prof-standard">Als Standard-Profil festlegen</label>
+          <input type="checkbox" id="prof-standard" style="width: 18px; height: 18px;" ${isEdit && profil.ist_standard ? 'checked' : ''}>
+          <label for="prof-standard" class="formular-label" style="margin: 0; cursor: pointer;">Als Standard-Profil festlegen</label>
         </div>
-        <button type="submit" class="btn btn-primaer">💾 Speichern</button>
+        <button type="submit" class="btn btn-primaer btn-vollbreite" style="margin-top: 10px;">💾 Speichern</button>
       </form>
     `;
 
