@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { db, getSetting, setSetting, logAudit } = require('../db');
 const { requireAdmin } = require('../middleware/auth');
-const { sendeEinladungsmail, testeSMTP } = require('../services/email');
+const { sendeEinladungsmail, testeSMTP, sendeManuelleMail } = require('../services/email');
 
 const router = express.Router();
 
@@ -229,7 +229,31 @@ router.delete('/nutzer/:id', (req, res) => {
   
   logAudit(req.user.id, 'admin_delete_user', { target_user_id: id, username: user.username });
   
-  res.json({ nachricht: 'Nutzer erfolgreich gelöscht.' });
+  res.json({ erfolg: true, meldung: 'Audit-Log erfolgreich geleert.' });
+});
+
+// ─── E-Mail Tool ────────────────────────────────────────────────────────────
+
+// POST /api/admin/send-email - Manuelle E-Mail senden
+router.post('/send-email', async (req, res) => {
+  const { sendeManuelleMail } = require('../services/email');
+  const { to, cc, bcc, subject, text, html } = req.body;
+  if (!to || !subject || (!text && !html)) {
+    return res.status(400).json({ fehler: 'Empfänger (to), Betreff (subject) und Inhalt (text/html) sind erforderlich.' });
+  }
+
+  try {
+    const resultat = await sendeManuelleMail({ to, cc, bcc, subject, text, html });
+    if (resultat.erfolg) {
+      logAudit(req.user.id, 'admin', 'Manuelle E-Mail gesendet', `Betreff: ${subject} an ${to}`);
+      res.json({ erfolg: true, meldung: 'E-Mail erfolgreich gesendet.' });
+    } else {
+      res.status(500).json({ fehler: resultat.fehler });
+    }
+  } catch (err) {
+    console.error('[Admin] Fehler beim Senden manueller E-Mail:', err.message);
+    res.status(500).json({ fehler: 'Interner Fehler beim E-Mail Versand.' });
+  }
 });
 
 // POST /api/admin/nutzer/:id/einladung-neu - Einladungslink neu generieren
@@ -692,5 +716,27 @@ router.get('/audit-logs', (req, res) => {
   res.json(logs);
 });
 
-module.exports = router;
+// ─── E-Mail Tool ────────────────────────────────────────────────────────────
 
+// POST /api/admin/send-email - Manuelle E-Mail senden
+router.post('/send-email', async (req, res) => {
+  const { to, cc, bcc, subject, text, html } = req.body;
+  if (!to || !subject || (!text && !html)) {
+    return res.status(400).json({ fehler: 'Empfänger (to), Betreff (subject) und Inhalt (text/html) sind erforderlich.' });
+  }
+
+  try {
+    const resultat = await sendeManuelleMail({ to, cc, bcc, subject, text, html });
+    if (resultat.erfolg) {
+      logAudit(req.user.id, 'admin_send_email', { subject, to });
+      res.json({ erfolg: true, meldung: 'E-Mail erfolgreich gesendet.' });
+    } else {
+      res.status(500).json({ fehler: resultat.fehler });
+    }
+  } catch (err) {
+    console.error('[Admin] Fehler beim Senden manueller E-Mail:', err.message);
+    res.status(500).json({ fehler: 'Interner Fehler beim E-Mail Versand.' });
+  }
+});
+
+module.exports = router;

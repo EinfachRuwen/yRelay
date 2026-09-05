@@ -6,12 +6,18 @@ const JWT_SECRET = process.env.JWT_SECRET || 'yrelay-geheimnis-bitte-aendern';
 
 // Token aus dem Authorization-Header extrahieren und verifizieren
 function requireAuth(req, res, next) {
+  let token = null;
   const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.slice(7);
+  } else if (req.query.token) {
+    token = req.query.token;
+  }
+  
+  if (!token) {
     return res.status(401).json({ fehler: 'Nicht authentifiziert. Bitte einloggen.' });
   }
-
-  const token = authHeader.slice(7);
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
 

@@ -154,9 +154,9 @@ const SchulDashboardView = {
                 <div id="schul-chat-nachrichten" class="schul-chat-nachrichten"></div>
                 <div class="schul-chat-eingabe">
                   <input type="file" id="schul-chat-file" style="display:none;">
-                  <button id="schul-chat-attach" class="btn btn-sekundaer" title="Datei anhängen (Pingvin Share)">📎</button>
+                  <button id="schul-chat-attach" class="btn btn-sekundaer schul-chat-btn" title="Datei anhängen (Pingvin Share)">📎</button>
                   <textarea id="schul-chat-input" class="formular-textarea schul-chat-textarea" placeholder="Schreib Poke etwas..." rows="2"></textarea>
-                  <button id="schul-chat-senden" class="btn btn-primaer">➤</button>
+                  <button id="schul-chat-senden" class="btn btn-primaer schul-chat-btn">➤</button>
                 </div>
               </div>
 
@@ -226,6 +226,8 @@ const SchulDashboardView = {
         .aufgabe-item .zeit-badge {
           background: rgba(245, 158, 11, 0.1); color: #f59e0b;
         }
+        .aufgabe-checkbox { cursor: pointer; width: 18px; height: 18px; margin-top: 2px; accent-color: var(--farbe-primaer); }
+        .aufgabe-item.erledigt .aufgabe-text { opacity: 0.5; text-decoration: line-through; }
 
         .abfahrt-tabelle { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         .abfahrt-tabelle td { padding: 7px 5px; border-bottom: 1px solid var(--rahmen); vertical-align: middle; }
@@ -257,12 +259,20 @@ const SchulDashboardView = {
         .chat-bubble .chat-zeit { font-size:0.7rem; opacity:0.65; margin-top:4px; display:block; }
         .chat-bubble.nutzer .chat-zeit { text-align:right; }
         .schul-chat-eingabe { display:flex; gap:8px; margin-top:10px; align-items:flex-end; border-top:1px solid var(--rahmen); padding-top:10px; flex-shrink:0; }
+        .schul-dashboard-inhalt { max-width: 1500px !important; }
         .schul-chat-textarea { flex:1; min-width:0; resize:none; min-height:38px; max-height:120px; font-size:0.9rem; }
+        .schul-chat-btn { padding:0; width:38px; height:38px; flex-shrink:0; display:flex; align-items:center; justify-content:center; border-radius:var(--radius-klein); font-size:1.2rem; }
         .chat-typing { align-self:flex-start; padding:8px 14px; border-radius:16px; border-bottom-left-radius:4px; background:var(--eingabe-hintergrund); border:1px solid var(--rahmen); }
         .chat-typing span { display:inline-block; width:6px; height:6px; background:var(--text-sekundaer); border-radius:50%; animation: typing 1.2s ease-in-out infinite; margin:0 2px; }
         .chat-typing span:nth-child(2) { animation-delay:0.2s; }
         .chat-typing span:nth-child(3) { animation-delay:0.4s; }
-        @keyframes typing { 0%,80%,100% { transform:scale(0.7); opacity:0.4; } 40% { transform:scale(1); opacity:1; } }
+        @keyframes typing { 0%, 100% { transform:translateY(0); } 50% { transform:translateY(-4px); } }
+
+        @media (max-width: 900px) {
+          .schul-dashboard { flex-direction: column; }
+          .schul-sidebar { flex: none; width: 100%; }
+          .schul-main-panel { height: 75vh; max-height: none; padding: 12px; }
+        }
 
         /* Pomodoro */
         .pomodoro-display { text-align:center; padding:10px 0 8px; }
@@ -296,6 +306,7 @@ const SchulDashboardView = {
     await this.datenLaden();
     this.wetterLaden();
     this.abfahrtenLaden();
+    this._setupSSE();
 
     document.getElementById('integration-btn')?.addEventListener('click', async () => {
       try {
@@ -464,12 +475,15 @@ const SchulDashboardView = {
       }
     });
 
+    // Chat leeren
     document.getElementById('btn-chat-loeschen')?.addEventListener('click', async () => {
-      if (!confirm('Chat-Verlauf löschen?')) return;
+      if (!confirm('Gesamten Chat-Verlauf wirklich löschen?')) return;
       try {
         await API.anfrage('DELETE', '/schuldashboard/chat');
-        document.getElementById('schul-chat-nachrichten').innerHTML = '';
-      } catch (e) { UI.fehler(e.message); }
+        document.getElementById('schul-chat-nachrichten').innerHTML = '<div class="text-gedaempft" style="text-align:center; margin-top:20px;">Chat geleert.</div>';
+      } catch (e) {
+        UI.fehler(e.message);
+      }
     });
 
     document.getElementById('btn-pings-gelesen')?.addEventListener('click', async () => {
@@ -713,6 +727,77 @@ const SchulDashboardView = {
     } catch (e) { UI.fehler(e.message); }
   },
 
+  _setupSSE() {
+    if (this._eventSource) {
+      this._eventSource.close();
+    }
+    const token = App.token || localStorage.getItem('yrelay_token');
+    if (!token) return;
+
+    this._eventSource = new EventSource('/api/schuldashboard/stream?token=' + encodeURIComponent(token));
+    
+    this._eventSource.addEventListener('update', () => {
+      // Bei einem Update laden wir die Daten "leise" neu, um Flackern zu vermeiden
+      this.datenLaden(true);
+    });
+
+    this._eventSource.addEventListener('error', (e) => {
+      console.warn('[Schul-Dashboard] SSE-Verbindung unterbrochen. Versuche Reconnect...');
+    });
+  },
+
+  // Pingvin Share Modal
+  async _dateiAnhaengenDialog() {
+    UI.modalZeigen(`
+      <div class="modal-header">
+        <span class="modal-titel">📎 Datei anhängen</span>
+        <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+      </div>
+      <div class="modal-koerper">
+        <p>Wähle eine Datei aus, um sie hochzuladen und als Pingvin Share Link an Poke zu senden.</p>
+        <div style="margin-top: 16px;">
+          <input type="file" id="pingvin-file-input" class="formular-eingabe" style="margin-bottom: 16px;">
+        </div>
+        <button class="btn btn-primaer btn-vollbreite" id="btn-upload-file">Hochladen & Senden</button>
+      </div>
+    `);
+
+    document.getElementById('btn-upload-file').addEventListener('click', async () => {
+      const fileInput = document.getElementById('pingvin-file-input');
+      if (!fileInput.files || fileInput.files.length === 0) {
+        UI.fehler('Bitte wähle eine Datei aus.');
+        return;
+      }
+      
+      const file = fileInput.files[0];
+      const btn = document.getElementById('btn-upload-file');
+      UI.btnLaden(btn, true);
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('/api/schuldashboard/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + (App.token || localStorage.getItem('yrelay_token'))
+          },
+          body: formData
+        });
+
+        const resData = await response.json();
+        if (!response.ok) throw new Error(resData.fehler || 'Upload fehlgeschlagen');
+
+        UI.modalSchliessen();
+        this.datenLaden(true);
+      } catch (e) {
+        UI.fehler(e.message);
+      } finally {
+        UI.btnLaden(btn, false);
+      }
+    });
+  },
+
   _pomodoroInitialisieren() {
     const ZEITEN = { fokus: 25 * 60, kurze_pause: 5 * 60, lange_pause: 15 * 60 };
     let modus = 'fokus';
@@ -823,9 +908,10 @@ const SchulDashboardView = {
     items.forEach(a => {
       const faellig = a.faellig ? this.formatTime(a.faellig) : 'Heute';
       html += `
-        <div class="aufgabe-item">
+        <div class="aufgabe-item ${a.erledigt ? 'erledigt' : ''}">
+          <input type="checkbox" class="aufgabe-checkbox" ${a.erledigt ? 'checked' : ''} onchange="SchulDashboardView._aufgabeToggeln(${a.id}, this.checked)">
           <div class="zeit-badge">${faellig}</div>
-          <div>
+          <div class="aufgabe-text">
             <div style="font-weight:500;">${UI.escapeHtml(a.titel)}</div>
             ${a.notiz ? `<div style="font-size:0.85rem; color:var(--text-sekundaer); margin-top:2px;">${UI.escapeHtml(a.notiz)}</div>` : ''}
           </div>
@@ -833,6 +919,15 @@ const SchulDashboardView = {
       `;
     });
     container.innerHTML = html;
+  },
+
+  async _aufgabeToggeln(id, erledigt) {
+    try {
+      await API.anfrage('PATCH', `/schuldashboard/aufgaben/${id}/erledigt`, { erledigt });
+      this.datenLaden(true); // Neu laden für aktuelles Feedback
+    } catch (e) {
+      UI.fehler(e.message);
+    }
   },
 
   rendereKacheln(kacheln) {

@@ -102,8 +102,13 @@ router.post('/poke-reply/:id/:token', (req, res) => {
       SELECT id FROM schul_integrationen WHERE nutzer_id = ? AND profil_id = ?
     `).get(msg.user_id, msg.poke_profile_id);
     if (integration) {
-      db.prepare('INSERT INTO schul_feed (integration_id, typ, inhalt) VALUES (?, ?, ?)')
-        .run(integration.id, Array.isArray(buttons) && buttons.length > 0 ? 'aktion' : 'info', message);
+      db.prepare('INSERT INTO schul_chat (integration_id, absender, inhalt) VALUES (?, ?, ?)')
+        .run(integration.id, 'poke', message);
+      
+      try {
+        const { notifyClients } = require('./schuldashboard');
+        notifyClients(integration.id, 'update');
+      } catch (e) {}
     }
   }
 
@@ -334,14 +339,20 @@ router.post('/schul-update/:token', (req, res) => {
         return res.status(400).json({ fehler: 'Kachel-Aktion muss upsert oder delete sein.' });
       }
     } else {
-      return res.status(400).json({ fehler: 'Unbekannter Typ' });
+      return res.status(400).json({ fehler: `Unbekannter oder nicht unterstützter Typ: ${typ}` });
     }
     });
     update();
+    
+    try {
+      const { notifyClients } = require('./schuldashboard');
+      notifyClients(integration.id, 'update');
+    } catch (e) {}
+
     db.prepare('UPDATE schul_integrationen SET zuletzt_aktualisiert = CURRENT_TIMESTAMP WHERE id = ?').run(integration.id);
-    res.json({ erfolg: true });
+    res.json({ success: true });
   } catch (err) {
-    console.error('[yRelay] Fehler beim Schul-Update Webhook:', err);
+    console.error('[yRelay] Fehler beim Verarbeiten des Schul-Webhooks:', err.message);
     res.status(500).json({ fehler: err.message });
   }
 });

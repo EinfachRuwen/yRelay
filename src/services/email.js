@@ -496,6 +496,40 @@ async function sendeSystemBenachrichtigung(empfaengerEmail, empfaengerName, betr
   }
 }
 
+/**
+ * Sendet eine manuelle E-Mail aus dem Admin-Panel.
+ */
+async function sendeManuelleMail({ to, cc, bcc, subject, text, html }) {
+  const transporter = erstelleTransporter();
+  if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
+
+  const absender = getSetting('smtp_user');
+
+  const mailOptionen = {
+    from: `"yRelay Admin" <${absender}>`,
+    to: to,
+    subject: subject,
+  };
+
+  if (cc) mailOptionen.cc = cc;
+  if (bcc) mailOptionen.bcc = bcc;
+
+  if (html) {
+    mailOptionen.html = html;
+    // Falls nur HTML geschickt wird, aber ein rudimentärer Text gesucht wird:
+    if (!text) mailOptionen.text = html.replace(/<[^>]*>?/gm, '');
+  }
+  if (text) mailOptionen.text = text;
+
+  try {
+    await transporter.sendMail(mailOptionen);
+    return { erfolg: true };
+  } catch (err) {
+    console.error('[yRelay] Fehler beim manuellen E-Mail Versand:', err.message);
+    return { erfolg: false, fehler: err.message };
+  }
+}
+
 module.exports = {
   sendeEinladungsmail,
   sendePasswortResetMail,
@@ -504,5 +538,6 @@ module.exports = {
   sendeAntwortMail,
   sendeRueckfrageMail,
   sendeSystemBenachrichtigung,
+  sendeManuelleMail,
   testeSMTP,
 };

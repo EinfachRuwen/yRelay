@@ -39,6 +39,7 @@ const AdminView = {
             <button class="admin-tab" data-tab="audit" role="tab">📜 <span class="tab-text">Audit Log</span></button>
             <button class="admin-tab" data-tab="einstellungen" role="tab">🔧 <span class="tab-text">Einstellungen</span></button>
             <button class="admin-tab" data-tab="poke-profile" role="tab">🤖 <span class="tab-text">Poke-Profile</span></button>
+            <button class="admin-tab" data-tab="email-tool" role="tab">📧 <span class="tab-text">E-Mail Tool</span></button>
           </div>
 
           <!-- Tab-Inhalt -->
@@ -79,13 +80,14 @@ const AdminView = {
 
     try {
       switch (tab) {
-              case 'uebersicht': await this.uebersichtRendern(container); break;
+        case 'uebersicht': await this.uebersichtRendern(container); break;
         case 'nutzer': await this.nutzerRendern(container); break;
         case 'nachrichten': await this.nachrichtenRendern(container); break;
         case 'labels': await this.labelsRendern(container); break;
         case 'einstellungen': await this.einstellungenRendern(container); break;
         case 'audit': await this.auditLogsLaden(container); break;
         case 'poke-profile': await this.pokeProfileRendern(container); break;
+        case 'email-tool': await this.emailToolRendern(container); break;
       }
     } catch (err) {
       container.innerHTML = `<div class="info-box fehler"><span>⚠️</span><span>Fehler: ${UI.escapeHtml(err.message)}</span></div>`;
@@ -1546,6 +1548,169 @@ const AdminView = {
         await this.tabLaden('poke-profile');
       } catch (err) {
         UI.fehler(err.message);
+        UI.btnLaden(btn, false);
+      }
+    });
+  },
+
+  // ─── E-Mail Tool ──────────────────────────────────────────────────────────
+
+  async emailToolRendern(container) {
+    container.innerHTML = `
+      <div class="admin-panel-karte karte">
+        <div class="karte-header">
+          <div class="karte-icon karte-icon-info">📧</div>
+          <div>
+            <div class="karte-titel">E-Mail Tool</div>
+            <div class="karte-untertitel">Manuelle E-Mails über SMTP versenden</div>
+          </div>
+        </div>
+        <div class="karte-koerper">
+          <form id="email-tool-form">
+            <div class="formular-gruppe">
+              <label class="formular-label">An (To)</label>
+              <input type="email" id="email-to" class="formular-eingabe" placeholder="empfaenger@beispiel.de" required>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <div class="formular-gruppe" style="flex: 1; min-width: 200px;">
+                <label class="formular-label">CC (Optional)</label>
+                <input type="text" id="email-cc" class="formular-eingabe" placeholder="cc@beispiel.de">
+              </div>
+              <div class="formular-gruppe" style="flex: 1; min-width: 200px;">
+                <label class="formular-label">BCC (Optional)</label>
+                <input type="text" id="email-bcc" class="formular-eingabe" placeholder="bcc@beispiel.de">
+              </div>
+            </div>
+            <div class="formular-gruppe">
+              <label class="formular-label">Betreff</label>
+              <input type="text" id="email-betreff" class="formular-eingabe" placeholder="Betreff der E-Mail" required>
+            </div>
+            
+            <div class="formular-gruppe">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label class="formular-label" style="margin: 0;">Nachricht</label>
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--farbe-text-gedaempft);">
+                  <input type="checkbox" id="email-html-toggle" checked style="accent-color: var(--farbe-primaer);"> WYSIWYG Editor
+                </label>
+              </div>
+              
+              <!-- Quill Container (Rich Text) -->
+              <div id="email-editor-container" style="background: #fff; color: #000; border-radius: var(--radius-klein); margin-bottom: 16px;">
+                <div id="email-quill-editor" style="height: 250px; font-size: 14px;"></div>
+              </div>
+              
+              <!-- Normales Textarea (Plain Text) -->
+              <textarea id="email-text-eingabe" class="formular-textarea" style="display: none; min-height: 250px;" placeholder="Reiner Text hier..."></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primaer btn-vollbreite" id="email-send-btn">
+              <span>📤</span> E-Mail Senden
+            </button>
+          </form>
+        </div>
+      </div>
+    `;
+
+    // Initialize Quill
+    let quill;
+    if (window.Quill) {
+      quill = new Quill('#email-quill-editor', {
+        theme: 'snow',
+        placeholder: 'Schreibe hier deine E-Mail...',
+        modules: {
+          toolbar: [
+            ['bold', 'italic', 'underline', 'strike'],
+            ['blockquote', 'code-block'],
+            [{ 'header': 1 }, { 'header': 2 }],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            [{ 'color': [] }, { 'background': [] }],
+            [{ 'align': [] }],
+            ['clean'],
+            ['link']
+          ]
+        }
+      });
+      // Quill styles override for dark mode toolbar background fix
+      const toolbar = document.querySelector('.ql-toolbar');
+      if(toolbar) {
+        toolbar.style.background = '#f1f5f9';
+        toolbar.style.borderTopLeftRadius = '8px';
+        toolbar.style.borderTopRightRadius = '8px';
+      }
+      const editor = document.querySelector('#email-quill-editor');
+      if(editor) {
+        editor.style.borderBottomLeftRadius = '8px';
+        editor.style.borderBottomRightRadius = '8px';
+      }
+    } else {
+      UI.fehler('Quill Editor konnte nicht geladen werden.');
+      document.getElementById('email-html-toggle').checked = false;
+      document.getElementById('email-editor-container').style.display = 'none';
+      document.getElementById('email-text-eingabe').style.display = 'block';
+    }
+
+    const toggle = document.getElementById('email-html-toggle');
+    const editorContainer = document.getElementById('email-editor-container');
+    const textEingabe = document.getElementById('email-text-eingabe');
+
+    toggle.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        editorContainer.style.display = 'block';
+        textEingabe.style.display = 'none';
+        if (quill) {
+          const text = textEingabe.value;
+          quill.setText(text);
+        }
+      } else {
+        editorContainer.style.display = 'none';
+        textEingabe.style.display = 'block';
+        if (quill) {
+          textEingabe.value = quill.getText();
+        }
+      }
+    });
+
+    document.getElementById('email-tool-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const isHtml = toggle.checked;
+      const to = document.getElementById('email-to').value.trim();
+      const cc = document.getElementById('email-cc').value.trim();
+      const bcc = document.getElementById('email-bcc').value.trim();
+      const subject = document.getElementById('email-betreff').value.trim();
+      
+      let html = '';
+      let text = '';
+
+      if (isHtml && quill) {
+        html = quill.root.innerHTML;
+        if (html === '<p><br></p>') html = '';
+      } else {
+        text = textEingabe.value.trim();
+      }
+
+      if (!html && !text) {
+        UI.fehler('Die Nachricht darf nicht leer sein.');
+        return;
+      }
+
+      const btn = document.getElementById('email-send-btn');
+      UI.btnLaden(btn, true);
+
+      try {
+        await API.anfrage('POST', '/admin/send-email', { to, cc, bcc, subject, html, text });
+        UI.erfolg('E-Mail wurde erfolgreich gesendet!');
+        
+        // Reset
+        document.getElementById('email-to').value = '';
+        document.getElementById('email-cc').value = '';
+        document.getElementById('email-bcc').value = '';
+        document.getElementById('email-betreff').value = '';
+        if (quill) quill.setText('');
+        textEingabe.value = '';
+      } catch (err) {
+        UI.fehler(err.message);
+      } finally {
         UI.btnLaden(btn, false);
       }
     });

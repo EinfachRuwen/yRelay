@@ -7,7 +7,49 @@ const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB limit
 
 const router = express.Router();
+
+let sseClients = [];
+
+function notifyClients(integrationId, eventType, data = {}) {
+  sseClients = sseClients.filter(c => {
+    if (c.integrationId === integrationId) {
+      try {
+        c.res.write(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
+// Export for other routes like webhooks.js
+router.notifyClients = notifyClients;
+
 router.use(requireAuth);
+
+// GET /api/schuldashboard/stream - SSE Endpunkt
+router.get('/stream', (req, res) => {
+  if (!pruefeSchulZugriff(req, res)) return;
+  const integration = holeOderErzeugeIntegration(req);
+  if (!integration) return res.status(409).json({ fehler: 'Kein Poke-Profil verfügbar.' });
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  // initial ping
+  res.write(`data: connected\n\n`);
+
+  const client = { id: req.user.id, integrationId: integration.integration.id, res };
+  sseClients.push(client);
+
+  req.on('close', () => {
+    sseClients = sseClients.filter(c => c.res !== res);
+  });
+});
 
 function pruefeSchulZugriff(req, res) {
   if (getSetting('schul_dashboard_enabled') !== 'true') {
@@ -446,6 +488,7 @@ router.delete('/chat', (req, res) => {
   const integration = holeOderErzeugeIntegration(req);
   if (!integration) return res.status(409).json({ fehler: 'Kein Poke-Profil verfügbar.' });
   db.prepare('DELETE FROM schul_chat WHERE integration_id = ?').run(integration.integration.id);
+  notifyClients(integration.integration.id, 'update');
   res.json({ erfolg: true });
 });
 
@@ -456,6 +499,7 @@ router.patch('/pings/:id/gelesen', (req, res) => {
   if (!integration) return res.status(409).json({ fehler: 'Kein Poke-Profil verfügbar.' });
   db.prepare('UPDATE schul_pings SET gelesen = 1 WHERE id = ? AND integration_id = ?')
     .run(req.params.id, integration.integration.id);
+  notifyClients(integration.integration.id, 'update');
   res.json({ erfolg: true });
 });
 
@@ -465,9 +509,36 @@ router.delete('/pings', (req, res) => {
   const integration = holeOderErzeugeIntegration(req);
   if (!integration) return res.status(409).json({ fehler: 'Kein Poke-Profil verfügbar.' });
   db.prepare('DELETE FROM schul_pings WHERE integration_id = ? AND gelesen = 1').run(integration.integration.id);
+  notifyClients(integration.integration.id, 'update');
   res.json({ erfolg: true });
 });
-
+// PATCH /api/schuldashboard/aufgaben/:id/erledigt - Aufgabe abhaken/ent-abhaken
+router.patch('/aufgaben/:id/erledigt', async (req, res) => {
+  if (!pruefeSchulZugriff(req, res)) return;
+  const integration = holeOderErzeugeIntegration(req);
+  if (!integration) return res.status(409).json({ fehler: 'Kein Poke-Profil verfügbar.' });
+  
+  const { erledigt } = req.body;
+  const aufgabe = db.prepare('SELECT * FROM schul_aufgaben_cache WHERE id = ? AND integration_id = ?')
+    .get(req.params.id, integration.integration.id);
+    
+  if (!aufgabe) return res.status(404).json({ fehler: 'Aufgabe nicht gefunden.' });
+  
+  db.prepare('UPDATE schul_aufgaben_cache SET erledigt = ? WHERE id = ? AND integration_id = ?')
+    .run(erledigt ? 1 : 0, req.params.id, integration.integration.id);
+    
+  // Poke benachrichtigen
+  try {
+    const statusText = erledigt ? 'erledigt' : 'wieder als offen markiert';
+    const text = `Der Nutzer hat die Aufgabe "${aufgabe.titel}" auf dem Schul-Dashboard als ${statusText} markiert.`;
+    await sendeFreieNachricht(integration.nutzer, integration.profil, text);
+  } catch (e) {
+    console.error('[Schul-Dashboard] Fehler beim Benachrichtigen von Poke über Aufgabe:', e.message);
+  }
+  
+  notifyClients(integration.integration.id, 'update');
+  res.json({ erfolg: true });
+});
 // POST /api/schuldashboard/upload - Datei via Pingvin Share hochladen
 router.post('/upload', upload.single('file'), async (req, res) => {
   if (!pruefeSchulZugriff(req, res)) return;
@@ -543,6 +614,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       console.error('[Schul-Dashboard] Fehler beim Senden des Upload-Links an Poke:', e.message);
     }
 
+    notifyClients(integration.integration.id, 'update');
     res.json({ erfolg: true, link: shareLink, text: nachrichtText });
   } catch (err) {
     console.error('[Pingvin Upload] Fehler:', err.message);
