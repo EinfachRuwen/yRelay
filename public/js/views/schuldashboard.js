@@ -153,6 +153,8 @@ const SchulDashboardView = {
               <div id="panel-chat" class="schul-panel-inhalt">
                 <div id="schul-chat-nachrichten" class="schul-chat-nachrichten"></div>
                 <div class="schul-chat-eingabe">
+                  <input type="file" id="schul-chat-file" style="display:none;">
+                  <button id="schul-chat-attach" class="btn btn-sekundaer" title="Datei anhängen (Pingvin Share)">📎</button>
                   <textarea id="schul-chat-input" class="formular-textarea schul-chat-textarea" placeholder="Schreib Poke etwas..." rows="2"></textarea>
                   <button id="schul-chat-senden" class="btn btn-primaer">➤</button>
                 </div>
@@ -421,6 +423,45 @@ const SchulDashboardView = {
     document.getElementById('schul-chat-senden')?.addEventListener('click', chatSenden);
     document.getElementById('schul-chat-input')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSenden(); }
+    });
+
+    const fileInput = document.getElementById('schul-chat-file');
+    const attachBtn = document.getElementById('schul-chat-attach');
+    
+    attachBtn?.addEventListener('click', () => fileInput?.click());
+    
+    fileInput?.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const btnIcon = attachBtn.innerHTML;
+      attachBtn.innerHTML = '⏳';
+      attachBtn.disabled = true;
+      
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const res = await fetch('/api/schuldashboard/upload', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${App.token}` },
+          body: formData
+        });
+        
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.fehler || 'Upload fehlgeschlagen');
+        
+        // Nachricht wird vom Backend auch an Poke gesendet und in die DB gespeichert.
+        // Wir pushen sie direkt in die UI.
+        this._chatNachrichtAppenden({ absender: 'nutzer', inhalt: data.text, zeitpunkt: new Date().toISOString() });
+        UI.erfolg('Datei erfolgreich hochgeladen und geteilt.');
+      } catch (err) {
+        UI.fehler(err.message);
+      } finally {
+        fileInput.value = '';
+        attachBtn.innerHTML = btnIcon;
+        attachBtn.disabled = false;
+      }
     });
 
     document.getElementById('btn-chat-loeschen')?.addEventListener('click', async () => {

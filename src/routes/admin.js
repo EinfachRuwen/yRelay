@@ -384,6 +384,9 @@ router.get('/einstellungen', (req, res) => {
     schulZeitzone: getSetting('schul_zeitzone') || 'Europe/Berlin',
     schulVorlaufMinuten: getSetting('schul_vorlauf_minuten') || '15',
     schulNachlaufMinuten: getSetting('schul_nachlauf_minuten') || '15',
+    pingvinUrl: getSetting('pingvin_url') || '',
+    pingvinUser: getSetting('pingvin_user') || '',
+    pingvinPassword: getSetting('pingvin_password') ? '••••••••' : '',
   });
 });
 
@@ -428,6 +431,11 @@ router.put('/einstellungen', (req, res) => {
       return res.status(400).json({ fehler: 'Ferien müssen gültiges JSON sein.' });
     }
   }
+
+  if (req.body.pingvinUrl !== undefined) setSetting('pingvin_url', req.body.pingvinUrl);
+  if (req.body.pingvinUser !== undefined) setSetting('pingvin_user', req.body.pingvinUser);
+  if (req.body.pingvinPassword && req.body.pingvinPassword !== '••••••••') setSetting('pingvin_password', req.body.pingvinPassword);
+
 
   logAudit(req.user.id, 'admin_settings_updated', {});
 

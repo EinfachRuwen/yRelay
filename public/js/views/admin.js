@@ -1179,6 +1179,23 @@ const AdminView = {
                 <label class="formular-label" for="schul-ferien">Ferienzeiträume (JSON, z. B. [{"von":"2026-10-12","bis":"2026-10-24"}])</label>
                 <textarea class="formular-textarea" id="schul-ferien" rows="3">${UI.escapeHtml(einstellungen.schulFerien)}</textarea>
               </div>
+
+              <div class="einstellungen-sektion-titel" style="margin-top:20px;">🐧 Pingvin Share Integration (Schul-Dashboard)</div>
+              <p class="text-gedaempft" style="margin-bottom: 15px;">Ermöglicht Dateiuploads aus dem Dashboard-Chat direkt zu Pingvin Share und sendet den Link an Poke.</p>
+              <div class="formular-gruppe">
+                <label class="formular-label" for="pingvin-url">Pingvin Share URL</label>
+                <input class="formular-eingabe" type="url" id="pingvin-url" value="${UI.escapeHtml(einstellungen.pingvinUrl || '')}" placeholder="https://share.deinedomain.de">
+              </div>
+              <div class="einstellungen-grid">
+                <div class="formular-gruppe">
+                  <label class="formular-label" for="pingvin-user">Benutzername / E-Mail</label>
+                  <input class="formular-eingabe" type="text" id="pingvin-user" value="${UI.escapeHtml(einstellungen.pingvinUser || '')}">
+                </div>
+                <div class="formular-gruppe">
+                  <label class="formular-label" for="pingvin-password">Passwort</label>
+                  <input class="formular-eingabe" type="password" id="pingvin-password" autocomplete="new-password" value="${UI.escapeHtml(einstellungen.pingvinPassword || '')}">
+                </div>
+              </div>
             </div>
 
             <div style="display: flex; justify-content: flex-end;">

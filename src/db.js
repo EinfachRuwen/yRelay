@@ -286,6 +286,9 @@ db.exec(`
     profil_id INTEGER NOT NULL REFERENCES poke_profiles(id) ON DELETE CASCADE,
     token TEXT NOT NULL UNIQUE,
     modus TEXT NOT NULL DEFAULT 'auto',
+    pingvin_url TEXT,
+    pingvin_user TEXT,
+    pingvin_password TEXT,
     letzter_status INTEGER,
     zuletzt_aktualisiert DATETIME,
     erstellt_am DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -295,11 +298,17 @@ db.exec(`
 
 // Die Schul-Cache-Tabellen wurden vor den Integrationen angelegt. Bestehende
 // Installationen erhalten die neue Zuordnung deshalb separat.
-for (const table of ['schul_kalender_cache', 'schul_aufgaben_cache', 'schul_feed', 'schul_klausuren_cache']) {
+for (const table of ['schul_kalender_cache', 'schul_aufgaben_cache', 'schul_feed', 'schul_klausuren_cache', 'schul_chat', 'schul_pings']) {
   try {
     db.exec(`ALTER TABLE ${table} ADD COLUMN integration_id INTEGER REFERENCES schul_integrationen(id) ON DELETE CASCADE;`);
   } catch (e) {}
 }
+
+try {
+  db.exec(`ALTER TABLE schul_integrationen ADD COLUMN pingvin_url TEXT;`);
+  db.exec(`ALTER TABLE schul_integrationen ADD COLUMN pingvin_user TEXT;`);
+  db.exec(`ALTER TABLE schul_integrationen ADD COLUMN pingvin_password TEXT;`);
+} catch (e) {}
 try { db.exec("ALTER TABLE schul_integrationen ADD COLUMN modus TEXT NOT NULL DEFAULT 'auto';"); } catch (e) {}
 try { db.exec('ALTER TABLE schul_integrationen ADD COLUMN letzter_status INTEGER;'); } catch (e) {}
 try { db.exec('ALTER TABLE schul_stundenplan ADD COLUMN lehrer TEXT;'); } catch (e) {}

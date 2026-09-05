@@ -3,6 +3,8 @@ const { requireAuth } = require('../middleware/auth');
 const { db, getSetting, setSetting, logAudit } = require('../db');
 const { sendeFreieNachricht } = require('../services/poke');
 const crypto = require('crypto');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB limit
 
 const router = express.Router();
 router.use(requireAuth);
@@ -464,6 +466,88 @@ router.delete('/pings', (req, res) => {
   if (!integration) return res.status(409).json({ fehler: 'Kein Poke-Profil verfügbar.' });
   db.prepare('DELETE FROM schul_pings WHERE integration_id = ? AND gelesen = 1').run(integration.integration.id);
   res.json({ erfolg: true });
+});
+
+// POST /api/schuldashboard/upload - Datei via Pingvin Share hochladen
+router.post('/upload', upload.single('file'), async (req, res) => {
+  if (!pruefeSchulZugriff(req, res)) return;
+  const integration = holeOderErzeugeIntegration(req);
+  if (!integration) return res.status(409).json({ fehler: 'Kein Poke-Profil verfügbar.' });
+
+  if (!req.file) return res.status(400).json({ fehler: 'Keine Datei übergeben.' });
+
+  const pingvinUrl = getSetting('pingvin_url');
+  const pingvinUser = getSetting('pingvin_user');
+  const pingvinPass = getSetting('pingvin_password');
+
+  if (!pingvinUrl || !pingvinUser || !pingvinPass) {
+    return res.status(500).json({ fehler: 'Pingvin Share ist nicht konfiguriert.' });
+  }
+
+  try {
+    const baseUrl = pingvinUrl.replace(/\/+$/, '');
+    
+    // 1. Login
+    const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: pingvinUser, password: pingvinPass })
+    });
+    
+    if (!loginRes.ok) throw new Error(`Pingvin Login fehlgeschlagen: ${loginRes.status}`);
+    
+    const setCookie = loginRes.headers.get('set-cookie');
+    if (!setCookie) throw new Error('Kein Session-Cookie von Pingvin erhalten.');
+    const cookie = setCookie.split(';')[0]; // pingvin-share-session=...
+
+    // 2. Share erstellen
+    const shareRes = await fetch(`${baseUrl}/api/shares`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Cookie': cookie },
+      body: JSON.stringify({
+        name: `Upload von ${req.user.username} (Schul-Dashboard)`,
+        // expiration 7 days later
+        expiration: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      })
+    });
+    
+    if (!shareRes.ok) throw new Error(`Pingvin Share konnte nicht erstellt werden: ${shareRes.status}`);
+    const shareData = await shareRes.json();
+    const shareId = shareData.id;
+
+    // 3. Datei hochladen
+    const formData = new FormData();
+    const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
+    formData.append('file', blob, req.file.originalname);
+    
+    // Sometimes pingvin needs chunking, but we try a direct upload first.
+    // The endpoint is usually POST /api/shares/:shareId/files
+    const uploadRes = await fetch(`${baseUrl}/api/shares/${shareId}/files`, {
+      method: 'POST',
+      headers: { 'Cookie': cookie },
+      body: formData
+    });
+    
+    if (!uploadRes.ok) throw new Error(`Pingvin Upload fehlgeschlagen: ${uploadRes.status}`);
+
+    const shareLink = `${baseUrl}/share/${shareId}`;
+
+    // Optional: Nachricht direkt im Backend in den Chat legen & an Poke senden
+    const nachrichtText = `[Datei] ${req.file.originalname}:\n${shareLink}`;
+    db.prepare('INSERT INTO schul_chat (integration_id, absender, inhalt) VALUES (?, ?, ?)')
+      .run(integration.integration.id, 'nutzer', nachrichtText);
+
+    try {
+      await sendeFreieNachricht(integration.nutzer, integration.profil, `Der Nutzer hat über das Schul-Dashboard eine Datei hochgeladen:\n${nachrichtText}`);
+    } catch (e) {
+      console.error('[Schul-Dashboard] Fehler beim Senden des Upload-Links an Poke:', e.message);
+    }
+
+    res.json({ erfolg: true, link: shareLink, text: nachrichtText });
+  } catch (err) {
+    console.error('[Pingvin Upload] Fehler:', err.message);
+    res.status(500).json({ fehler: err.message });
+  }
 });
 
 router.aktualisiereAutomatischeSchulmodi = aktualisiereAutomatischeSchulmodi;
