@@ -90,7 +90,11 @@ const UI = {
   // ─── Datum formatieren ────────────────────────────────────────────────
   datumFormatieren(iso) {
     if (!iso) return '-';
-    const datum = new Date(iso);
+    let parseStr = iso;
+    if (typeof iso === 'string' && !iso.endsWith('Z') && !iso.match(/[+-]\d{2}:?\d{2}$/)) {
+      parseStr = iso.replace(' ', 'T') + 'Z';
+    }
+    const datum = new Date(parseStr);
     const jetzt = new Date();
     const diff = jetzt - datum;
 
