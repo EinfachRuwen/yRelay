@@ -85,6 +85,14 @@ db.exec(`
     zeitpunkt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
+  CREATE TABLE IF NOT EXISTS schul_klausuren_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    integration_id INTEGER REFERENCES schul_integrationen(id) ON DELETE CASCADE,
+    titel TEXT NOT NULL,
+    datum DATETIME NOT NULL,
+    notiz TEXT
+  );
+
   CREATE TABLE IF NOT EXISTS schul_stundenplan (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     integration_id INTEGER NOT NULL REFERENCES schul_integrationen(id) ON DELETE CASCADE,
@@ -271,7 +279,7 @@ db.exec(`
 
 // Die Schul-Cache-Tabellen wurden vor den Integrationen angelegt. Bestehende
 // Installationen erhalten die neue Zuordnung deshalb separat.
-for (const table of ['schul_kalender_cache', 'schul_aufgaben_cache', 'schul_feed']) {
+for (const table of ['schul_kalender_cache', 'schul_aufgaben_cache', 'schul_feed', 'schul_klausuren_cache']) {
   try {
     db.exec(`ALTER TABLE ${table} ADD COLUMN integration_id INTEGER REFERENCES schul_integrationen(id) ON DELETE CASCADE;`);
   } catch (e) {}
@@ -292,6 +300,15 @@ try {
 } catch (e) {}
 try {
   db.exec('ALTER TABLE users ADD COLUMN schul_poke_profile_id INTEGER REFERENCES poke_profiles(id) ON DELETE SET NULL;');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE users ADD COLUMN schul_wetter_ort TEXT;');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE users ADD COLUMN schul_haltestelle_name TEXT;');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE users ADD COLUMN schul_haltestelle_id TEXT;');
 } catch (e) {}
 
 // Initialen Admin-Nutzer anlegen falls noch keiner existiert

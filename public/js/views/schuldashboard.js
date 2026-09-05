@@ -52,10 +52,30 @@ const SchulDashboardView = {
               <div class="karte schul-widget schul-wetter-karte">
                 <div class="schul-widget-kopf">
                   <h3 class="schul-widget-titel schul-widget-titel-wetter">☀️ Wetter</h3>
+                  <button class="btn btn-ghost btn-klein" id="btn-wetter-ort" style="display:none; margin-left: auto;" title="Ort ändern">⚙️</button>
                 </div>
                 <div id="schul-wetter-inhalt" class="widget-inhalt">Wetter wird geladen ...</div>
               </div>
               <div id="schul-kacheln" class="schul-kacheln"></div>
+              
+              <!-- Klausuren Widget -->
+              <div class="karte schul-widget" id="schul-klausuren-widget" style="display: none; background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2);">
+                <div class="schul-widget-kopf">
+                  <h3 class="schul-widget-titel schul-widget-titel-notfall">⚠️ Nächste Klausur</h3>
+                </div>
+                <div id="schul-klausuren-inhalt" class="widget-inhalt">
+                </div>
+              </div>
+
+              <!-- ÖPNV Widget -->
+              <div class="karte schul-widget schul-opnv-karte">
+                <div class="schul-widget-kopf">
+                  <h3 class="schul-widget-titel schul-widget-titel-opnv">🚌 ÖPNV Abfahrten</h3>
+                  <button class="btn btn-ghost btn-klein" id="btn-haltestelle-aendern" style="display:none; margin-left:auto;" title="Haltestelle ändern">⚙️</button>
+                </div>
+                <div id="schul-opnv-inhalt" class="widget-inhalt">Abfahrten werden geladen ...</div>
+              </div>
+
               <!-- Kalender Widget -->
               <div class="karte schul-widget">
                 <div class="schul-widget-kopf">
@@ -157,6 +177,21 @@ const SchulDashboardView = {
         .aufgabe-item .zeit-badge {
           background: rgba(245, 158, 11, 0.1); color: #f59e0b;
         }
+
+        .abfahrt-tabelle { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .abfahrt-tabelle td { padding: 7px 5px; border-bottom: 1px solid var(--rahmen); vertical-align: middle; }
+        .abfahrt-tabelle tr:last-child td { border-bottom: none; }
+        .abfahrt-linie {
+          font-weight: bold; font-size: 0.85rem;
+          display: inline-block; padding: 2px 7px; border-radius: 4px;
+          background: rgba(99, 102, 241, 0.15); color: #818cf8;
+          white-space: nowrap;
+        }
+        .abfahrt-verspaetet { color: #f87171; font-weight: 600; }
+        .abfahrt-puenktlich { color: #34d399; }
+        .abfahrt-bald { color: #f87171; font-weight: bold; }
+        .abfahrt-bald-ok { color: #f59e0b; }
+        .abfahrt-entspannt { color: #34d399; }
       </style>
     `;
   },
@@ -168,6 +203,7 @@ const SchulDashboardView = {
     this._schulmodusAktiv = false;
     await this.datenLaden();
     this.wetterLaden();
+    this.abfahrtenLaden();
 
     document.getElementById('integration-btn')?.addEventListener('click', async () => {
       try {
@@ -244,12 +280,42 @@ const SchulDashboardView = {
       });
     });
 
-    // Polling alle 30s
+    document.getElementById('btn-wetter-ort')?.addEventListener('click', () => {
+      UI.modalZeigen(`
+        <div class="modal-header"><span class="modal-titel">Wetter-Ort ändern</span><button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button></div>
+        <div class="modal-koerper">
+          <div class="formular-gruppe">
+            <label class="formular-label">Ort (Stadt oder PLZ)</label>
+            <input type="text" id="wetter-ort-modal" class="formular-eingabe" placeholder="z. B. Paderborn">
+          </div>
+          <button class="btn btn-primaer btn-vollbreite" id="btn-wetter-modal-speichern">Speichern</button>
+        </div>
+      `);
+      document.getElementById('btn-wetter-modal-speichern')?.addEventListener('click', async () => {
+        const ort = document.getElementById('wetter-ort-modal').value;
+        if (!ort) return;
+        try {
+          await API.anfrage('POST', '/schuldashboard/wetterort', { ort });
+          UI.modalSchliessen();
+          this.wetterLaden();
+        } catch (err) {
+          UI.fehler(err.message);
+        }
+      });
+    });
+
+    document.getElementById('btn-haltestelle-aendern')?.addEventListener('click', () => {
+      this._haltestelleEingabeOeffnen();
+    });
+
+    // Polling alle 30s für Daten, alle 60s für Abfahrten
     this._pollInterval = setInterval(() => this.datenLaden(true), 30000);
+    this._opnvInterval = setInterval(() => this.abfahrtenLaden(true), 60000);
   },
 
   zerstoeren() {
     if (this._pollInterval) clearInterval(this._pollInterval);
+    if (this._opnvInterval) clearInterval(this._opnvInterval);
   },
 
   async datenLaden(silent = false) {
@@ -284,6 +350,7 @@ const SchulDashboardView = {
       this.rendereStundenplan(daten.stundenplan);
       this.rendereKacheln(daten.kacheln);
       this.rendereFeed(daten.feed);
+      this.rendereKlausuren(daten.klausuren);
     } else {
       badge.textContent = 'Modus: Inaktiv';
       badge.style.background = 'var(--text-sekundaer)';
@@ -298,6 +365,45 @@ const SchulDashboardView = {
     if (!isoString) return '';
     const d = new Date(isoString);
     return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  },
+
+  rendereKlausuren(items) {
+    const widget = document.getElementById('schul-klausuren-widget');
+    const container = document.getElementById('schul-klausuren-inhalt');
+    if (!widget || !container) return;
+    if (!items || items.length === 0) {
+      widget.style.display = 'none';
+      return;
+    }
+    
+    items.sort((a, b) => new Date(a.datum) - new Date(b.datum));
+    const naechste = items[0];
+    const jetzt = new Date();
+    jetzt.setHours(0, 0, 0, 0);
+    const klausurDatum = new Date(naechste.datum);
+    klausurDatum.setHours(0, 0, 0, 0);
+    const diffTime = klausurDatum - jetzt;
+    const diffTage = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffTage < 0) {
+      widget.style.display = 'none';
+      return;
+    }
+
+    widget.style.display = 'block';
+    const alarmFarbe = diffTage <= 3 ? 'color: var(--farbe-gefahr); font-weight: bold;' : 'color: var(--farbe-warnung); font-weight: bold;';
+    
+    container.innerHTML = `
+      <div style="text-align: center; padding: 10px 0;">
+        <div style="font-size: 1.2rem; margin-bottom: 5px;">${UI.escapeHtml(naechste.titel)}</div>
+        <div style="font-size: 1.5rem; ${alarmFarbe}">
+          ${diffTage === 0 ? 'Heute!' : (diffTage === 1 ? 'Morgen!' : `Noch ${diffTage} Tage`)}
+        </div>
+        <div style="font-size: 0.85rem; color: var(--text-sekundaer); margin-top: 5px;">
+          Am ${klausurDatum.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+        </div>
+      </div>
+    `;
   },
 
   rendereKalender(items) {
@@ -474,16 +580,166 @@ const SchulDashboardView = {
 
   async wetterLaden() {
     const container = document.getElementById('schul-wetter-inhalt');
+    const btn = document.getElementById('btn-wetter-ort');
     if (!container) return;
     try {
-      const response = await fetch('https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.405&current=temperature_2m,weather_code&timezone=auto');
-      if (!response.ok) throw new Error('Wetter nicht verfügbar');
-      const daten = await response.json();
-      const symbole = { 0: 'Klar', 1: 'Überwiegend klar', 2: 'Bewölkt', 3: 'Bedeckt', 45: 'Nebel', 61: 'Regen', 63: 'Regen', 65: 'Starker Regen', 71: 'Schnee', 80: 'Schauer', 95: 'Gewitter' };
-      container.innerHTML = `<strong>${Math.round(daten.current.temperature_2m)} °C</strong> · ${symbole[daten.current.weather_code] || 'Aktuelles Wetter'}`;
+      const daten = await API.anfrage('GET', '/schuldashboard/wetter');
+      const symbole = { 
+        clear_sky: 'Klar', partly_cloudy: 'Teils bewölkt', cloudy: 'Bewölkt', fog: 'Nebel', 
+        drizzle: 'Nieselregen', rain: 'Regen', showers: 'Schauer', thunderstorm: 'Gewitter', 
+        snow: 'Schnee', sleet: 'Schneeregen', hail: 'Hagel', dry: 'Trocken'
+      };
+      
+      const temperatur = daten.wetter.temperature !== undefined ? Math.round(daten.wetter.temperature) : '?';
+      const zustand = daten.wetter.condition || 'unbekannt';
+      
+      container.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-size: 1.8rem; font-weight: bold;">${temperatur} °C</div>
+          <div style="text-align: right;">
+            <div style="font-weight: 500;">${UI.escapeHtml(daten.ort)}</div>
+            <div style="font-size: 0.85rem; color: var(--text-sekundaer); text-transform: capitalize;">${symbole[zustand] || zustand.replace('_', ' ')}</div>
+          </div>
+        </div>
+      `;
+      if (btn) btn.style.display = 'block';
     } catch (e) {
-      container.textContent = 'Wetter momentan nicht verfügbar.';
+      if (e.message.includes('Kein Wetter-Ort') || e.message.includes('Ort nicht gefunden')) {
+        container.innerHTML = `
+          <div style="display:flex; gap: 10px; margin-top: 5px;">
+            <input type="text" id="wetter-ort-eingabe" class="formular-eingabe" placeholder="Stadt (z.B. Bielefeld)">
+            <button class="btn btn-sekundaer" id="btn-wetter-speichern">OK</button>
+          </div>
+          ${e.message.includes('Ort nicht gefunden') ? '<div style="color:var(--farbe-gefahr); font-size:12px; margin-top:5px;">Ort nicht gefunden. Versuche es nochmal.</div>' : ''}
+        `;
+        document.getElementById('btn-wetter-speichern')?.addEventListener('click', async () => {
+          const ort = document.getElementById('wetter-ort-eingabe').value;
+          if (!ort) return;
+          try {
+            await API.anfrage('POST', '/schuldashboard/wetterort', { ort });
+            this.wetterLaden();
+          } catch (err) {
+            UI.fehler(err.message);
+          }
+        });
+        if (btn) btn.style.display = 'none';
+      } else {
+        container.textContent = 'Wetter momentan nicht verfügbar.';
+        if (btn) btn.style.display = 'block';
+      }
     }
+  },
+
+  async abfahrtenLaden(silent = false) {
+    const container = document.getElementById('schul-opnv-inhalt');
+    const btn = document.getElementById('btn-haltestelle-aendern');
+    if (!container) return;
+    try {
+      const daten = await API.anfrage('GET', '/schuldashboard/abfahrten');
+      if (btn) btn.style.display = 'block';
+
+      if (!daten.abfahrten || daten.abfahrten.length === 0) {
+        container.innerHTML = `<p style="color:var(--text-sekundaer); text-align:center; padding:10px 0;">Keine Abfahrten gefunden.</p>`;
+        return;
+      }
+
+      const jetzt = new Date();
+      const jetztMin = jetzt.getHours() * 60 + jetzt.getMinutes();
+
+      const zeilen = daten.abfahrten.map(ab => {
+        const planTeile = ab.planZeit ? ab.planZeit.split(':').map(Number) : null;
+        const planMin = planTeile ? planTeile[0] * 60 + planTeile[1] : null;
+        const echtTeile = ab.echtZeit ? ab.echtZeit.split(':').map(Number) : null;
+        const echtMin = echtTeile ? echtTeile[0] * 60 + echtTeile[1] : planMin;
+
+        let restMin = echtMin !== null ? echtMin - jetztMin : null;
+        // Mitternachts-Übergang abfangen
+        if (restMin !== null && restMin < -120) restMin += 1440;
+
+        const restText = restMin === null ? '?' : (restMin <= 0 ? 'Jetzt' : `${restMin} min`);
+        let restKlasse = 'abfahrt-entspannt';
+        if (restMin !== null && restMin <= 3) restKlasse = 'abfahrt-bald';
+        else if (restMin !== null && restMin <= 10) restKlasse = 'abfahrt-bald-ok';
+
+        const verspaetungHtml = ab.verspaetung > 0
+          ? `<span class="abfahrt-verspaetet">+${ab.verspaetung}</span>`
+          : (ab.echtZeit ? `<span class="abfahrt-puenktlich">✓</span>` : '');
+
+        return `
+          <tr>
+            <td><span class="abfahrt-linie">${UI.escapeHtml(ab.linie)}</span></td>
+            <td style="flex:1;">${UI.escapeHtml(ab.ziel)}</td>
+            <td style="text-align:right; white-space:nowrap;">
+              ${UI.escapeHtml(ab.planZeit || '?')} ${verspaetungHtml}
+            </td>
+            <td style="text-align:right; font-weight:600; padding-left:8px;" class="${restKlasse}">
+              ${restText}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      container.innerHTML = `
+        <div style="font-size:0.8rem; color:var(--text-sekundaer); margin-bottom:6px;">📍 ${UI.escapeHtml(daten.haltestelle)}</div>
+        <table class="abfahrt-tabelle"><tbody>${zeilen}</tbody></table>
+      `;
+    } catch (e) {
+      if (e.message.includes('Keine Haltestelle')) {
+        this._haltestelleEingabeRendern(container, btn);
+      } else if (!silent) {
+        container.textContent = 'Abfahrten momentan nicht verfügbar.';
+        if (btn) btn.style.display = 'block';
+      }
+    }
+  },
+
+  _haltestelleEingabeRendern(container, btn) {
+    if (btn) btn.style.display = 'none';
+    container.innerHTML = `
+      <div style="display:flex; gap:10px; margin-top:5px;">
+        <input type="text" id="haltestelle-eingabe" class="formular-eingabe" placeholder="Haltestelle (z.B. Bielefeld Jahnplatz)">
+        <button class="btn btn-sekundaer" id="btn-haltestelle-speichern">OK</button>
+      </div>
+    `;
+    document.getElementById('btn-haltestelle-speichern')?.addEventListener('click', async () => {
+      const name = document.getElementById('haltestelle-eingabe').value.trim();
+      if (!name) return;
+      const savBtn = document.getElementById('btn-haltestelle-speichern');
+      UI.btnLaden(savBtn, true);
+      try {
+        const result = await API.anfrage('POST', '/schuldashboard/haltestelle', { name });
+        UI.erfolg(`Haltestelle gespeichert: ${result.name}`);
+        this.abfahrtenLaden();
+      } catch (err) {
+        container.innerHTML += `<div style="color:var(--farbe-gefahr); font-size:12px; margin-top:5px;">Nicht gefunden. Genaueren Namen versuchen.</div>`;
+        UI.btnLaden(savBtn, false);
+      }
+    });
+  },
+
+  _haltestelleEingabeOeffnen() {
+    UI.modalZeigen(`
+      <div class="modal-header"><span class="modal-titel">Haltestelle ändern</span><button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button></div>
+      <div class="modal-koerper">
+        <div class="formular-gruppe">
+          <label class="formular-label">Haltestellen-Name</label>
+          <input type="text" id="haltestelle-modal-eingabe" class="formular-eingabe" placeholder="z. B. Bielefeld Jahnplatz">
+        </div>
+        <button class="btn btn-primaer btn-vollbreite" id="btn-haltestelle-modal-speichern">Speichern</button>
+      </div>
+    `);
+    document.getElementById('btn-haltestelle-modal-speichern')?.addEventListener('click', async () => {
+      const name = document.getElementById('haltestelle-modal-eingabe').value.trim();
+      if (!name) return;
+      try {
+        const result = await API.anfrage('POST', '/schuldashboard/haltestelle', { name });
+        UI.modalSchliessen();
+        UI.erfolg(`Haltestelle gespeichert: ${result.name}`);
+        this.abfahrtenLaden();
+      } catch (err) {
+        UI.fehler(err.message);
+      }
+    });
   },
 
   aktionModalOeffnen(typ) {

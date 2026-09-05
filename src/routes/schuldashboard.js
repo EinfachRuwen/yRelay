@@ -144,7 +144,7 @@ function schulMorgenbriefingAnweisung(url) {
 
 Das Feld daten.inhalt des Briefings darf und soll mehrere Zeilen enthalten. Verwende gut lesbares Markdown mit kurzen Überschriften (##), Aufzählungen (-), **Fettdruck**, *Kursivschrift* und einzelnen Zeilenumbrüchen. Schreibe keine HTML-Tags. Eine sinnvolle Reihenfolge ist: Begrüßung, „Heute im Stundenplan“, „Kalender und Aufgaben“, „Wichtig für dich“ und ein kurzer freundlicher Abschluss.
 
-Sende ausschließlich Daten für heute in der konfigurierten Zeitzone; niemals gestrige Kalendertermine oder Aufgaben. Verwende für den Stundenplan fach, lehrer, raum, start und ende. Sende vollständige aktuelle Stände an ${url}: Kalender mit {"typ":"kalender","daten":[...]}, Aufgaben mit {"typ":"aufgabe","daten":[...]}, Stundenplan mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","lehrer":"Frau Müller","start":"08:00","ende":"08:45","raum":"204"}]}. Eigene Kacheln verwaltest du mit {"typ":"kachel","daten":{"aktion":"upsert","schluessel":"pausen","titel":"Pausen","icon":"☕","farbe":"#f59e0b","inhalt":"## Pause\n- Entspann dich","formular":[{"name":"ort","label":"Wo bist du?","type":"text","required":true}]}}; zum Entfernen verwendest du aktion delete mit demselben schluessel. Kacheln dürfen Markdown und optionale Formularfelder (text, date, time, textarea, select) enthalten. Sende das Morgenbriefing danach als einzelne wichtige Meldung mit {"typ":"feed","daten":{"typ":"briefing","inhalt":"..."}}. Sende später bei Änderungen erneut die vollständigen heutigen Kalender-/Aufgabenstände und wichtige neue Meldungen, aber keine unwichtigen Benachrichtigungen.`;
+Sende ausschließlich Daten für heute in der konfigurierten Zeitzone; niemals gestrige Kalendertermine oder Aufgaben. Verwende für den Stundenplan fach, lehrer, raum, start und ende. Sende vollständige aktuelle Stände an ${url}: Kalender mit {"typ":"kalender","daten":[...]}, Aufgaben mit {"typ":"aufgabe","daten":[...]}, Stundenplan mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","lehrer":"Frau Müller","start":"08:00","ende":"08:45","raum":"204"}]}, Klausuren (lese diese unbedingt aus dem Kalender "Schule: Termine & Arbeiten" aus) mit {"typ":"klausuren","daten":[{"titel":"Mathe", "datum":"2026-09-15"}]}. Eigene Kacheln verwaltest du mit {"typ":"kachel","daten":{"aktion":"upsert","schluessel":"pausen","titel":"Pausen","icon":"☕","farbe":"#f59e0b","inhalt":"## Pause\n- Entspann dich","formular":[{"name":"ort","label":"Wo bist du?","type":"text","required":true}]}}; zum Entfernen verwendest du aktion delete mit demselben schluessel. Kacheln dürfen Markdown und optionale Formularfelder (text, date, time, textarea, select) enthalten. Sende das Morgenbriefing danach als einzelne wichtige Meldung mit {"typ":"feed","daten":{"typ":"briefing","inhalt":"..."}}. Sende später bei Änderungen erneut die vollständigen heutigen Kalender-/Aufgabenstände und wichtige neue Meldungen, aber keine unwichtigen Benachrichtigungen.`;
 }
 
 function schulApiAnleitung(req, integration) {
@@ -173,7 +173,10 @@ router.get('/daten', (req, res) => {
       try { formular = kachel.formular ? JSON.parse(kachel.formular) : []; } catch (e) {}
       return { ...kachel, formular };
     });
+    const klausuren = db.prepare(`SELECT * FROM schul_klausuren_cache
+      WHERE integration_id = ? ORDER BY datum ASC`).all(integration.integration.id);
     const feed = db.prepare('SELECT * FROM schul_feed WHERE integration_id = ? ORDER BY zeitpunkt DESC LIMIT 50').all(integration.integration.id);
+    const nutzer = db.prepare('SELECT schul_wetter_ort FROM users WHERE id = ?').get(req.user.id);
 
     res.json({
       schulmodusAktiv,
@@ -181,9 +184,121 @@ router.get('/daten', (req, res) => {
       aufgaben,
       stundenplan,
       kacheln,
+      klausuren,
+      wetterOrt: nutzer ? nutzer.schul_wetter_ort : null,
       feed
       ,modus: integration.integration.modus
     });
+  } catch (err) {
+    res.status(500).json({ fehler: err.message });
+  }
+});
+
+// GET /api/schuldashboard/wetter - Wetterdaten für den konfigurierten Ort abrufen
+router.get('/wetter', async (req, res) => {
+  if (!pruefeSchulZugriff(req, res)) return;
+  const nutzer = db.prepare('SELECT schul_wetter_ort FROM users WHERE id = ?').get(req.user.id);
+  if (!nutzer || !nutzer.schul_wetter_ort) {
+    return res.status(404).json({ fehler: 'Kein Wetter-Ort konfiguriert.' });
+  }
+  const ort = nutzer.schul_wetter_ort;
+  try {
+    const nominatimRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ort)}&format=json&limit=1`, {
+      headers: { 'User-Agent': 'yRelay-SchulDashboard/1.0' }
+    });
+    if (!nominatimRes.ok) throw new Error('Fehler beim Abrufen der Koordinaten');
+    const geo = await nominatimRes.json();
+    if (!geo || geo.length === 0) return res.status(404).json({ fehler: 'Ort nicht gefunden.' });
+    
+    const lat = geo[0].lat;
+    const lon = geo[0].lon;
+    
+    const brightskyRes = await fetch(`https://api.brightsky.dev/current_weather?lat=${lat}&lon=${lon}`);
+    if (!brightskyRes.ok) throw new Error('Fehler beim Abrufen des Wetters (Brightsky API)');
+    const wetterData = await brightskyRes.json();
+    
+    res.json({ ort: geo[0].display_name.split(',')[0], wetter: wetterData.weather });
+  } catch (err) {
+    res.status(500).json({ fehler: err.message });
+  }
+});
+
+// POST /api/schuldashboard/wetterort - Wetter-Ort speichern
+router.post('/wetterort', (req, res) => {
+  if (!pruefeSchulZugriff(req, res)) return;
+  const { ort } = req.body;
+  if (typeof ort !== 'string') return res.status(400).json({ fehler: 'Ort muss ein Text sein.' });
+  db.prepare('UPDATE users SET schul_wetter_ort = ? WHERE id = ?').run(ort, req.user.id);
+  res.json({ success: true });
+});
+
+// POST /api/schuldashboard/haltestelle - Haltestelle suchen und speichern
+router.post('/haltestelle', async (req, res) => {
+  if (!pruefeSchulZugriff(req, res)) return;
+  const { name } = req.body;
+  if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ fehler: 'Name muss ein Text sein.' });
+  try {
+    // EFA-Haltestellensuche (VRR OpenService, deckt OWL/NRW ab)
+    const url = `https://openservice-test.vrr.de/standard/XML_STOPFINDER_REQUEST?outputFormat=JSON&type_sf=any&name_sf=${encodeURIComponent(name.trim())}&anyObjFilter_sf=2`;
+    const efaRes = await fetch(url, { headers: { 'User-Agent': 'yRelay-SchulDashboard/1.0' } });
+    if (!efaRes.ok) throw new Error('Fehler beim Abrufen der Haltestellen-Suche.');
+    const data = await efaRes.json();
+
+    const punkte = data.stopFinder?.points;
+    if (!punkte) return res.status(404).json({ fehler: 'Keine Haltestelle gefunden.' });
+
+    // Ergebnis kann ein einzelnes Objekt oder ein Array sein
+    const liste = Array.isArray(punkte.point) ? punkte.point : [punkte.point];
+    const haltestelle = liste.find(p => p.type === 'stop') || liste[0];
+    if (!haltestelle || !haltestelle.stateless) return res.status(404).json({ fehler: 'Keine Haltestelle gefunden.' });
+
+    db.prepare('UPDATE users SET schul_haltestelle_name = ?, schul_haltestelle_id = ? WHERE id = ?')
+      .run(haltestelle.name, haltestelle.stateless, req.user.id);
+
+    res.json({ success: true, name: haltestelle.name, id: haltestelle.stateless });
+  } catch (err) {
+    res.status(500).json({ fehler: err.message });
+  }
+});
+
+// GET /api/schuldashboard/abfahrten - Echtzeit-Abfahrten per VRR EFA (OWL/NRW)
+router.get('/abfahrten', async (req, res) => {
+  if (!pruefeSchulZugriff(req, res)) return;
+  const nutzer = db.prepare('SELECT schul_haltestelle_id, schul_haltestelle_name FROM users WHERE id = ?').get(req.user.id);
+  if (!nutzer || !nutzer.schul_haltestelle_id) {
+    return res.status(404).json({ fehler: 'Keine Haltestelle konfiguriert.' });
+  }
+  try {
+    const url = `https://openservice-test.vrr.de/standard/XML_DM_REQUEST?outputFormat=JSON&type_dm=stopID&name_dm=${encodeURIComponent(nutzer.schul_haltestelle_id)}&mode=direct&useRealtime=1&limit=10&useAllStops=1`;
+    const efaRes = await fetch(url, { headers: { 'User-Agent': 'yRelay-SchulDashboard/1.0' } });
+    if (!efaRes.ok) throw new Error('Fehler beim Abrufen der Abfahrten.');
+    const data = await efaRes.json();
+
+    // Abfahrten aus EFA-JSON extrahieren und normalisieren
+    const roheAbfahrten = data?.departureList;
+    if (!roheAbfahrten) return res.json({ haltestelle: nutzer.schul_haltestelle_name, abfahrten: [] });
+
+    const liste = Array.isArray(roheAbfahrten) ? roheAbfahrten : [roheAbfahrten];
+    const abfahrten = liste.slice(0, 10).map(dep => {
+      const linie = dep.servingLine?.number || dep.servingLine?.name || '?';
+      const ziel = dep.servingLine?.direction || dep.servingLine?.dest || '?';
+      // Planzeit aus dateTime
+      const dt = dep.dateTime;
+      const planZeit = dt ? `${String(dt.hour).padStart(2, '0')}:${String(dt.minute).padStart(2, '0')}` : null;
+      // Echtzeit aus realDateTime
+      const rdt = dep.realDateTime;
+      const echtZeit = rdt ? `${String(rdt.hour).padStart(2, '0')}:${String(rdt.minute).padStart(2, '0')}` : null;
+      // Verspätung in Minuten berechnen
+      let verspaetung = 0;
+      if (dt && rdt) {
+        const planMin = parseInt(dt.hour) * 60 + parseInt(dt.minute);
+        const echtMin = parseInt(rdt.hour) * 60 + parseInt(rdt.minute);
+        verspaetung = echtMin - planMin;
+      }
+      return { linie, ziel, planZeit, echtZeit, verspaetung };
+    });
+
+    res.json({ haltestelle: nutzer.schul_haltestelle_name, abfahrten });
   } catch (err) {
     res.status(500).json({ fehler: err.message });
   }

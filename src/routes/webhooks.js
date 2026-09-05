@@ -39,7 +39,7 @@ function normalisiereSchulPayload(body) {
   const typen = {
     timetable: 'stundenplan', schedule: 'stundenplan', calendar: 'kalender',
     events: 'kalender', task: 'aufgabe', tasks: 'aufgabe', notification: 'feed',
-    message: 'feed', tile: 'kachel', card: 'kachel'
+    message: 'feed', tile: 'kachel', card: 'kachel', exams: 'klausuren', klausur: 'klausuren'
   };
   const typ = typen[String(payload.typ || payload.type || '').toLowerCase()] || payload.typ || payload.type;
   const daten = payload.daten !== undefined ? payload.daten : (payload.data !== undefined ? payload.data : payload.entries);
@@ -265,6 +265,16 @@ router.post('/schul-update/:token', (req, res) => {
       const stmt = db.prepare('INSERT INTO schul_aufgaben_cache (integration_id, titel, faellig, erledigt, notiz) VALUES (?, ?, ?, ?, ?)');
       for (const a of daten) {
         stmt.run(integration.id, a.titel, a.faellig || null, a.erledigt ? 1 : 0, a.notiz || null);
+      }
+    } else if (typ === 'klausuren') {
+      if (!Array.isArray(daten)) return res.status(400).json({ fehler: 'Klausurendaten müssen ein Array sein.' });
+      for (const k of daten) {
+        if (!k.titel || !k.datum) return res.status(400).json({ fehler: 'Klausur benötigt titel und datum.' });
+      }
+      db.prepare('DELETE FROM schul_klausuren_cache WHERE integration_id = ?').run(integration.id);
+      const stmt = db.prepare('INSERT INTO schul_klausuren_cache (integration_id, titel, datum, notiz) VALUES (?, ?, ?, ?)');
+      for (const k of daten) {
+        stmt.run(integration.id, k.titel, k.datum, k.notiz || null);
       }
     } else if (typ === 'feed') {
       if (!daten || !daten.inhalt) return res.status(400).json({ fehler: 'Feeddaten benötigen inhalt.' });
