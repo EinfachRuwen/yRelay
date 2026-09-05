@@ -252,21 +252,84 @@ const SchulDashboardView = {
         .schul-panel-inhalt { display:flex; flex-direction:column; flex:1; min-height:0; }
 
         /* Chat */
-        .schul-chat-nachrichten { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding: 4px 2px; min-height:0; }
-        .chat-bubble { max-width:85%; padding:10px 14px; border-radius:16px; line-height:1.5; font-size:0.9rem; word-break:break-word; }
-        .chat-bubble.nutzer { align-self:flex-end; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; border-bottom-right-radius:4px; }
-        .chat-bubble.poke { align-self:flex-start; background:var(--eingabe-hintergrund); border:1px solid var(--rahmen); color:var(--farbe-text); border-bottom-left-radius:4px; }
-        .chat-bubble .chat-zeit { font-size:0.7rem; opacity:0.65; margin-top:4px; display:block; }
-        .chat-bubble.nutzer .chat-zeit { text-align:right; }
-        .schul-chat-eingabe { display:flex; gap:8px; margin-top:10px; align-items:flex-end; border-top:1px solid var(--rahmen); padding-top:10px; flex-shrink:0; }
+        .schul-chat-nachrichten { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding: 10px 4px; min-height:0; }
+        
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .chat-bubble { 
+          max-width:85%; padding:12px 16px; border-radius:20px; 
+          line-height:1.5; font-size:0.95rem; word-break:break-word;
+          animation: fadeInUp 0.3s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .chat-bubble.nutzer { 
+          align-self:flex-end; 
+          background:linear-gradient(135deg, #4f46e5, #7c3aed); 
+          color:#fff; 
+          border-bottom-right-radius:4px;
+          box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+        
+        .chat-bubble.poke { 
+          align-self:flex-start; 
+          background:rgba(30, 41, 59, 0.75); 
+          backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+          border:1px solid rgba(255,255,255,0.08); 
+          color:var(--farbe-text); 
+          border-bottom-left-radius:4px; 
+        }
+        
+        .chat-bubble .chat-zeit { font-size:0.7rem; opacity:0.6; margin-top:6px; display:block; letter-spacing: 0.5px; }
+        .chat-bubble.nutzer .chat-zeit { text-align:right; color: rgba(255,255,255,0.8); }
+        
+        /* Chat Input Area */
+        .schul-chat-eingabe { 
+          display:flex; gap:10px; margin-top:10px; align-items:flex-end; 
+          background: rgba(15, 23, 42, 0.6);
+          backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+          border: 1px solid var(--rahmen);
+          padding: 10px; 
+          border-radius: 24px;
+          flex-shrink:0; 
+        }
+        
         .schul-dashboard-inhalt { max-width: 1500px !important; }
-        .schul-chat-textarea { flex:1; min-width:0; resize:none; min-height:38px; max-height:120px; font-size:0.9rem; }
-        .schul-chat-btn { padding:0; width:38px; height:38px; flex-shrink:0; display:flex; align-items:center; justify-content:center; border-radius:var(--radius-klein); font-size:1.2rem; }
-        .chat-typing { align-self:flex-start; padding:8px 14px; border-radius:16px; border-bottom-left-radius:4px; background:var(--eingabe-hintergrund); border:1px solid var(--rahmen); }
+        
+        .schul-chat-textarea { 
+          flex:1; min-width:0; resize:none; min-height:42px; max-height:120px; 
+          font-size:0.95rem; background: transparent; border: none; box-shadow: none; 
+          padding: 10px 4px; color: #fff;
+        }
+        .schul-chat-textarea:focus { box-shadow: none; border: none; background: transparent; }
+        
+        .schul-chat-btn { 
+          padding:0; width:42px; height:42px; flex-shrink:0; 
+          display:flex; align-items:center; justify-content:center; 
+          border-radius:50%; font-size:1.2rem; transition: all 0.2s;
+        }
+        .schul-chat-btn.btn-primaer {
+          background: linear-gradient(135deg, #6366f1, #8b5cf6);
+          border: none; box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+        }
+        .schul-chat-btn.btn-primaer:hover { transform: scale(1.05); }
+        .schul-chat-btn.btn-sekundaer {
+          background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+        }
+        .schul-chat-btn.btn-sekundaer:hover { background: rgba(255,255,255,0.1); }
+        
+        .chat-typing { 
+          align-self:flex-start; padding:12px 18px; border-radius:20px; border-bottom-left-radius:4px; 
+          background:rgba(30, 41, 59, 0.5); border:1px solid rgba(255,255,255,0.05);
+        }
         .chat-typing span { display:inline-block; width:6px; height:6px; background:var(--text-sekundaer); border-radius:50%; animation: typing 1.2s ease-in-out infinite; margin:0 2px; }
         .chat-typing span:nth-child(2) { animation-delay:0.2s; }
         .chat-typing span:nth-child(3) { animation-delay:0.4s; }
-        @keyframes typing { 0%, 100% { transform:translateY(0); } 50% { transform:translateY(-4px); } }
+        @keyframes typing { 0%, 100% { transform:translateY(0); } 50% { transform:translateY(-5px); background: #8b5cf6; } }
+
 
         /* Pomodoro */
         .pomodoro-display { text-align:center; padding:10px 0 8px; }

@@ -503,7 +503,7 @@ async function sendeManuelleMail({ to, cc, bcc, subject, text, html }) {
   const transporter = erstelleTransporter();
   if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
 
-  const absender = getSetting('smtp_user');
+  const absender = getSetting('smtp_from') || getSetting('smtp_user');
 
   const mailOptionen = {
     from: `"yRelay Admin" <${absender}>`,
