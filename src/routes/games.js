@@ -167,7 +167,7 @@ router.post('/starten', async (req, res) => {
   const meta = SPIEL_META[gameType];
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
   const moveUrl = `${appUrl}/api/webhooks/game-move/${spiel.id}/${token}`;
-  const pokeNachricht = `🎮 ${req.user.username} möchte **${meta.name}** spielen!\n\n${meta.beschreibung}\n\nDu spielst als ${gameType === 'battleship' ? 'Angreifer' : gameType === 'ludo' ? 'Blau 🔵' : gameType === 'connect4' ? '🟡 Gelb' : gameType === 'tictactoe' ? '⭕ Kreis' : 'Wortgeber'}.\n\n**Nutzer fängt an.** Warte auf seinen Zug, dann bist du dran.\n\nDein Spielzug-URL: POST ${moveUrl}\nBody-Format: { "zug": {...} }`;
+  const pokeNachricht = `🎮 ${req.user.benutzername} möchte **${meta.name}** spielen!\n\n${meta.beschreibung}\n\nDu spielst als ${gameType === 'battleship' ? 'Angreifer' : gameType === 'ludo' ? 'Blau 🔵' : gameType === 'connect4' ? '🟡 Gelb' : gameType === 'tictactoe' ? '⭕ Kreis' : 'Wortgeber'}.\n\n**Nutzer fängt an.** Warte auf seinen Zug, dann bist du dran.\n\nDein Spielzug-URL: POST ${moveUrl}\nBody-Format: { "zug": {...} }`;
 
   await sendePokeSpielnachricht(spiel, poke, pokeNachricht);
 
@@ -252,7 +252,7 @@ router.post('/:id/zug', async (req, res) => {
   // Poke informieren
   if (!spielEnde) {
     const poke = holePokeProfil(req);
-    let pokeMsg = `🎮 ${req.user.username} hat gezogen - du bist dran!\n\n`;
+    let pokeMsg = `🎮 ${req.user.benutzername} hat gezogen - du bist dran!\n\n`;
     let buttons = [];
 
     switch (spiel.game_type) {
@@ -277,7 +277,7 @@ router.post('/:id/zug', async (req, res) => {
   } else {
     // Spielende melden
     const poke = holePokeProfil(req);
-    const gewInhalt = neuerState.gewinner === 'nutzer' ? `${req.user.username} hat gewonnen! 🏆` : 'Unentschieden! 🤝';
+    const gewInhalt = neuerState.gewinner === 'nutzer' ? `${req.user.benutzername} hat gewonnen! 🏆` : 'Unentschieden! 🤝';
     await sendePokeSpielnachricht(spiel, poke, `🎮 Spiel beendet! ${gewInhalt}`);
   }
 

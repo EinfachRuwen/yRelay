@@ -14,8 +14,8 @@ const GamesView = {
           </span>
           <div class="navbar-nav">
             <div class="nav-nutzer">
-              <div class="nav-avatar">${UI.escapeHtml(nutzer.username.charAt(0).toUpperCase())}</div>
-              <div class="nav-info"><span class="nav-name">${UI.escapeHtml(nutzer.username)}</span></div>
+              <div class="nav-avatar">${UI.escapeHtml((nutzer.benutzername || 'U').charAt(0).toUpperCase())}</div>
+              <div class="nav-info"><span class="nav-name">${UI.escapeHtml(nutzer.benutzername)}</span></div>
             </div>
             <button class="btn btn-sekundaer btn-klein" onclick="window.location.hash='#dashboard'">📊 Dashboard</button>
             ${nutzer.has_schul_access ? `<button class="btn btn-ghost btn-klein" onclick="window.location.hash='#schuldashboard'">🎒 Schule</button>` : ''}

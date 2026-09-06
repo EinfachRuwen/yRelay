@@ -1775,21 +1775,21 @@ const AdminView = {
               <div style="display:flex;flex-direction:column;gap:6px;">
                 ${labelOptions || '<div style="font-size:0.8rem;color:var(--text-sekundaer);">Keine Labels vorhanden.</div>'}
               </div>
-            </div>
-
-            <button class="btn btn-primaer btn-klein btn-vollbreite" style="margin-top:16px;" onclick="AdminView._saveGameConfig('${c.game_type}')">Speichern</button>
           </div>
         </div>
       `;
     }).join('');
 
     container.innerHTML = `
-      <div style="margin-bottom: 20px;">
-        <h3 style="margin-bottom: 10px;">Spiele-Konfiguration</h3>
-        <p style="color:var(--text-sekundaer);font-size:0.9rem;">
-          Aktiviere Spiele für das Dashboard und lege fest, welche Nutzergruppen Zugriff haben. 
-          Wenn ein Spiel aktiviert ist, erscheint es im Dashboard im Bereich "Spiele".
-        </p>
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 16px;">
+        <div style="flex: 1; min-width: 300px;">
+          <h3 style="margin-bottom: 10px;">Spiele-Konfiguration</h3>
+          <p style="color:var(--text-sekundaer);font-size:0.9rem;">
+            Aktiviere Spiele für das Dashboard und lege fest, welche Nutzergruppen Zugriff haben. 
+            Wenn ein Spiel aktiviert ist, erscheint es im Dashboard im Bereich "Spiele".
+          </p>
+        </div>
+        <button class="btn btn-primaer" id="btn-save-all-games" onclick="AdminView._saveAllGameConfigs()" style="flex-shrink: 0;">💾 Alle Änderungen speichern</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:20px;">
         ${kacheln}
@@ -1805,20 +1805,34 @@ const AdminView = {
     });
   },
 
-  async _saveGameConfig(gameType) {
-    const isEnabled = document.getElementById(`game-active-${gameType}`).checked;
-    const accessMode = document.getElementById(`game-access-${gameType}`).value;
-    
-    const labelIds = [];
-    document.querySelectorAll(`.game-label-checkbox-${gameType}:checked`).forEach(cb => {
-      labelIds.push(parseInt(cb.value));
+  async _saveAllGameConfigs() {
+    const btn = document.getElementById('btn-save-all-games');
+    UI.btnLaden(btn, true);
+
+    const configsData = [];
+    document.querySelectorAll('[id^="game-active-"]').forEach(el => {
+      const gameType = el.id.replace('game-active-', '');
+      const isEnabled = el.checked;
+      const accessMode = document.getElementById(`game-access-${gameType}`).value;
+      
+      const labelIds = [];
+      document.querySelectorAll(`.game-label-checkbox-${gameType}:checked`).forEach(cb => {
+        labelIds.push(parseInt(cb.value));
+      });
+      configsData.push({ gameType, isEnabled, accessMode, labelIds });
     });
 
     try {
-      await API.anfrage('POST', '/games/admin/config', { gameType, isEnabled, accessMode, labelIds });
-      UI.erfolg('Spielkonfiguration gespeichert!');
+      // Sende jede Konfiguration ab (könnte man im Backend auch als Bulk-Endpoint machen, 
+      // aber so geht es auch, da es nur 5 Requests sind)
+      await Promise.all(configsData.map(data => 
+        API.anfrage('POST', '/games/admin/config', data)
+      ));
+      UI.erfolg('Alle Spielkonfigurationen gespeichert!');
     } catch (e) {
       UI.fehler(e.message);
+    } finally {
+      UI.btnLaden(btn, false);
     }
   }
 };

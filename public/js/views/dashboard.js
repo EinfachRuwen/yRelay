@@ -84,7 +84,7 @@ const DashboardView = {
               </div>
             </div>
             ${nutzer.schul_dashboard_global_enabled && nutzer.has_schul_access ? '<button class="btn btn-sekundaer btn-klein" id="schule-btn" title="Schul-Dashboard">🎒 Schule</button>' : ''}
-            <button class="btn btn-sekundaer btn-klein" id="spiele-btn" title="Spielebereich">🎮 Spiele</button>
+            <button class="btn btn-sekundaer btn-klein versteckt" id="spiele-btn" title="Spielebereich">🎮 Spiele</button>
             ${nutzer.rolle === 'admin' ? '<button class="btn btn-primaer btn-klein" id="admin-panel-btn" title="Admin Panel">🛠️ Admin</button>' : ''}
             <button class="btn btn-ghost btn-klein" id="profil-btn" title="Profil bearbeiten">👤</button>
             <button class="btn btn-ghost btn-klein" id="passwort-btn" title="Passwort ändern">🔒</button>
@@ -322,6 +322,13 @@ const DashboardView = {
     }
 
     // Abmelden
+    // Spiele-Button asynchron einblenden, falls Spiele verfügbar sind
+    API.anfrage('GET', '/games/verfuegbar').then(daten => {
+      if (daten.spiele && daten.spiele.some(s => s.istVerfuegbar)) {
+        document.getElementById('spiele-btn')?.classList.remove('versteckt');
+      }
+    }).catch(() => {});
+
     document.getElementById('abmelden-btn')?.addEventListener('click', () => {
       UI.ausloggen();
     });
