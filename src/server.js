@@ -77,6 +77,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/nachrichten', require('./routes/messages'));
 app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/api/poke-profile', require('./routes/poke-profiles'));
+app.use('/api/games', require('./routes/games'));
 const schulDashboardRouter = require('./routes/schuldashboard');
 app.use('/api/schuldashboard', schulDashboardRouter);
 

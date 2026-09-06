@@ -39,6 +39,7 @@ const AdminView = {
             <button class="admin-tab" data-tab="audit" role="tab">📜 <span class="tab-text">Audit Log</span></button>
             <button class="admin-tab" data-tab="einstellungen" role="tab">🔧 <span class="tab-text">Einstellungen</span></button>
             <button class="admin-tab" data-tab="poke-profile" role="tab">🤖 <span class="tab-text">Poke-Profile</span></button>
+            <button class="admin-tab" data-tab="spiele" role="tab">🎮 <span class="tab-text">Spiele</span></button>
             <button class="admin-tab" data-tab="email-tool" role="tab">📧 <span class="tab-text">E-Mail Tool</span></button>
           </div>
 
@@ -87,6 +88,7 @@ const AdminView = {
         case 'einstellungen': await this.einstellungenRendern(container); break;
         case 'audit': await this.auditLogsLaden(container); break;
         case 'poke-profile': await this.pokeProfileRendern(container); break;
+        case 'spiele': await this.spieleRendern(container); break;
         case 'email-tool': await this.emailToolRendern(container); break;
       }
     } catch (err) {
@@ -1714,5 +1716,109 @@ const AdminView = {
         UI.btnLaden(btn, false);
       }
     });
+  },
+
+  // ─── Spielebereich ──────────────────────────────────────────────────────────
+
+  async spieleRendern(container) {
+    let daten;
+    try {
+      daten = await API.anfrage('GET', '/games/admin/configs');
+    } catch (e) {
+      container.innerHTML = `<div class="info-box fehler"><span>⚠️</span><span>Fehler: ${UI.escapeHtml(e.message)}</span></div>`;
+      return;
+    }
+
+    const { configs, labels } = daten;
+
+    const kacheln = configs.map(c => {
+      const isEnabled = c.is_enabled === 1;
+      
+      let labelOptions = '';
+      labels.forEach(l => {
+        const checked = c.label_ids.includes(l.id) ? 'checked' : '';
+        labelOptions += `
+          <label class="checkbox-label" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;">
+            <input type="checkbox" class="game-label-checkbox-${c.game_type}" value="${l.id}" ${checked}>
+            <span class="label-badge" style="background:${l.farbe}20;color:${l.farbe};border:1px solid ${l.farbe}40;padding:2px 6px;border-radius:4px;font-size:0.75rem;">${UI.escapeHtml(l.name)}</span>
+          </label>
+        `;
+      });
+
+      return `
+        <div class="karte">
+          <div class="karte-header" style="padding-bottom:12px;">
+            <div class="karte-icon karte-icon-primaer">${c.meta?.icon || '🎮'}</div>
+            <div>
+              <div class="karte-titel">${UI.escapeHtml(c.meta?.name || c.game_type)}</div>
+              <div class="karte-untertitel" style="font-size:0.8rem;">${UI.escapeHtml(c.meta?.beschreibung || '')}</div>
+            </div>
+            <div style="margin-left:auto;">
+              <label class="switch">
+                <input type="checkbox" id="game-active-${c.game_type}" ${isEnabled ? 'checked' : ''}>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="karte-koerper" style="padding-top:0;">
+            <div class="formular-gruppe">
+              <label class="formular-label">Wer darf das Spiel spielen?</label>
+              <select class="formular-eingabe" id="game-access-${c.game_type}">
+                <option value="none" ${c.access_mode === 'none' ? 'selected' : ''}>Niemand (Deaktiviert)</option>
+                <option value="all" ${c.access_mode === 'all' ? 'selected' : ''}>Alle Nutzer</option>
+                <option value="label" ${c.access_mode === 'label' ? 'selected' : ''}>Nur bestimmte Gruppen/Labels</option>
+              </select>
+            </div>
+            
+            <div id="game-labels-container-${c.game_type}" style="display: ${c.access_mode === 'label' ? 'block' : 'none'}; margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.02); border-radius: 6px; border: 1px solid var(--rahmen);">
+              <div style="font-size:0.85rem;font-weight:600;margin-bottom:8px;">Erlaubte Gruppen/Labels:</div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                ${labelOptions || '<div style="font-size:0.8rem;color:var(--text-sekundaer);">Keine Labels vorhanden.</div>'}
+              </div>
+            </div>
+
+            <button class="btn btn-primaer btn-klein btn-vollbreite" style="margin-top:16px;" onclick="AdminView._saveGameConfig('${c.game_type}')">Speichern</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="margin-bottom: 20px;">
+        <h3 style="margin-bottom: 10px;">Spiele-Konfiguration</h3>
+        <p style="color:var(--text-sekundaer);font-size:0.9rem;">
+          Aktiviere Spiele für das Dashboard und lege fest, welche Nutzergruppen Zugriff haben. 
+          Wenn ein Spiel aktiviert ist, erscheint es im Dashboard im Bereich "Spiele".
+        </p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:20px;">
+        ${kacheln}
+      </div>
+    `;
+
+    // Event-Listener für Selects
+    configs.forEach(c => {
+      document.getElementById(`game-access-${c.game_type}`)?.addEventListener('change', (e) => {
+        const labelsContainer = document.getElementById(`game-labels-container-${c.game_type}`);
+        if (labelsContainer) labelsContainer.style.display = e.target.value === 'label' ? 'block' : 'none';
+      });
+    });
+  },
+
+  async _saveGameConfig(gameType) {
+    const isEnabled = document.getElementById(`game-active-${gameType}`).checked;
+    const accessMode = document.getElementById(`game-access-${gameType}`).value;
+    
+    const labelIds = [];
+    document.querySelectorAll(`.game-label-checkbox-${gameType}:checked`).forEach(cb => {
+      labelIds.push(parseInt(cb.value));
+    });
+
+    try {
+      await API.anfrage('POST', '/games/admin/config', { gameType, isEnabled, accessMode, labelIds });
+      UI.erfolg('Spielkonfiguration gespeichert!');
+    } catch (e) {
+      UI.fehler(e.message);
+    }
   }
 };

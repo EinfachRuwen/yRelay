@@ -434,3 +434,41 @@ function initPokeProfile() {
 }
 
 module.exports = { db, initAdminUser, initSettings, getSetting, setSetting, logAudit, initPokeProfile };
+
+// ─── Spielebereich ───────────────────────────────────────────────────────────
+
+// Spiele-Tabellen
+db.exec(`
+  CREATE TABLE IF NOT EXISTS game_configs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    game_type TEXT UNIQUE NOT NULL,
+    is_enabled INTEGER NOT NULL DEFAULT 0,
+    access_mode TEXT NOT NULL DEFAULT 'none',
+    label_ids TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS games (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    game_type TEXT NOT NULL,
+    state TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    webhook_token TEXT NOT NULL,
+    poke_profile_id INTEGER REFERENCES poke_profiles(id) ON DELETE SET NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// Standard-Spielkonfigurationen anlegen
+const spielTypen = ['connect4', 'battleship', 'tictactoe', 'ludo', 'wordgame'];
+const upsertGameConfig = db.prepare(`
+  INSERT INTO game_configs (game_type, is_enabled, access_mode)
+  VALUES (?, 0, 'none')
+  ON CONFLICT(game_type) DO NOTHING
+`);
+for (const typ of spielTypen) {
+  upsertGameConfig.run(typ);
+}
+

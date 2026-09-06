@@ -84,6 +84,7 @@ const DashboardView = {
               </div>
             </div>
             ${nutzer.schul_dashboard_global_enabled && nutzer.has_schul_access ? '<button class="btn btn-sekundaer btn-klein" id="schule-btn" title="Schul-Dashboard">🎒 Schule</button>' : ''}
+            <button class="btn btn-sekundaer btn-klein" id="spiele-btn" title="Spielebereich">🎮 Spiele</button>
             ${nutzer.rolle === 'admin' ? '<button class="btn btn-primaer btn-klein" id="admin-panel-btn" title="Admin Panel">🛠️ Admin</button>' : ''}
             <button class="btn btn-ghost btn-klein" id="profil-btn" title="Profil bearbeiten">👤</button>
             <button class="btn btn-ghost btn-klein" id="passwort-btn" title="Passwort ändern">🔒</button>
@@ -327,6 +328,10 @@ const DashboardView = {
 
     document.getElementById('schule-btn')?.addEventListener('click', () => {
       window.location.hash = '#schule';
+    });
+
+    document.getElementById('spiele-btn')?.addEventListener('click', () => {
+      window.location.hash = '#spiele';
     });
 
     document.getElementById('admin-panel-btn')?.addEventListener('click', () => {

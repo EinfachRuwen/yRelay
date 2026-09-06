@@ -357,6 +357,255 @@ router.post('/schul-update/:token', (req, res) => {
   }
 });
 
+// ─── POST /api/webhooks/game-move/:gameId/:token - Poke macht einen Spielzug ─
+router.post('/game-move/:gameId/:token', async (req, res) => {
+  const { gameId, token } = req.params;
+
+  const spiel = db.prepare('SELECT * FROM games WHERE id = ? AND webhook_token = ? AND status = ?').get(gameId, token, 'active');
+  if (!spiel) return res.status(404).json({ fehler: 'Spiel nicht gefunden oder bereits beendet.' });
+
+  let state;
+  try { state = JSON.parse(spiel.state); } catch { return res.status(500).json({ fehler: 'Spielstand korrupt.' }); }
+
+  if (state.amZug !== 'poke') return res.status(409).json({ fehler: 'Der Nutzer ist am Zug!' });
+
+  const Connect4 = require('../services/game-logic/connect4');
+  const TicTacToe = require('../services/game-logic/tictactoe');
+  const Battleship = require('../services/game-logic/battleship');
+  const Ludo = require('../services/game-logic/ludo');
+  const Wordgame = require('../services/game-logic/wordgame');
+  const { notifyClients } = require('./schuldashboard');
+
+  const { zug } = req.body;
+  let ergebnis;
+
+  try {
+    switch (spiel.game_type) {
+      case 'connect4': {
+        const spalte = parseInt(zug?.spalte ?? zug?.col ?? zug?.column);
+        if (isNaN(spalte)) return res.status(400).json({ fehler: 'Zug erfordert: { "zug": { "spalte": 0-6 } }' });
+        ergebnis = Connect4.spielzugMachen(state, spalte, 'poke');
+        break;
+      }
+      case 'tictactoe': {
+        const feld = parseInt(zug?.feld ?? zug?.field ?? zug?.index);
+        if (isNaN(feld)) return res.status(400).json({ fehler: 'Zug erfordert: { "zug": { "feld": 0-8 } }' });
+        ergebnis = TicTacToe.spielzugMachen(state, feld, 'poke');
+        break;
+      }
+      case 'battleship': {
+        const r = parseInt(zug?.r ?? zug?.reihe ?? zug?.row);
+        const c = parseInt(zug?.c ?? zug?.spalte ?? zug?.col);
+        if (isNaN(r) || isNaN(c)) return res.status(400).json({ fehler: 'Zug erfordert: { "zug": { "r": 0-9, "c": 0-9 } }' });
+        ergebnis = Battleship.schiessen(state, r, c, 'poke');
+        break;
+      }
+      case 'ludo': {
+        const augenzahl = Ludo.wuerfeln();
+        const verfuegbar = Ludo.verfuegbareFiguren(state, 'poke', augenzahl);
+        if (verfuegbar.length === 0) {
+          const neuerState = { ...state, amZug: 'nutzer', mussWuerfeln: true };
+          db.prepare('UPDATE games SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(JSON.stringify(neuerState), spiel.id);
+          notifyClients(null, 'game_update', { spielId: spiel.id, userId: spiel.user_id });
+          return res.json({ erfolg: true, augenzahl, state: neuerState, nachricht: 'Poke konnte nicht ziehen.' });
+        }
+        const figurIdx = zug?.figur !== undefined ? parseInt(zug.figur) : verfuegbar[0];
+        ergebnis = Ludo.spielzugMachen(state, figurIdx, augenzahl, 'poke');
+        break;
+      }
+      case 'wordgame': {
+        const wort = zug?.wort;
+        if (!wort) return res.status(400).json({ fehler: 'Zug erfordert: { "zug": { "wort": "deinwort" } }' });
+        ergebnis = Wordgame.wortEingeben(state, wort, 'poke');
+        break;
+      }
+      default:
+        return res.status(400).json({ fehler: 'Unbekannter Spieltyp.' });
+    }
+  } catch (e) {
+    return res.status(500).json({ fehler: 'Interner Fehler bei der Spiellogik: ' + e.message });
+  }
+
+  if (!ergebnis.erfolg) return res.status(400).json({ fehler: ergebnis.fehler });
+
+  const neuerState = ergebnis.state;
+  const spielEnde = neuerState.gewinner !== null;
+  db.prepare('UPDATE games SET state = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(JSON.stringify(neuerState), spielEnde ? 'finished' : 'active', spiel.id);
+
+  // SSE-Push an den Nutzer-Browser
+  try { notifyClients(null, 'game_update', { spielId: spiel.id, userId: spiel.user_id }); } catch (e) {}
+
+  logAudit(spiel.user_id, 'spielzug_poke', { spielId: spiel.id, gameType: spiel.game_type });
+  res.json({ erfolg: true, state: neuerState });
+});
+
+// ─── GET /api/webhooks/poke-data/wetter?token=TOKEN ─────────────────────────
+router.get('/poke-data/wetter', async (req, res) => {
+  const token = req.query.token;
+  if (!token) return res.status(401).json({ fehler: 'Token fehlt.' });
+
+  const integration = db.prepare(`
+    SELECT si.nutzer_id FROM schul_integrationen si WHERE si.token = ?
+  `).get(token);
+  if (!integration) return res.status(403).json({ fehler: 'Ungültiger Token.' });
+
+  const nutzer = db.prepare('SELECT schul_wetter_ort FROM users WHERE id = ?').get(integration.nutzer_id);
+  if (!nutzer?.schul_wetter_ort) return res.status(404).json({ fehler: 'Kein Wetter-Ort konfiguriert. Bitte im Schul-Dashboard einstellen.' });
+
+  try {
+    const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(nutzer.schul_wetter_ort)}&format=json&limit=1`, {
+      headers: { 'User-Agent': 'yRelay/1.0' }
+    });
+    const geo = await geoRes.json();
+    if (!geo.length) return res.status(404).json({ fehler: 'Ort nicht gefunden.' });
+    const { lat, lon } = geo[0];
+    const wetterRes = await fetch(`https://api.brightsky.dev/current_weather?lat=${lat}&lon=${lon}`);
+    const wetterData = await wetterRes.json();
+    const w = wetterData.weather;
+    res.json({
+      ort: nutzer.schul_wetter_ort,
+      temperatur: w.temperature !== undefined ? Math.round(w.temperature) : null,
+      gefuehlt: w.dew_point !== undefined ? Math.round(w.dew_point) : null,
+      zustand: w.condition || 'unbekannt',
+      wind_kmh: w.wind_speed !== undefined ? Math.round(w.wind_speed * 3.6) : null,
+      luftfeuchtigkeit: w.relative_humidity || null,
+      zeitpunkt: w.timestamp || null,
+    });
+  } catch (e) {
+    res.status(500).json({ fehler: 'Wetterdaten konnten nicht abgerufen werden.' });
+  }
+});
+
+// ─── GET /api/webhooks/poke-data/abfahrten?token=TOKEN ──────────────────────
+router.get('/poke-data/abfahrten', async (req, res) => {
+  const token = req.query.token;
+  if (!token) return res.status(401).json({ fehler: 'Token fehlt.' });
+
+  const integration = db.prepare('SELECT nutzer_id FROM schul_integrationen WHERE token = ?').get(token);
+  if (!integration) return res.status(403).json({ fehler: 'Ungültiger Token.' });
+
+  const nutzer = db.prepare('SELECT schul_haltestelle_id, schul_haltestelle_name FROM users WHERE id = ?').get(integration.nutzer_id);
+  if (!nutzer?.schul_haltestelle_id) return res.status(404).json({ fehler: 'Keine Haltestelle konfiguriert.' });
+
+  try {
+    const url = `https://openservice-test.vrr.de/standard/XML_DM_REQUEST?outputFormat=JSON&type_dm=stopID&name_dm=${encodeURIComponent(nutzer.schul_haltestelle_id)}&mode=direct&useRealtime=1&limit=10`;
+    const efaRes = await fetch(url, { headers: { 'User-Agent': 'yRelay/1.0' } });
+    const data = await efaRes.json();
+    const liste = Array.isArray(data?.departureList) ? data.departureList : [data?.departureList].filter(Boolean);
+
+    const abfahrten = liste.slice(0, 10).map(dep => {
+      const dt = dep.dateTime, rdt = dep.realDateTime;
+      const planZeit = dt ? `${String(dt.hour).padStart(2,'0')}:${String(dt.minute).padStart(2,'0')}` : null;
+      const echtZeit = rdt ? `${String(rdt.hour).padStart(2,'0')}:${String(rdt.minute).padStart(2,'0')}` : null;
+      let verspaetung = 0;
+      if (dt && rdt) verspaetung = (parseInt(rdt.hour)*60+parseInt(rdt.minute)) - (parseInt(dt.hour)*60+parseInt(dt.minute));
+      return { linie: dep.servingLine?.number || '?', ziel: dep.servingLine?.direction || '?', planZeit, echtZeit, verspaetung };
+    });
+
+    res.json({ haltestelle: nutzer.schul_haltestelle_name, abfahrten });
+  } catch (e) {
+    res.status(500).json({ fehler: 'Abfahrten konnten nicht abgerufen werden.' });
+  }
+});
+
+// ─── GET /api/webhooks/poke-data/verbindung?token=TOKEN&von=X&nach=Y&zeit=HH:MM
+router.get('/poke-data/verbindung', async (req, res) => {
+  const { token, von, nach, zeit } = req.query;
+  if (!token) return res.status(401).json({ fehler: 'Token fehlt.' });
+  if (!von || !nach) return res.status(400).json({ fehler: 'Parameter "von" und "nach" sind erforderlich.' });
+
+  const integration = db.prepare('SELECT nutzer_id FROM schul_integrationen WHERE token = ?').get(token);
+  if (!integration) return res.status(403).json({ fehler: 'Ungültiger Token.' });
+
+  try {
+    let params = `outputFormat=JSON&sessionID=0&requestID=0&type_origin=stop&name_origin=${encodeURIComponent(von)}&type_destination=stop&name_destination=${encodeURIComponent(nach)}`;
+    if (zeit) {
+      const [h, m] = zeit.split(':');
+      const jetzt = new Date();
+      params += `&itdDate=${jetzt.getFullYear()}${String(jetzt.getMonth()+1).padStart(2,'0')}${String(jetzt.getDate()).padStart(2,'0')}&itdTime=${h}${m}&itdTripDateTimeDepArr=dep`;
+    }
+
+    const efaRes = await fetch(`https://openservice-test.vrr.de/standard/XML_TRIP_REQUEST2?${params}`, {
+      headers: { 'User-Agent': 'yRelay/1.0' }
+    });
+    const data = await efaRes.json();
+
+    const trips = Array.isArray(data?.trips) ? data.trips : [data?.trips].filter(Boolean);
+
+    const verbindungen = trips.slice(0, 5).map(trip => {
+      const legs = Array.isArray(trip.legs) ? trip.legs : [trip.legs].filter(Boolean);
+      const ersterLeg = legs[0];
+      const letzterLeg = legs[legs.length - 1];
+
+      const abfahrt = ersterLeg?.points?.[0]?.dateTime?.time || ersterLeg?.points?.find?.(p => p.usage === 'departure')?.dateTime?.time;
+      const ankunft = letzterLeg?.points?.[1]?.dateTime?.time || letzterLeg?.points?.find?.(p => p.usage === 'arrival')?.dateTime?.time;
+
+      const abschnitte = legs.map(leg => {
+        const vonPunkt = Array.isArray(leg.points) ? leg.points.find(p => p.usage === 'departure') : leg.points?.[0];
+        const nachPunkt = Array.isArray(leg.points) ? leg.points.find(p => p.usage === 'arrival') : leg.points?.[1];
+        return {
+          linie: leg.mode?.number || leg.mode?.name || 'Fußweg',
+          typ: leg.mode?.product || 'unbekannt',
+          von: vonPunkt?.name || vonPunkt?.nameWO || '?',
+          ab: vonPunkt?.dateTime?.time || null,
+          nach: nachPunkt?.name || nachPunkt?.nameWO || '?',
+          an: nachPunkt?.dateTime?.time || null,
+          gleis: vonPunkt?.platformName || null,
+        };
+      });
+
+      let preis = null;
+      const fare = trip.itdFare?.fares?.fare;
+      if (fare?.fareAdult) preis = { erwachsene: `${fare.fareAdult} €`, kind: `${fare.fareChild} €` };
+
+      return {
+        abfahrt: abfahrt || null,
+        ankunft: ankunft || null,
+        dauer: trip.duration || null,
+        umstiege: parseInt(trip.interchange) || 0,
+        von: ersterLeg?.points?.[0]?.name || von,
+        nach: letzterLeg?.points?.[1]?.name || nach,
+        abschnitte,
+        preis,
+      };
+    });
+
+    res.json({ verbindungen, von, nach });
+  } catch (e) {
+    res.status(500).json({ fehler: 'Verbindungsauskunft konnte nicht abgerufen werden: ' + e.message });
+  }
+});
+
+// ─── GET /api/webhooks/poke-data/haltestellen?token=TOKEN&q=Bielefeld ────────
+router.get('/poke-data/haltestellen', async (req, res) => {
+  const { token, q } = req.query;
+  if (!token) return res.status(401).json({ fehler: 'Token fehlt.' });
+  if (!q || q.length < 2) return res.status(400).json({ fehler: 'Suchbegriff "q" muss mindestens 2 Zeichen haben.' });
+
+  const integration = db.prepare('SELECT nutzer_id FROM schul_integrationen WHERE token = ?').get(token);
+  if (!integration) return res.status(403).json({ fehler: 'Ungültiger Token.' });
+
+  try {
+    const url = `https://openservice-test.vrr.de/standard/XML_STOPFINDER_REQUEST?outputFormat=JSON&type_sf=any&name_sf=${encodeURIComponent(q)}`;
+    const efaRes = await fetch(url, { headers: { 'User-Agent': 'yRelay/1.0' } });
+    const data = await efaRes.json();
+
+    let punkte = data?.stopFinder?.points?.point || data?.stopFinder?.points || [];
+    if (!Array.isArray(punkte)) punkte = [punkte];
+
+    const haltestellen = punkte.filter(p => p.type === 'stop' || p.anyType === 'stop').slice(0, 10).map(p => ({
+      id: p.ref?.id || p.stateless,
+      name: p.name,
+      ort: p.ref?.place || p.place || null,
+    }));
+
+    res.json({ haltestellen, suchanfrage: q });
+  } catch (e) {
+    res.status(500).json({ fehler: 'Haltestellensuche fehlgeschlagen.' });
+  }
+});
+
 module.exports = router;
 router.normalisiereStundenplan = normalisiereStundenplan;
 router.normalisiereSchulPayload = normalisiereSchulPayload;

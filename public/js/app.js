@@ -64,15 +64,26 @@ const App = {
     if (!hash.startsWith('#schule') && typeof SchulDashboardView !== 'undefined') {
       SchulDashboardView.zerstoeren();
     }
+    // Spielebereich Polling stoppen falls wir woanders hinfallen
+    if (!hash.startsWith('#spiele') && typeof GamesView !== 'undefined') {
+      GamesView.zerstoeren();
+    }
 
-    // Schul-Dashboard-Route
-    if (hash === '#schule' || hash === '#schule/') {
+    // Schul-Dashboard-Route (Unterstütze #schule und #schuldashboard)
+    if (hash === '#schule' || hash === '#schule/' || hash === '#schuldashboard') {
       if (!this.nutzer.schul_dashboard_global_enabled || !this.nutzer.has_schul_access) {
         this.navigieren('dashboard');
         return;
       }
       app.innerHTML = SchulDashboardView.rendern(this.nutzer);
       SchulDashboardView.initialisieren(this.nutzer);
+      return;
+    }
+
+    // Spielebereich-Route
+    if (hash === '#spiele' || hash === '#spiele/') {
+      app.innerHTML = GamesView.rendern(this.nutzer);
+      GamesView.initialisieren(this.nutzer);
       return;
     }
 
