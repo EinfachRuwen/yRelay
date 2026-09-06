@@ -806,7 +806,7 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: 24px;
-  align-items: start;
+  align-items: stretch;
 }
 .schul-grid > * { min-width: 0; }
 .widgets-container {

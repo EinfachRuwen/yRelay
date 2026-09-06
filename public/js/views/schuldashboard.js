@@ -183,7 +183,7 @@ const SchulDashboardView = {
       <style>
         .schul-dashboard-kopf { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
         .schulmodus-toggle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-        .schul-feed-karte { height: calc(100vh - 150px); display: flex; flex-direction: column; position: sticky; top: 20px; }
+        .schul-feed-karte { display: flex; flex-direction: column; position: sticky; top: 20px; align-self: stretch; }
         .schul-feed-titel { margin: 0 0 15px; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; }
         .schul-feed-inhalt { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px; }
         .schul-schnellnotiz { display: flex; gap: 10px; }
