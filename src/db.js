@@ -335,6 +335,25 @@ try {
 try {
   db.exec('ALTER TABLE users ADD COLUMN schul_haltestelle_id TEXT;');
 } catch (e) {}
+try {
+  db.exec('ALTER TABLE users ADD COLUMN schul_haltestellen TEXT DEFAULT \'[]\';');
+} catch(e) {}
+try {
+  db.exec('ALTER TABLE users ADD COLUMN schul_nahe_haltestellen INTEGER DEFAULT 0;');
+} catch(e) {}
+
+// Migration: Einzelne Haltestelle ins Array übernehmen falls Array leer ist
+try {
+  const usersToMigrate = db.prepare(`SELECT id, schul_haltestelle_name, schul_haltestelle_id, schul_haltestellen FROM users WHERE schul_haltestelle_id IS NOT NULL`).all();
+  const updateStmt = db.prepare(`UPDATE users SET schul_haltestellen = ? WHERE id = ?`);
+  for (const u of usersToMigrate) {
+    if (!u.schul_haltestellen || u.schul_haltestellen === '[]') {
+      const arr = [{ id: u.schul_haltestelle_id, name: u.schul_haltestelle_name }];
+      updateStmt.run(JSON.stringify(arr), u.id);
+    }
+  }
+} catch(e) {}
+
 
 // Initialen Admin-Nutzer anlegen falls noch keiner existiert
 function initAdminUser() {

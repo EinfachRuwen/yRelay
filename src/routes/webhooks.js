@@ -569,22 +569,52 @@ router.get('/poke-data/abfahrten', async (req, res) => {
   }
 });
 
-// ─── GET /api/webhooks/poke-data/verbindung?token=TOKEN&von=X&nach=Y&zeit=HH:MM
+// ─── GET /api/webhooks/poke-data/verbindung?token=TOKEN&von=X&nach=Y&datum=YYYY-MM-DD&zeit=HH:MM
 router.get('/poke-data/verbindung', async (req, res) => {
-  const { token, von, nach, zeit } = req.query;
+  const { token, von, nach, datum, zeit } = req.query;
   if (!token) return res.status(401).json({ fehler: 'Token fehlt.' });
   if (!von || !nach) return res.status(400).json({ fehler: 'Parameter "von" und "nach" sind erforderlich.' });
 
   const integration = db.prepare('SELECT nutzer_id FROM schul_integrationen WHERE token = ?').get(token);
   if (!integration) return res.status(403).json({ fehler: 'Ungültiger Token.' });
 
+  // Hilfsfunktion zum Auflösen von Adressen/Namen in EFA-IDs oder saubere Namen
+  async function resolveLocation(query) {
+    if (/^\d+$/.test(query)) return { type: 'stop', name: query };
+    try {
+      const url = `https://openservice-test.vrr.de/standard/XML_STOPFINDER_REQUEST?outputFormat=JSON&type_sf=any&name_sf=${encodeURIComponent(query)}&anyObjFilter_sf=0`;
+      const sfRes = await fetch(url, { headers: { 'User-Agent': 'yRelay/1.0' }});
+      const data = await sfRes.json();
+      const pts = Array.isArray(data.stopFinder?.points?.point) ? data.stopFinder.points.point : [data.stopFinder?.points?.point].filter(Boolean);
+      if (pts.length > 0) {
+        const best = pts[0];
+        if (best.type === 'stop' && best.stateless) return { type: 'stop', name: best.stateless };
+        if (best.stateless) return { type: 'any', name: best.stateless };
+        if (best.name) return { type: 'any', name: best.name + (best.city ? ', ' + best.city : '') };
+      }
+    } catch(e) {}
+    return { type: 'any', name: query };
+  }
+
   try {
-    let params = `outputFormat=JSON&sessionID=0&requestID=0&type_origin=stop&name_origin=${encodeURIComponent(von)}&type_destination=stop&name_destination=${encodeURIComponent(nach)}`;
-    if (zeit) {
-      const [h, m] = zeit.split(':');
-      const jetzt = new Date();
-      params += `&itdDate=${jetzt.getFullYear()}${String(jetzt.getMonth()+1).padStart(2,'0')}${String(jetzt.getDate()).padStart(2,'0')}&itdTime=${h}${m}&itdTripDateTimeDepArr=dep`;
+    const vonRes = await resolveLocation(von);
+    const nachRes = await resolveLocation(nach);
+
+    let params = `outputFormat=JSON&sessionID=0&requestID=0&type_origin=${vonRes.type}&name_origin=${encodeURIComponent(vonRes.name)}&type_destination=${nachRes.type}&name_destination=${encodeURIComponent(nachRes.name)}`;
+    
+    // Datum und Zeit
+    const jetzt = new Date();
+    let itdDate = `${jetzt.getFullYear()}${String(jetzt.getMonth()+1).padStart(2,'0')}${String(jetzt.getDate()).padStart(2,'0')}`;
+    let itdTime = `${String(jetzt.getHours()).padStart(2,'0')}${String(jetzt.getMinutes()).padStart(2,'0')}`;
+    
+    if (datum && /^\d{4}-\d{2}-\d{2}$/.test(datum)) {
+      itdDate = datum.replace(/-/g, '');
     }
+    if (zeit && /^\d{1,2}:\d{2}$/.test(zeit)) {
+      const [h, m] = zeit.split(':');
+      itdTime = `${h.padStart(2,'0')}${m.padStart(2,'0')}`;
+    }
+    params += `&itdDate=${itdDate}&itdTime=${itdTime}&itdTripDateTimeDepArr=dep`;
 
     const efaRes = await fetch(`https://openservice-test.vrr.de/standard/XML_TRIP_REQUEST2?${params}`, {
       headers: { 'User-Agent': 'yRelay/1.0' }

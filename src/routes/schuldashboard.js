@@ -227,7 +227,9 @@ router.get('/daten', (req, res) => {
       WHERE integration_id = ? ORDER BY datum ASC`).all(integration.integration.id);
     const feed = db.prepare('SELECT * FROM schul_feed WHERE integration_id = ? ORDER BY zeitpunkt DESC LIMIT 50').all(integration.integration.id);
     const chat = db.prepare('SELECT * FROM schul_chat WHERE integration_id = ? ORDER BY zeitpunkt ASC').all(integration.integration.id);
-    const nutzer = db.prepare('SELECT schul_wetter_ort FROM users WHERE id = ?').get(req.user.id);
+    const nutzer = db.prepare('SELECT schul_wetter_ort, schul_haltestellen, schul_nahe_haltestellen FROM users WHERE id = ?').get(req.user.id);
+    let haltestellen = [];
+    try { haltestellen = JSON.parse(nutzer.schul_haltestellen || '[]'); } catch(e) {}
 
     // Wochenvorschau: Kalendereintraege der naechsten 7 Tage
     const wocheStart = heute;
@@ -249,10 +251,12 @@ router.get('/daten', (req, res) => {
       kacheln,
       klausuren,
       wetterOrt: nutzer ? nutzer.schul_wetter_ort : null,
+      haltestellen,
+      naheHaltestellen: nutzer ? nutzer.schul_nahe_haltestellen === 1 : false,
       feed,
       chat,
-      pings
-      ,modus: integration.integration.modus
+      pings,
+      modus: integration.integration.modus
     });
   } catch (err) {
     res.status(500).json({ fehler: err.message });
@@ -303,7 +307,6 @@ router.post('/haltestelle', async (req, res) => {
   const { name } = req.body;
   if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ fehler: 'Name muss ein Text sein.' });
   try {
-    // EFA-Haltestellensuche (VRR OpenService, deckt OWL/NRW ab)
     const url = `https://openservice-test.vrr.de/standard/XML_STOPFINDER_REQUEST?outputFormat=JSON&type_sf=any&name_sf=${encodeURIComponent(name.trim())}&anyObjFilter_sf=2`;
     const efaRes = await fetch(url, { headers: { 'User-Agent': 'yRelay-SchulDashboard/1.0' } });
     if (!efaRes.ok) throw new Error('Fehler beim Abrufen der Haltestellen-Suche.');
@@ -312,58 +315,104 @@ router.post('/haltestelle', async (req, res) => {
     const punkte = data.stopFinder?.points;
     if (!punkte) return res.status(404).json({ fehler: 'Keine Haltestelle gefunden.' });
 
-    // Ergebnis kann ein einzelnes Objekt oder ein Array sein
     const liste = Array.isArray(punkte.point) ? punkte.point : [punkte.point];
     const haltestelle = liste.find(p => p.type === 'stop') || liste[0];
     if (!haltestelle || !haltestelle.stateless) return res.status(404).json({ fehler: 'Keine Haltestelle gefunden.' });
 
-    db.prepare('UPDATE users SET schul_haltestelle_name = ?, schul_haltestelle_id = ? WHERE id = ?')
-      .run(haltestelle.name, haltestelle.stateless, req.user.id);
+    const nutzer = db.prepare('SELECT schul_haltestellen FROM users WHERE id = ?').get(req.user.id);
+    let arr = [];
+    try { arr = JSON.parse(nutzer.schul_haltestellen || '[]'); } catch(e) {}
+    
+    // Nicht doppelt hinzufügen
+    if (!arr.find(h => h.id === haltestelle.stateless)) {
+      arr.push({ id: haltestelle.stateless, name: haltestelle.name });
+      db.prepare('UPDATE users SET schul_haltestellen = ? WHERE id = ?').run(JSON.stringify(arr), req.user.id);
+    }
 
-    res.json({ success: true, name: haltestelle.name, id: haltestelle.stateless });
+    res.json({ success: true, name: haltestelle.name, id: haltestelle.stateless, liste: arr });
   } catch (err) {
     res.status(500).json({ fehler: err.message });
   }
 });
 
+// DELETE /api/schuldashboard/haltestelle/:id - Haltestelle entfernen
+router.delete('/haltestelle/:id', (req, res) => {
+  if (!pruefeSchulZugriff(req, res)) return;
+  const nutzer = db.prepare('SELECT schul_haltestellen FROM users WHERE id = ?').get(req.user.id);
+  let arr = [];
+  try { arr = JSON.parse(nutzer.schul_haltestellen || '[]'); } catch(e) {}
+  
+  arr = arr.filter(h => h.id !== req.params.id);
+  db.prepare('UPDATE users SET schul_haltestellen = ? WHERE id = ?').run(JSON.stringify(arr), req.user.id);
+  res.json({ success: true, liste: arr });
+});
+
+// POST /api/schuldashboard/nahe-haltestellen - Nahe Haltestellen umschalten
+router.post('/nahe-haltestellen', (req, res) => {
+  if (!pruefeSchulZugriff(req, res)) return;
+  const { aktiv } = req.body;
+  db.prepare('UPDATE users SET schul_nahe_haltestellen = ? WHERE id = ?').run(aktiv ? 1 : 0, req.user.id);
+  res.json({ success: true });
+});
+
 // GET /api/schuldashboard/abfahrten - Echtzeit-Abfahrten per VRR EFA (OWL/NRW)
 router.get('/abfahrten', async (req, res) => {
   if (!pruefeSchulZugriff(req, res)) return;
-  const nutzer = db.prepare('SELECT schul_haltestelle_id, schul_haltestelle_name FROM users WHERE id = ?').get(req.user.id);
-  if (!nutzer || !nutzer.schul_haltestelle_id) {
+  const nutzer = db.prepare('SELECT schul_haltestellen, schul_nahe_haltestellen FROM users WHERE id = ?').get(req.user.id);
+  let arr = [];
+  try { arr = JSON.parse(nutzer.schul_haltestellen || '[]'); } catch(e) {}
+  
+  if (arr.length === 0) {
     return res.status(404).json({ fehler: 'Keine Haltestelle konfiguriert.' });
   }
+
+  const naheAktiv = nutzer.schul_nahe_haltestellen === 1;
+  const limit = naheAktiv ? 15 : 10;
+  // Wenn naheAktiv, fügen wir einen Parameter hinzu (nameInfo_dm ist ein Hack, aber EFA hat oft name_dm für Makro.
+  // Eigentlich ist useAllStops=1 das sicherste für Stationen mit Unterstationen.
+  const useAllStops = naheAktiv ? 1 : 0; 
+  
   try {
-    const url = `https://openservice-test.vrr.de/standard/XML_DM_REQUEST?outputFormat=JSON&type_dm=stopID&name_dm=${encodeURIComponent(nutzer.schul_haltestelle_id)}&mode=direct&useRealtime=1&limit=10&useAllStops=1`;
-    const efaRes = await fetch(url, { headers: { 'User-Agent': 'yRelay-SchulDashboard/1.0' } });
-    if (!efaRes.ok) throw new Error('Fehler beim Abrufen der Abfahrten.');
-    const data = await efaRes.json();
+    const abfahrtenProStation = [];
 
-    // Abfahrten aus EFA-JSON extrahieren und normalisieren
-    const roheAbfahrten = data?.departureList;
-    if (!roheAbfahrten) return res.json({ haltestelle: nutzer.schul_haltestelle_name, abfahrten: [] });
+    await Promise.all(arr.map(async (station) => {
+      const url = `https://openservice-test.vrr.de/standard/XML_DM_REQUEST?outputFormat=JSON&type_dm=stopID&name_dm=${encodeURIComponent(station.id)}&mode=direct&useRealtime=1&limit=${limit}&useAllStops=${useAllStops}`;
+      try {
+        const efaRes = await fetch(url, { headers: { 'User-Agent': 'yRelay-SchulDashboard/1.0' } });
+        if (!efaRes.ok) return;
+        const data = await efaRes.json();
+        const roheAbfahrten = data?.departureList;
+        if (!roheAbfahrten) {
+          abfahrtenProStation.push({ haltestelle: station.name, abfahrten: [] });
+          return;
+        }
 
-    const liste = Array.isArray(roheAbfahrten) ? roheAbfahrten : [roheAbfahrten];
-    const abfahrten = liste.slice(0, 10).map(dep => {
-      const linie = dep.servingLine?.number || dep.servingLine?.name || '?';
-      const ziel = dep.servingLine?.direction || dep.servingLine?.dest || '?';
-      // Planzeit aus dateTime
-      const dt = dep.dateTime;
-      const planZeit = dt ? `${String(dt.hour).padStart(2, '0')}:${String(dt.minute).padStart(2, '0')}` : null;
-      // Echtzeit aus realDateTime
-      const rdt = dep.realDateTime;
-      const echtZeit = rdt ? `${String(rdt.hour).padStart(2, '0')}:${String(rdt.minute).padStart(2, '0')}` : null;
-      // Verspätung in Minuten berechnen
-      let verspaetung = 0;
-      if (dt && rdt) {
-        const planMin = parseInt(dt.hour) * 60 + parseInt(dt.minute);
-        const echtMin = parseInt(rdt.hour) * 60 + parseInt(rdt.minute);
-        verspaetung = echtMin - planMin;
+        const liste = Array.isArray(roheAbfahrten) ? roheAbfahrten : [roheAbfahrten];
+        const abfahrten = liste.slice(0, limit).map(dep => {
+          const linie = dep.servingLine?.number || dep.servingLine?.name || '?';
+          const ziel = dep.servingLine?.direction || dep.servingLine?.dest || '?';
+          const dt = dep.dateTime;
+          const planZeit = dt ? `${String(dt.hour).padStart(2, '0')}:${String(dt.minute).padStart(2, '0')}` : null;
+          const rdt = dep.realDateTime;
+          const echtZeit = rdt ? `${String(rdt.hour).padStart(2, '0')}:${String(rdt.minute).padStart(2, '0')}` : null;
+          
+          let verspaetung = 0;
+          if (dt && rdt) {
+            const planMin = parseInt(dt.hour) * 60 + parseInt(dt.minute);
+            const echtMin = parseInt(rdt.hour) * 60 + parseInt(rdt.minute);
+            verspaetung = echtMin - planMin;
+          }
+          // Bei naheAktiv ist es sinnvoll, den Namen der Unterstation mitzugeben
+          const abfahrtsOrt = naheAktiv && dep.stopName ? dep.stopName : station.name;
+          return { linie, ziel, planZeit, echtZeit, verspaetung, abfahrtsOrt };
+        });
+        abfahrtenProStation.push({ haltestelle: station.name, abfahrten });
+      } catch (e) {
+        // Ignorieren, Fehler bei einer Station soll nicht alle killen
       }
-      return { linie, ziel, planZeit, echtZeit, verspaetung };
-    });
+    }));
 
-    res.json({ haltestelle: nutzer.schul_haltestelle_name, abfahrten });
+    res.json({ stationen: abfahrtenProStation });
   } catch (err) {
     res.status(500).json({ fehler: err.message });
   }

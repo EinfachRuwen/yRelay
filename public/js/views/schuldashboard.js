@@ -569,6 +569,8 @@ const SchulDashboardView = {
     try {
       const daten = await API.anfrage('GET', '/schuldashboard/daten');
       this._schulmodusAktiv = daten.schulmodusAktiv;
+      this._letzteHaltestellen = daten.haltestellen || [];
+      this._letzteNaheHaltestellen = daten.naheHaltestellen || false;
       this.uiAktualisieren(daten);
     } catch (e) {
       if (!silent) console.error('Fehler beim Laden des Schul-Dashboards:', e);
@@ -1152,51 +1154,60 @@ const SchulDashboardView = {
       const daten = await API.anfrage('GET', '/schuldashboard/abfahrten');
       if (btn) btn.style.display = 'block';
 
-      if (!daten.abfahrten || daten.abfahrten.length === 0) {
+      if (!daten.stationen || daten.stationen.length === 0) {
         container.innerHTML = `<p style="color:var(--text-sekundaer); text-align:center; padding:10px 0;">Keine Abfahrten gefunden.</p>`;
         return;
       }
 
       const jetzt = new Date();
       const jetztMin = jetzt.getHours() * 60 + jetzt.getMinutes();
+      
+      let html = '';
+      for (const station of daten.stationen) {
+        html += `<div style="font-size:0.85rem; color:var(--text-sekundaer); margin-bottom:6px; margin-top:10px; font-weight:600;">📍 ${UI.escapeHtml(station.haltestelle)}</div>`;
+        
+        if (!station.abfahrten || station.abfahrten.length === 0) {
+          html += `<div style="font-size:0.8rem; color:var(--text-sekundaer);">Keine Abfahrten.</div>`;
+          continue;
+        }
 
-      const zeilen = daten.abfahrten.map(ab => {
-        const planTeile = ab.planZeit ? ab.planZeit.split(':').map(Number) : null;
-        const planMin = planTeile ? planTeile[0] * 60 + planTeile[1] : null;
-        const echtTeile = ab.echtZeit ? ab.echtZeit.split(':').map(Number) : null;
-        const echtMin = echtTeile ? echtTeile[0] * 60 + echtTeile[1] : planMin;
+        const zeilen = station.abfahrten.map(ab => {
+          const planTeile = ab.planZeit ? ab.planZeit.split(':').map(Number) : null;
+          const planMin = planTeile ? planTeile[0] * 60 + planTeile[1] : null;
+          const echtTeile = ab.echtZeit ? ab.echtZeit.split(':').map(Number) : null;
+          const echtMin = echtTeile ? echtTeile[0] * 60 + echtTeile[1] : planMin;
 
-        let restMin = echtMin !== null ? echtMin - jetztMin : null;
-        // Mitternachts-Übergang abfangen
-        if (restMin !== null && restMin < -120) restMin += 1440;
+          let restMin = echtMin !== null ? echtMin - jetztMin : null;
+          if (restMin !== null && restMin < -120) restMin += 1440;
 
-        const restText = restMin === null ? '?' : (restMin <= 0 ? 'Jetzt' : `${restMin} min`);
-        let restKlasse = 'abfahrt-entspannt';
-        if (restMin !== null && restMin <= 3) restKlasse = 'abfahrt-bald';
-        else if (restMin !== null && restMin <= 10) restKlasse = 'abfahrt-bald-ok';
+          const restText = restMin === null ? '?' : (restMin <= 0 ? 'Jetzt' : `${restMin} min`);
+          let restKlasse = 'abfahrt-entspannt';
+          if (restMin !== null && restMin <= 3) restKlasse = 'abfahrt-bald';
+          else if (restMin !== null && restMin <= 10) restKlasse = 'abfahrt-bald-ok';
 
-        const verspaetungHtml = ab.verspaetung > 0
-          ? `<span class="abfahrt-verspaetet">+${ab.verspaetung}</span>`
-          : (ab.echtZeit ? `<span class="abfahrt-puenktlich">✓</span>` : '');
+          const verspaetungHtml = ab.verspaetung > 0
+            ? `<span class="abfahrt-verspaetet">+${ab.verspaetung}</span>`
+            : (ab.echtZeit ? `<span class="abfahrt-puenktlich">✓</span>` : '');
+            
+          const ortHinweis = ab.abfahrtsOrt && ab.abfahrtsOrt !== station.haltestelle ? `<div style="font-size:0.7rem; color:var(--text-sekundaer); margin-top:-2px;">${UI.escapeHtml(ab.abfahrtsOrt)}</div>` : '';
 
-        return `
-          <tr>
-            <td><span class="abfahrt-linie">${UI.escapeHtml(ab.linie)}</span></td>
-            <td style="flex:1;">${UI.escapeHtml(ab.ziel)}</td>
-            <td style="text-align:right; white-space:nowrap;">
-              ${UI.escapeHtml(ab.planZeit || '?')} ${verspaetungHtml}
-            </td>
-            <td style="text-align:right; font-weight:600; padding-left:8px;" class="${restKlasse}">
-              ${restText}
-            </td>
-          </tr>
-        `;
-      }).join('');
+          return `
+            <tr>
+              <td style="width:1%;"><span class="abfahrt-linie">${UI.escapeHtml(ab.linie)}</span></td>
+              <td style="flex:1;">${UI.escapeHtml(ab.ziel)}${ortHinweis}</td>
+              <td style="text-align:right; white-space:nowrap; width:1%;">
+                ${UI.escapeHtml(ab.planZeit || '?')} ${verspaetungHtml}
+              </td>
+              <td style="text-align:right; font-weight:600; padding-left:8px; width:1%;" class="${restKlasse}">
+                ${restText}
+              </td>
+            </tr>
+          `;
+        }).join('');
+        html += `<table class="abfahrt-tabelle"><tbody>${zeilen}</tbody></table>`;
+      }
 
-      container.innerHTML = `
-        <div style="font-size:0.8rem; color:var(--text-sekundaer); margin-bottom:6px;">📍 ${UI.escapeHtml(daten.haltestelle)}</div>
-        <table class="abfahrt-tabelle"><tbody>${zeilen}</tbody></table>
-      `;
+      container.innerHTML = html;
     } catch (e) {
       if (e.message.includes('Keine Haltestelle')) {
         this._haltestelleEingabeRendern(container, btn);
@@ -1211,7 +1222,7 @@ const SchulDashboardView = {
     if (btn) btn.style.display = 'none';
     container.innerHTML = `
       <div style="display:flex; gap:10px; margin-top:5px;">
-        <input type="text" id="haltestelle-eingabe" class="formular-eingabe" placeholder="Haltestelle (z.B. Bielefeld Jahnplatz)">
+        <input type="text" id="haltestelle-eingabe" class="formular-eingabe" placeholder="Haltestelle hinzufügen...">
         <button class="btn btn-sekundaer" id="btn-haltestelle-speichern">OK</button>
       </div>
     `;
@@ -1223,6 +1234,7 @@ const SchulDashboardView = {
       try {
         const result = await API.anfrage('POST', '/schuldashboard/haltestelle', { name });
         UI.erfolg(`Haltestelle gespeichert: ${result.name}`);
+        this.datenLaden(true); // Für interne Flags
         this.abfahrtenLaden();
       } catch (err) {
         container.innerHTML += `<div style="color:var(--farbe-gefahr); font-size:12px; margin-top:5px;">Nicht gefunden. Genaueren Namen versuchen.</div>`;
@@ -1232,25 +1244,78 @@ const SchulDashboardView = {
   },
 
   _haltestelleEingabeOeffnen() {
+    const listHtml = (this._letzteHaltestellen || []).map(h => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:rgba(255,255,255,0.05); margin-bottom:5px; border-radius:4px;">
+        <span>${UI.escapeHtml(h.name)}</span>
+        <button class="btn btn-ghost btn-klein btn-haltestelle-loeschen" data-id="${h.id}">🗑️</button>
+      </div>
+    `).join('') || '<div style="color:var(--text-sekundaer); margin-bottom:10px;">Keine Haltestellen gespeichert.</div>';
+
     UI.modalZeigen(`
-      <div class="modal-header"><span class="modal-titel">Haltestelle ändern</span><button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button></div>
+      <div class="modal-header"><span class="modal-titel">Haltestellen verwalten</span><button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button></div>
       <div class="modal-koerper">
-        <div class="formular-gruppe">
-          <label class="formular-label">Haltestellen-Name</label>
-          <input type="text" id="haltestelle-modal-eingabe" class="formular-eingabe" placeholder="z. B. Bielefeld Jahnplatz">
+        <div style="margin-bottom:15px; max-height:150px; overflow-y:auto;">
+          ${listHtml}
         </div>
-        <button class="btn btn-primaer btn-vollbreite" id="btn-haltestelle-modal-speichern">Speichern</button>
+        
+        <div class="formular-gruppe">
+          <label class="formular-label">Neue Haltestelle hinzufügen</label>
+          <div style="display:flex; gap:10px;">
+            <input type="text" id="haltestelle-modal-eingabe" class="formular-eingabe" placeholder="z. B. Bielefeld Jahnplatz">
+            <button class="btn btn-primaer" id="btn-haltestelle-modal-speichern">Suchen</button>
+          </div>
+        </div>
+        
+        <div style="margin-top:20px; padding-top:15px; border-top:1px solid var(--rahmen);">
+          <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+            <input type="checkbox" id="check-nahe-haltestellen" ${this._letzteNaheHaltestellen ? 'checked' : ''}>
+            <span>Nahegelegene Haltestellen (Unterstationen) automatisch miteinbeziehen</span>
+          </label>
+        </div>
       </div>
     `);
+    
+    // Löschen
+    document.querySelectorAll('.btn-haltestelle-loeschen').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.currentTarget.dataset.id;
+        try {
+          await API.anfrage('DELETE', '/schuldashboard/haltestelle/' + id);
+          UI.erfolg('Haltestelle entfernt.');
+          await this.datenLaden(true);
+          this.abfahrtenLaden();
+          if (this._letzteHaltestellen.length > 0) this._haltestelleEingabeOeffnen(); // Refresh Modal
+          else UI.modalSchliessen();
+        } catch (err) { UI.fehler(err.message); }
+      });
+    });
+
+    // Hinzufügen
     document.getElementById('btn-haltestelle-modal-speichern')?.addEventListener('click', async () => {
       const name = document.getElementById('haltestelle-modal-eingabe').value.trim();
       if (!name) return;
+      const savBtn = document.getElementById('btn-haltestelle-modal-speichern');
+      UI.btnLaden(savBtn, true);
       try {
         const result = await API.anfrage('POST', '/schuldashboard/haltestelle', { name });
-        UI.modalSchliessen();
-        UI.erfolg(`Haltestelle gespeichert: ${result.name}`);
+        UI.erfolg(`Haltestelle hinzugefügt: ${result.name}`);
+        await this.datenLaden(true);
         this.abfahrtenLaden();
+        this._haltestelleEingabeOeffnen(); // Refresh Modal
       } catch (err) {
+        UI.fehler(err.message);
+        UI.btnLaden(savBtn, false);
+      }
+    });
+
+    // Nahe Haltestellen Toggle
+    document.getElementById('check-nahe-haltestellen')?.addEventListener('change', async (e) => {
+      try {
+        await API.anfrage('POST', '/schuldashboard/nahe-haltestellen', { aktiv: e.target.checked });
+        this._letzteNaheHaltestellen = e.target.checked;
+        this.abfahrtenLaden(); // Refresh
+      } catch (err) {
+        e.target.checked = !e.target.checked; // Revert
         UI.fehler(err.message);
       }
     });
