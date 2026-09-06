@@ -451,29 +451,89 @@ router.get('/poke-data/wetter', async (req, res) => {
   if (!integration) return res.status(403).json({ fehler: 'Ungültiger Token.' });
 
   const nutzer = db.prepare('SELECT schul_wetter_ort FROM users WHERE id = ?').get(integration.nutzer_id);
-  if (!nutzer?.schul_wetter_ort) return res.status(404).json({ fehler: 'Kein Wetter-Ort konfiguriert. Bitte im Schul-Dashboard einstellen.' });
+  const suchOrt = req.query.ort || nutzer?.schul_wetter_ort;
+  
+  if (!suchOrt) {
+    return res.status(404).json({ fehler: 'Kein Ort angegeben (Parameter ?ort=X) und kein Standardort im Dashboard konfiguriert.' });
+  }
 
   try {
-    const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(nutzer.schul_wetter_ort)}&format=json&limit=1`, {
+    const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(suchOrt)}&format=json&limit=1`, {
       headers: { 'User-Agent': 'yRelay/1.0' }
     });
     const geo = await geoRes.json();
-    if (!geo.length) return res.status(404).json({ fehler: 'Ort nicht gefunden.' });
-    const { lat, lon } = geo[0];
-    const wetterRes = await fetch(`https://api.brightsky.dev/current_weather?lat=${lat}&lon=${lon}`);
-    const wetterData = await wetterRes.json();
-    const w = wetterData.weather;
+    if (!geo.length) return res.status(404).json({ fehler: `Ort '${suchOrt}' nicht gefunden.` });
+    const { lat, lon, display_name } = geo[0];
+
+    const heuteStr = new Date().toISOString().split('T')[0];
+    const in7Tagen = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    // Brightsky API (offizielle DWD Daten)
+    const wetterRes = await fetch(`https://api.brightsky.dev/weather?lat=${lat}&lon=${lon}&date=${heuteStr}&last_date=${in7Tagen}`);
+    const data = await wetterRes.json();
+    
+    if (!data.weather || data.weather.length === 0) {
+      return res.status(404).json({ fehler: 'Keine DWD Wetterdaten für diesen Ort gefunden.' });
+    }
+
+    // Aktuelles Wetter (nächster passender Stundenwert)
+    const jetzt = new Date().toISOString();
+    let cw = data.weather[0];
+    for (const w of data.weather) {
+      if (w.timestamp >= jetzt) { cw = w; break; }
+    }
+
+    // Täglich aggregieren für die Vorhersage
+    const dailyMap = {};
+    for (const w of data.weather) {
+      const day = w.timestamp.split('T')[0];
+      if (!dailyMap[day]) {
+        dailyMap[day] = { min: 999, max: -999, precip: 0, conditions: {} };
+      }
+      const d = dailyMap[day];
+      if (w.temperature !== null && w.temperature < d.min) d.min = w.temperature;
+      if (w.temperature !== null && w.temperature > d.max) d.max = w.temperature;
+      if (w.precipitation) d.precip += w.precipitation;
+      if (w.condition) {
+        d.conditions[w.condition] = (d.conditions[w.condition] || 0) + 1;
+      }
+    }
+
+    const vorhersage = [];
+    for (const day of Object.keys(dailyMap).sort().slice(0, 7)) {
+      const d = dailyMap[day];
+      // Häufigste Bedingung finden
+      let bestCond = 'unbekannt';
+      let maxCond = 0;
+      for (const [cond, count] of Object.entries(d.conditions)) {
+        if (count > maxCond && cond !== 'dry') { // 'dry' ignorieren, falls es aussagekräftigere gibt
+          maxCond = count; 
+          bestCond = cond; 
+        }
+      }
+      if (bestCond === 'unbekannt' && d.conditions['dry']) bestCond = 'dry';
+
+      vorhersage.push({
+        datum: day,
+        zustand: bestCond,
+        max_temp: d.max === -999 ? null : Math.round(d.max),
+        min_temp: d.min === 999 ? null : Math.round(d.min),
+        niederschlag_mm: Math.round(d.precip * 10) / 10
+      });
+    }
+
     res.json({
-      ort: nutzer.schul_wetter_ort,
-      temperatur: w.temperature !== undefined ? Math.round(w.temperature) : null,
-      gefuehlt: w.dew_point !== undefined ? Math.round(w.dew_point) : null,
-      zustand: w.condition || 'unbekannt',
-      wind_kmh: w.wind_speed !== undefined ? Math.round(w.wind_speed * 3.6) : null,
-      luftfeuchtigkeit: w.relative_humidity || null,
-      zeitpunkt: w.timestamp || null,
+      ort: display_name.split(',')[0],
+      quelle: 'Deutscher Wetterdienst (DWD)',
+      aktuell: {
+        temperatur: cw.temperature !== null ? Math.round(cw.temperature) : null,
+        zustand: cw.condition || 'unbekannt',
+        wind_kmh: cw.wind_speed !== null ? Math.round(cw.wind_speed) : null
+      },
+      vorhersage: vorhersage
     });
   } catch (e) {
-    res.status(500).json({ fehler: 'Wetterdaten konnten nicht abgerufen werden.' });
+    res.status(500).json({ fehler: 'Wetterdaten konnten nicht abgerufen werden: ' + e.message });
   }
 });
 
