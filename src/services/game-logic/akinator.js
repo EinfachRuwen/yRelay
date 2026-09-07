@@ -81,6 +81,16 @@ function spielzugMachen(state, zug, spieler) {
             fragen: [...state.fragen, { absender: spieler, text: `Lösung: ${zug.wort}`, typ: 'loesung', loesungswort: zug.wort }]
           }
         };
+      } else if (zug.aktion === 'tipp') {
+        return {
+          erfolg: true,
+          state: {
+            ...state,
+            amZug: state.wortGeber, // Wortgeber ist dran, um den Tipp zu geben
+            letzteFrage: 'Tipp anfordern',
+            fragen: [...state.fragen, { absender: spieler, text: '💡 Ich brauche einen Tipp!', typ: 'frage' }]
+          }
+        };
       } else {
         if (!zug.frage) return { erfolg: false, fehler: 'Keine Frage übergeben.' };
         return {
@@ -177,9 +187,15 @@ function pokeNachrichtErstellen(state) {
       msg += `\n\nStelle eine Ja/Nein-Frage. Sende: { "zug": { "frage": "Ist es ein Tier?" } } oder löse auf mit { "zug": { "aktion": "loesen", "wort": "Hund" } }`;
       return msg;
     } else {
-      msg += `Du kennst das geheime Wort: **${state.wort}**\nDer Nutzer fragt: "${state.letzteFrage}"\n`;
-      msg += `Antworte wahrheitsgemäß! Erlaubt: ${ANTWORTEN.join(', ')}.\nSende: { "zug": { "antwort": "Ja" } }`;
-      return msg;
+      if (state.letzteFrage === 'Tipp anfordern') {
+        msg += `Du kennst das geheime Wort: **${state.wort}**\nDer Nutzer kommt nicht weiter und bittet dich um einen Tipp!\n`;
+        msg += `Gib dem Nutzer einen kleinen, subtilen Hinweis, OHNE das Wort direkt zu verraten!\nSende den Tipp als Nachricht über das \`chat\`-Feld deines Webhooks und beantworte den Zug mit { "zug": { "antwort": "Überspringen" }, "chat": "Dein subtiler Tipp..." }`;
+        return msg;
+      } else {
+        msg += `Du kennst das geheime Wort: **${state.wort}**\nDer Nutzer fragt: "${state.letzteFrage}"\n`;
+        msg += `Antworte wahrheitsgemäß! Erlaubt: ${ANTWORTEN.join(', ')}.\nSende: { "zug": { "antwort": "Ja" } }`;
+        return msg;
+      }
     }
   }
 

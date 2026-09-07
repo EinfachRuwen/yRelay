@@ -34,6 +34,41 @@ const SPIEL_META = {
 
 router.use(requireAuth);
 
+let gameSseClients = [];
+
+function notifyGameClients(userId, eventType, data = {}) {
+  gameSseClients = gameSseClients.filter(c => {
+    if (!userId || c.userId === userId) {
+      try {
+        c.res.write(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
+router.notifyGameClients = notifyGameClients;
+
+// GET /api/games/sse - SSE Endpunkt für Spiele
+router.get('/sse', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  res.write(`data: connected\n\n`);
+
+  const client = { userId: req.user.id, res };
+  gameSseClients.push(client);
+
+  req.on('close', () => {
+    gameSseClients = gameSseClients.filter(c => c.res !== res);
+  });
+});
+
 // ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
 
 function pruefeSpielZugriff(req, gameType) {

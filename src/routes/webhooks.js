@@ -375,7 +375,7 @@ router.post('/game-move/:gameId/:token', async (req, res) => {
   const Ludo = require('../services/game-logic/ludo');
   const Wordgame = require('../services/game-logic/wordgame');
   const Akinator = require('../services/game-logic/akinator');
-  const { notifyClients } = require('./schuldashboard');
+  const { notifyGameClients } = require('./games');
 
   const { zug, chat } = req.body;
   let ergebnis;
@@ -411,7 +411,7 @@ router.post('/game-move/:gameId/:token', async (req, res) => {
         if (verfuegbar.length === 0) {
           const neuerState = { ...state, amZug: 'nutzer', mussWuerfeln: true };
           db.prepare('UPDATE games SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(JSON.stringify(neuerState), spiel.id);
-          notifyClients(null, 'game_update', { spielId: spiel.id, userId: spiel.user_id });
+          notifyGameClients(spiel.user_id, 'game_update', { spielId: spiel.id, userId: spiel.user_id });
           return res.json({ erfolg: true, augenzahl, state: neuerState, nachricht: 'Poke konnte nicht ziehen.' });
         }
         const figurIdx = zug?.figur !== undefined ? parseInt(zug.figur) : verfuegbar[0];
@@ -450,7 +450,7 @@ router.post('/game-move/:gameId/:token', async (req, res) => {
     .run(JSON.stringify(neuerState), spielEnde ? 'finished' : 'active', spiel.id);
 
   // SSE-Push an den Nutzer-Browser
-  try { notifyClients(null, 'game_update', { spielId: spiel.id, userId: spiel.user_id }); } catch (e) {}
+  try { notifyGameClients(spiel.user_id, 'game_update', { spielId: spiel.id, userId: spiel.user_id }); } catch (e) {}
 
   logAudit(spiel.user_id, 'spielzug_poke', { spielId: spiel.id, gameType: spiel.game_type });
   res.json({ erfolg: true, state: neuerState });

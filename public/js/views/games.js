@@ -965,6 +965,9 @@ const GamesView = {
                 <input type="text" id="aki-loesen" class="word-input" placeholder="Wort direkt erraten..." onkeydown="if(event.key==='Enter') GamesView._akiMacheZug({aktion: 'loesen', wort: this.value})">
                 <button class="btn btn-sekundaer" style="background:#ef4444;" onclick="GamesView._akiMacheZug({aktion: 'loesen', wort: document.getElementById('aki-loesen').value})">Auflösen!</button>
               </div>
+              <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn btn-sekundaer" style="width:100%; border-color:#eab308; color:#eab308;" onclick="GamesView._akiMacheZug({aktion: 'tipp'})">💡 Tipp von Poke anfordern</button>
+              </div>
             </div>
           `;
         } else {
@@ -1014,6 +1017,8 @@ const GamesView = {
         </div>
       `;
     }
+    
+    return ''; // Fallback, falls die Phase nicht erkannt wird (vermeidet 'undefined' im UI)
   },
 
   _akiMacheZug(zug) {
