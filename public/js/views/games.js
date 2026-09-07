@@ -172,8 +172,8 @@ const GamesView = {
 
   async spieleLaden() {
     const [verfuegbar, aktiv] = await Promise.all([
-      API.anfrage('GET', '/games/verfuegbar'),
-      API.anfrage('GET', '/games/aktiv')
+      API.anfrage('GET', '/games/verfuegbar?_t=' + Date.now()),
+      API.anfrage('GET', '/games/aktiv?_t=' + Date.now())
     ]);
     this._renderLobby(verfuegbar.spiele || []);
     this._renderAktiveSpiele(aktiv.spiele || []);
@@ -1051,6 +1051,39 @@ const GamesView = {
     document.getElementById('spiele-aktiv').style.display = 'block';
     this._aktivesSpiel = null;
     this.spieleLaden();
+  },
+  },
+
+  // ─── ERINNERUNGS-BUTTON LOGIK ──────────────────────────────────────────────
+  _updateReminderButton(spielId) {
+    if (!this._aktivesSpiel || this._aktivesSpiel.id !== spielId) return;
+    const btn = document.getElementById('btn-poke-erinnern');
+    if (!btn) return;
+    if (this._pokeTurnStart) {
+      const waitTime = (Date.now() - this._pokeTurnStart) / 1000;
+      if (waitTime >= 30) {
+        btn.style.display = 'block';
+      } else {
+        btn.style.display = 'none';
+        setTimeout(() => this._updateReminderButton(spielId), 1000);
+      }
+    } else {
+      btn.style.display = 'none';
+    }
+  },
+
+  async _pokeErinnern(spielId) {
+    const btn = document.getElementById('btn-poke-erinnern');
+    if (btn) btn.disabled = true;
+    try {
+      await API.anfrage('POST', `/webhooks/game-move/${spielId}/erinnerung`);
+      UI.erfolg('Erinnerung gesendet!');
+      this._pokeTurnStart = Date.now();
+      this._updateReminderButton(spielId);
+    } catch (e) {
+      UI.fehler('Erinnerung fehlgeschlagen: ' + e.message);
+    }
+    if (btn) btn.disabled = false;
   },
 
   zerstoeren() {

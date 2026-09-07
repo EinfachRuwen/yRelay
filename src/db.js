@@ -481,7 +481,7 @@ db.exec(`
 `);
 
 // Standard-Spielkonfigurationen anlegen
-const spielTypen = ['connect4', 'battleship', 'tictactoe', 'ludo', 'wordgame'];
+const spielTypen = ['connect4', 'battleship', 'tictactoe', 'ludo', 'wordgame', 'akinator'];
 const upsertGameConfig = db.prepare(`
   INSERT INTO game_configs (game_type, is_enabled, access_mode)
   VALUES (?, 0, 'none')
