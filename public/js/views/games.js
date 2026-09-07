@@ -268,7 +268,7 @@ const GamesView = {
       </div>
     `;
 
-    UI.modalZeigen('Neues Spiel', html);
+    UI.modalZeigen(html);
 
     if (isAkinator) {
       // Wenn Poke rät, braucht man das Input-Feld für das Wort. 
@@ -613,8 +613,7 @@ const GamesView = {
         `;
         break;
     }
-    
-    UI.modalZeigen(titel, ruleStyles + text);
+    UI.modalZeigen('<h2 style="margin-bottom:15px; color:#a855f7;">' + titel + '</h2>' + ruleStyles + text);
   },
 
   // ---------------- LUDO ----------------
