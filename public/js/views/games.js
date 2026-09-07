@@ -184,7 +184,7 @@ const GamesView = {
     if (!container) return;
     if (!spiele.length) { container.innerHTML = `<p class="text-gedaempft">Keine Spiele verfügbar.</p>`; return; }
     container.innerHTML = spiele.map(s => `
-      <div class="spiel-karte ${!s.istVerfuegbar ? 'gesperrt' : ''}" onclick="${s.istVerfuegbar ? `GamesView._spielStarten('${s.gameType}')` : ''}">
+      <div class="spiel-karte ${!s.istVerfuegbar ? 'gesperrt' : ''}" onclick="${s.istVerfuegbar ? `GamesView._zeigeStarterAuswahl('${s.gameType}')` : ''}">
         <span class="spiel-icon">${s.icon || '🎮'}</span>
         <div style="font-size: 1.3rem; font-weight: bold; margin-bottom: 8px;">${UI.escapeHtml(s.name || s.gameType)}</div>
         <div style="font-size: 0.9rem; color: var(--text-sekundaer);">${UI.escapeHtml(s.beschreibung || '')}</div>
@@ -215,9 +215,9 @@ const GamesView = {
     `;
   },
 
-  async _spielStarten(gameType) {
+  async _spielStarten(gameType, starter = 'nutzer', bonusErlaubt = false, geheimesWort = '') {
     try {
-      const result = await API.anfrage('POST', '/games/starten', { gameType });
+      const result = await API.anfrage('POST', '/games/starten', { gameType, starter, bonusErlaubt, geheimesWort });
       UI.erfolg('Spiel gestartet!');
       await this._spielOeffnen(result.spiel.id);
     } catch (e) {
@@ -226,6 +226,108 @@ const GamesView = {
         if (data.spielId) await this._spielOeffnen(data.spielId);
       } else { UI.fehler(e.message); }
     }
+  },
+
+  _zeigeStarterAuswahl(gameType) {
+    // Falls Akinator, benötigen wir noch extra Inputs:
+    const isAkinator = gameType === 'akinator';
+    
+    const extraHtml = isAkinator ? `
+      <div style="margin-top:20px; text-align:left; background:rgba(0,0,0,0.2); padding:20px; border-radius:16px;">
+        <h4 style="margin-bottom:10px;">Akinator Optionen</h4>
+        <div style="margin-bottom: 15px;" id="aki-wort-container">
+          <label style="display:block; margin-bottom:5px; font-weight:bold;">Welches Wort soll Poke erraten? (Wenn du das Wort vorgibst)</label>
+          <input type="text" id="aki-wort" class="word-input" style="width:100%; border-radius:12px;" placeholder="Geheimes Wort...">
+        </div>
+        <div>
+          <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+            <input type="checkbox" id="aki-bonus" style="width:20px; height:20px;">
+            <span>Bonusfragen erlauben (kein Limit bei 20 Fragen)</span>
+          </label>
+        </div>
+      </div>
+    ` : '';
+
+    const labelIch = isAkinator ? 'Ich rate (Poke überlegt sich Wort)' : 'Ich beginne';
+    const labelPoke = isAkinator ? 'Poke rät (Ich überlege mir Wort)' : 'Poke beginnt';
+
+    const html = `
+      <div style="text-align:center; padding: 20px;">
+        <h2 style="margin-bottom:20px; color:#a855f7;">Wer soll anfangen?</h2>
+        <div style="display:flex; gap:15px; justify-content:center; flex-wrap:wrap;">
+          <button class="btn btn-primaer" style="padding:15px 30px; font-size:1.1rem; border-radius:16px;" onclick="GamesView._starteMitAnimation('${gameType}', 'nutzer')">👤 ${labelIch}</button>
+          <button class="btn btn-sekundaer" style="padding:15px 30px; font-size:1.1rem; border-radius:16px;" onclick="GamesView._starteMitAnimation('${gameType}', 'poke')">🤖 ${labelPoke}</button>
+          <button class="btn btn-ghost" style="padding:15px 30px; font-size:1.1rem; border-radius:16px; border:2px dashed rgba(255,255,255,0.2);" onclick="GamesView._starteMitAnimation('${gameType}', 'zufall')">🎲 Zufall</button>
+        </div>
+        ${extraHtml}
+        
+        <div id="zufall-animation-container" style="display:none; margin-top:30px;">
+          <div id="zufall-box" style="width:80px; height:80px; border-radius:20px; background:linear-gradient(135deg, #6366f1, #a855f7); margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:2.5rem; transition: transform 0.1s; box-shadow: 0 10px 30px rgba(99,102,241,0.5);">🎲</div>
+          <div id="zufall-text" style="margin-top:15px; font-size:1.2rem; font-weight:bold;">Wird ausgelost...</div>
+        </div>
+      </div>
+    `;
+
+    UI.modalZeigen('Neues Spiel', html);
+
+    if (isAkinator) {
+      // Wenn Poke rät, braucht man das Input-Feld für das Wort. 
+      // Das klären wir dann beim Klick.
+    }
+  },
+
+  _starteMitAnimation(gameType, auswahl) {
+    let geheimesWort = '';
+    let bonusErlaubt = false;
+    if (gameType === 'akinator') {
+      const wortInput = document.getElementById('aki-wort');
+      const bonusInput = document.getElementById('aki-bonus');
+      if (wortInput) geheimesWort = wortInput.value.trim();
+      if (bonusInput) bonusErlaubt = bonusInput.checked;
+      
+      if ((auswahl === 'poke' || auswahl === 'zufall') && !geheimesWort) {
+        // Falls Poke raten soll, braucht man das Wort! (Beim Zufall geben wir es vorsichtshalber an)
+        UI.fehler('Bitte gib ein geheimes Wort ein, für den Fall, dass Poke raten muss!');
+        return;
+      }
+    }
+
+    if (auswahl !== 'zufall') {
+      UI.modalSchliessen();
+      this._spielStarten(gameType, auswahl, bonusErlaubt, geheimesWort);
+      return;
+    }
+
+    // Animation abspielen
+    const animContainer = document.getElementById('zufall-animation-container');
+    const box = document.getElementById('zufall-box');
+    const txt = document.getElementById('zufall-text');
+    if (!animContainer || !box || !txt) return;
+
+    animContainer.style.display = 'block';
+    let counter = 0;
+    const interval = setInterval(() => {
+      counter++;
+      const isNutzer = counter % 2 === 0;
+      box.textContent = isNutzer ? '👤' : '🤖';
+      box.style.transform = `scale(1.1) rotate(${counter * 15}deg)`;
+      box.style.background = isNutzer ? 'linear-gradient(135deg, #ef4444, #b91c1c)' : 'linear-gradient(135deg, #3b82f6, #1d4ed8)';
+    }, 100);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      const winner = Math.random() > 0.5 ? 'nutzer' : 'poke';
+      const isNutzer = winner === 'nutzer';
+      box.textContent = isNutzer ? '👤' : '🤖';
+      box.style.transform = `scale(1.3) rotate(0deg)`;
+      box.style.background = isNutzer ? 'linear-gradient(135deg, #ef4444, #b91c1c)' : 'linear-gradient(135deg, #3b82f6, #1d4ed8)';
+      txt.textContent = isNutzer ? 'Du fängst an!' : 'Poke fängt an!';
+      
+      setTimeout(() => {
+        UI.modalSchliessen();
+        this._spielStarten(gameType, winner, bonusErlaubt, geheimesWort);
+      }, 1500);
+    }, 2000);
   },
 
   async _spielOeffnen(spielId) {
@@ -826,43 +928,6 @@ const GamesView = {
 
   // ---------------- AKINATOR ----------------
   _renderAkinator(state, nutzerAmZug) {
-    if (state.phase === 'setup') {
-      return `
-        <div style="max-width: 500px; margin: 0 auto; text-align:center;">
-          <h3 style="margin-bottom:20px;">Spielvorbereitung</h3>
-          <div style="text-align:left; margin-bottom: 20px;">
-            <label style="display:block; margin-bottom:8px; font-weight:bold;">1. Wer soll raten?</label>
-            <select id="aki-rater" class="word-input" style="width:100%; border-radius:12px;">
-              <option value="poke">Poke soll raten (Ich wähle ein Wort)</option>
-              <option value="nutzer">Ich will raten (Poke wählt ein Wort)</option>
-            </select>
-          </div>
-          <div style="text-align:left; margin-bottom: 20px;" id="aki-wort-container">
-            <label style="display:block; margin-bottom:8px; font-weight:bold;">2. Welches Wort soll Poke erraten?</label>
-            <input type="text" id="aki-wort" class="word-input" style="width:100%; border-radius:12px;" placeholder="Geheimes Wort...">
-          </div>
-          <div style="text-align:left; margin-bottom: 20px;">
-            <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
-              <input type="checkbox" id="aki-bonus" style="width:20px; height:20px;">
-              <span>Bonusfragen erlauben (Nach 20 Fragen noch weiter raten)</span>
-            </label>
-          </div>
-          <button class="btn btn-primaer" style="border-radius:999px; padding:12px 30px; font-size:1.1rem; width:100%;" onclick="GamesView._startAkinator()">🚀 Los geht's!</button>
-          
-          <script>
-            document.getElementById('aki-rater').addEventListener('change', function(e) {
-              const wortCont = document.getElementById('aki-wort-container');
-              if (e.target.value === 'poke') {
-                wortCont.style.display = 'block';
-              } else {
-                wortCont.style.display = 'none';
-              }
-            });
-          </script>
-        </div>
-      `;
-    }
-
     if (state.phase === 'fragen') {
       const isNutzerRater = state.rater === 'nutzer';
       const maxFragen = state.bonusErlaubt ? '∞' : 20;
@@ -936,25 +1001,6 @@ const GamesView = {
         </div>
       `;
     }
-  },
-
-  _startAkinator() {
-    const rater = document.getElementById('aki-rater').value;
-    const bonus = document.getElementById('aki-bonus').checked;
-    const wortGeber = rater === 'poke' ? 'nutzer' : 'poke';
-    
-    let wort = '';
-    if (wortGeber === 'nutzer') {
-      wort = document.getElementById('aki-wort').value.trim();
-      if (!wort) { UI.fehler('Bitte gib ein geheimes Wort ein!'); return; }
-    } else {
-      // Fake a word if poke gives the word. We send something, backend should actually handle this or Poke handles this.
-      // Wait, in our logic, if wortGeber='poke', the user must still provide a placeholder for now, backend will fix it? No, in akinator backend, we need a word.
-      // We can just set a dummy word, and the webhook will override it. Or we can just let Poke think of one in his mind? Actually, the game logic requires `wort` to be set.
-      wort = 'geheim'; // TODO: Backend should probably assign a random word if Poke is wortGeber.
-    }
-    
-    this._macheZug({ wortGeber, wort, bonusErlaubt: bonus });
   },
 
   _akiMacheZug(zug) {

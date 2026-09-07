@@ -150,7 +150,7 @@ router.get('/:id', (req, res) => {
 
 // ─── POST /api/games/starten - Neues Spiel starten ───────────────────────────
 router.post('/starten', async (req, res) => {
-  const { gameType } = req.body;
+  const { gameType, starter, bonusErlaubt } = req.body;
   if (!SPIEL_META[gameType]) return res.status(400).json({ fehler: 'Unbekannter Spieltyp.' });
 
   const zugriff = pruefeSpielZugriff(req, gameType);
@@ -163,9 +163,27 @@ router.post('/starten', async (req, res) => {
   const initialState = erstelleSpielstandFuerTyp(gameType);
   if (!initialState) return res.status(500).json({ fehler: 'Spielstand konnte nicht erstellt werden.' });
 
-  // Zufällig entscheiden wer anfängt, außer bei Battleship (Setup) und Akinator (Setup)
-  if (gameType !== 'battleship' && gameType !== 'akinator') {
-    initialState.amZug = Math.random() > 0.5 ? 'nutzer' : 'poke';
+  const chosenStarter = starter === 'poke' ? 'poke' : 'nutzer';
+  initialState.startSpieler = chosenStarter;
+
+  if (gameType === 'battleship') {
+    initialState.amZug = 'nutzer';
+  } else if (gameType === 'akinator') {
+    const wortGeber = chosenStarter === 'nutzer' ? 'poke' : 'nutzer';
+    initialState.phase = 'fragen';
+    initialState.wortGeber = wortGeber;
+    initialState.rater = chosenStarter;
+    initialState.amZug = chosenStarter;
+    initialState.bonusErlaubt = bonusErlaubt === true;
+    
+    if (wortGeber === 'poke') {
+      const WORTLISTE = ['Apfel', 'Banane', 'Katze', 'Hund', 'Haus', 'Auto', 'Computer', 'Schule', 'Baum', 'Tisch', 'Kaffee', 'Buch'];
+      initialState.wort = WORTLISTE[Math.floor(Math.random() * WORTLISTE.length)];
+    } else {
+      initialState.wort = req.body.geheimesWort || 'Geheimnis';
+    }
+  } else {
+    initialState.amZug = chosenStarter;
   }
 
   const token = crypto.randomBytes(20).toString('hex');

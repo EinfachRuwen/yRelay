@@ -70,12 +70,10 @@ function erstelleSpielstand() {
 }
 
 function setupAbschliessen(state, nutzerFeld) {
-  // Überprüfen, ob das übergebene Feld gültig ist (einfache Prüfung, ob es ein 10x10 Array ist)
   if (!Array.isArray(nutzerFeld) || nutzerFeld.length !== GROESSE || !Array.isArray(nutzerFeld[0]) || nutzerFeld[0].length !== GROESSE) {
     return { erfolg: false, fehler: 'Ungültiges Spielfeld.' };
   }
   
-  // Zähle Schiffe um zumindest grob zu prüfen
   let schiffZellen = 0;
   for (let r = 0; r < GROESSE; r++) {
     for (let c = 0; c < GROESSE; c++) {
@@ -83,28 +81,32 @@ function setupAbschliessen(state, nutzerFeld) {
     }
   }
   
-  if (schiffZellen !== 20) { // 4 + 3+3 + 2+2+2 + 1+1+1+1 = 20
+  if (schiffZellen !== 20) {
     return { erfolg: false, fehler: 'Falsche Anzahl an Schiffsfeldern.' };
   }
 
+  const isPlaying = state.pokeFeld ? true : false;
   return { 
     erfolg: true, 
     state: {
       ...state,
       nutzerFeld,
-      phase: state.pokeFeld ? 'playing' : 'setup_poke'
+      phase: isPlaying ? 'playing' : 'setup_poke',
+      amZug: isPlaying ? (state.startSpieler || 'nutzer') : 'poke'
     } 
   };
 }
 
 function pokeSetupWaehlen(state, wahl) {
   if (!state.pokeSetups[wahl]) return { erfolg: false, fehler: 'Ungültige Wahl. Bitte wähle A, B oder C.' };
+  const isPlaying = state.nutzerFeld.flat().some(x => x === 1);
   return {
     erfolg: true,
     state: {
       ...state,
       pokeFeld: state.pokeSetups[wahl],
-      phase: state.nutzerFeld.flat().some(x => x === 1) ? 'playing' : 'setup'
+      phase: isPlaying ? 'playing' : 'setup',
+      amZug: isPlaying ? (state.startSpieler || 'nutzer') : 'nutzer'
     }
   };
 }
