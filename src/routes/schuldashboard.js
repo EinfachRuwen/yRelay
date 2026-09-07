@@ -625,7 +625,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Cookie': cookie },
       body: JSON.stringify({
-        name: `Upload von ${req.user.username} (Schul-Dashboard)`,
+        name: `Upload von ${req.user.benutzername} (Schul-Dashboard)`,
         // expiration 7 days later
         expiration: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       })
@@ -637,12 +637,12 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     // 3. Datei hochladen
     const formData = new FormData();
-    const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
-    formData.append('file', blob, req.file.originalname);
+    // Use File instead of Blob to ensure undici handles it correctly without hanging
+    const fileObj = new File([req.file.buffer], req.file.originalname, { type: req.file.mimetype });
+    formData.append('file', fileObj);
     
-    // Sometimes pingvin needs chunking, but we try a direct upload first.
-    // The endpoint is usually POST /api/shares/:shareId/files
-    const uploadRes = await fetch(`${baseUrl}/api/shares/${shareId}/files`, {
+    // Pingvin Share requires chunking parameters in modern versions, otherwise it might hang waiting for chunks
+    const uploadRes = await fetch(`${baseUrl}/api/shares/${shareId}/files?chunkIndex=0&totalChunks=1`, {
       method: 'POST',
       headers: { 'Cookie': cookie },
       body: formData
