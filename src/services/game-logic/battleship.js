@@ -54,8 +54,13 @@ function erstelleSpielstand() {
   return {
     // Nutzer-Feld fängt leer an, muss im Setup platziert werden
     nutzerFeld: erstelleLeeresFeld(),
-    // Poke-Feld wird sofort zufällig generiert
-    pokeFeld: platzierungZufaellig(),
+    // Poke-Feld wird aus der Auswahl von Poke später gesetzt
+    pokeFeld: null,
+    pokeSetups: {
+      A: platzierungZufaellig(),
+      B: platzierungZufaellig(),
+      C: platzierungZufaellig()
+    },
     amZug: 'nutzer',
     gewinner: null,
     zugAnzahl: 0,
@@ -87,8 +92,20 @@ function setupAbschliessen(state, nutzerFeld) {
     state: {
       ...state,
       nutzerFeld,
-      phase: 'playing'
+      phase: state.pokeFeld ? 'playing' : 'setup_poke'
     } 
+  };
+}
+
+function pokeSetupWaehlen(state, wahl) {
+  if (!state.pokeSetups[wahl]) return { erfolg: false, fehler: 'Ungültige Wahl. Bitte wähle A, B oder C.' };
+  return {
+    erfolg: true,
+    state: {
+      ...state,
+      pokeFeld: state.pokeSetups[wahl],
+      phase: state.nutzerFeld.flat().some(x => x === 1) ? 'playing' : 'setup'
+    }
   };
 }
 
@@ -108,7 +125,7 @@ function schiessen(state, r, c, schiesser) {
   const neuerState = {
     ...state,
     [zielFeld]: feld,
-    amZug: schiesser === 'nutzer' ? 'poke' : 'nutzer',
+    amZug: treffer ? schiesser : (schiesser === 'nutzer' ? 'poke' : 'nutzer'),
     gewinner: alleVersenkt ? schiesser : null,
     zugAnzahl: state.zugAnzahl + 1,
   };
@@ -126,6 +143,16 @@ function feldAlsAsciiNutzer(pokeFeld) {
   const header = '   ' + Array.from({ length: GROESSE }, (_, i) => String(i + 1).padStart(2)).join('');
   const zeilen = pokeFeld.map((reihe, ri) => {
     const zellen = reihe.map(z => z === 2 ? '💥' : z === 3 ? '🌊' : '⬜');
+    return `${cols[ri]}  ${zellen.join('')}`;
+  });
+  return header + '\n' + zeilen.join('\n');
+}
+
+function feldAlsAsciiPoke(pokeFeld) {
+  const cols = 'ABCDEFGHIJ';
+  const header = '   ' + Array.from({ length: 10 }, (_, i) => String(i + 1).padStart(2)).join('');
+  const zeilen = pokeFeld.map((reihe, ri) => {
+    const zellen = reihe.map(z => z === 1 ? '🚢' : '🌊');
     return `${cols[ri]}  ${zellen.join('')}`;
   });
   return header + '\n' + zeilen.join('\n');
@@ -168,4 +195,4 @@ function pokeKiZug(state) {
   return frei[Math.floor(Math.random() * frei.length)];
 }
 
-module.exports = { erstelleLeeresFeld, erstelleSpielstand, setupAbschliessen, schiessen, feldAlsAsciiNutzer, pokeZugButtons, pokeVerfuegbareSchuesse, pokeKiZug };
+module.exports = { erstelleLeeresFeld, erstelleSpielstand, setupAbschliessen, pokeSetupWaehlen, schiessen, feldAlsAsciiNutzer, feldAlsAsciiPoke, pokeZugButtons, pokeVerfuegbareSchuesse, pokeKiZug };

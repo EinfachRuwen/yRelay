@@ -78,18 +78,25 @@ const GamesView = {
         .spiel-icon { font-size: 3.5rem; margin-bottom: 16px; display: block; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.3)); }
         
         /* Board Header */
-        .board-wrapper { max-width: 900px; margin: 0 auto; background: rgba(15, 23, 42, 0.5); border-radius: 24px; padding: 30px; border: 1px solid rgba(255,255,255,0.05); }
+        .board-wrapper { flex: 2; min-width: 300px; background: rgba(15, 23, 42, 0.5); border-radius: 24px; padding: 30px; border: 1px solid rgba(255,255,255,0.05); position: relative; }
         .board-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
-        .board-title { font-size:1.8rem; font-weight:800; letter-spacing: -0.5px; background: linear-gradient(to right, #a855f7, #6366f1); -webkit-background-clip: text; color: transparent; }
+        .board-title { font-size:1.8rem; font-weight:800; letter-spacing: -0.5px; background: linear-gradient(to right, #a855f7, #6366f1); -webkit-background-clip: text; color: transparent; display:flex; align-items:center; gap: 10px; }
         .board-status { font-size:1rem; padding:8px 20px; border-radius:999px; background:rgba(99,102,241,0.15); color:#818cf8; font-weight: 600; box-shadow: 0 4px 15px rgba(99,102,241,0.1); transition: all 0.3s; }
         .board-status.poke-zug { background:rgba(245,158,11,0.15); color:#f59e0b; box-shadow: 0 4px 15px rgba(245,158,11,0.1); }
+        
+        /* In-Game Chat */
+        .chat-wrapper { flex: 1; min-width: 300px; background: rgba(15, 23, 42, 0.5); border-radius: 24px; padding: 20px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; max-height: 800px; }
+        .chat-log { flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; padding-right: 5px; }
+        .chat-msg { padding: 10px 14px; border-radius: 12px; max-width: 85%; font-size: 0.95rem; }
+        .chat-msg.nutzer { align-self: flex-end; background: #4f46e5; color: white; border-bottom-right-radius: 2px; }
+        .chat-msg.poke { align-self: flex-start; background: rgba(255,255,255,0.1); color: white; border-bottom-left-radius: 2px; }
         
         /* Reminder Button */
         #btn-reminder { margin-top: 10px; border-radius: 999px; font-weight: bold; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; color: white; display: none; }
         #btn-reminder:disabled { background: rgba(255,255,255,0.1); color: var(--text-sekundaer); cursor: not-allowed; }
 
         /* Ludo (Mensch ärgere dich nicht) Premium Grid */
-        .ludo-container { display: flex; gap: 30px; align-items: flex-start; }
+        .ludo-container { display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap; }
         .ludo-board { 
           display: grid; grid-template-columns: repeat(11, 40px); grid-template-rows: repeat(11, 40px); gap: 4px;
           background: rgba(0,0,0,0.2); padding: 16px; border-radius: 20px; box-shadow: inset 0 2px 20px rgba(0,0,0,0.5);
@@ -127,14 +134,15 @@ const GamesView = {
         @keyframes shake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-3px);} 75% {transform: translateX(3px);} }
         
         /* Connect 4 Premium */
-        .c4-container { background: linear-gradient(180deg, #1e3a8a, #172554); padding: 24px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 2px 10px rgba(255,255,255,0.1); max-width: 500px; margin: 0 auto; }
+        .c4-container { background: linear-gradient(180deg, #1e3a8a, #172554); padding: 24px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 2px 10px rgba(255,255,255,0.1); max-width: 500px; margin: 0 auto; position: relative; }
         .c4-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
         .c4-cell { width: 100%; aspect-ratio: 1; border-radius: 50%; background: #0f172a; box-shadow: inset 0 4px 10px rgba(0,0,0,0.8), 0 2px 0 rgba(255,255,255,0.1); position: relative; }
         .c4-chip { position: absolute; inset: 4px; border-radius: 50%; box-shadow: inset 0 -4px 8px rgba(0,0,0,0.3), 0 4px 10px rgba(0,0,0,0.4); transition: transform 0.5s cubic-bezier(0.5, 0, 0.5, 1); }
         .c4-chip.nutzer { background: radial-gradient(circle at 30% 30%, #fca5a5, #ef4444 60%, #991b1b); }
         .c4-chip.poke { background: radial-gradient(circle at 30% 30%, #fcd34d, #f59e0b 60%, #b45309); }
-        .c4-col-btn { background: transparent; border: none; padding: 10px 0; color: white; opacity: 0; transition: opacity 0.2s; cursor: pointer; }
-        .c4-col:hover .c4-col-btn { opacity: 1; transform: translateY(-5px); }
+        .c4-col { position: relative; cursor: pointer; border-radius: 12px; transition: background 0.2s; }
+        .c4-col:hover { background: rgba(255,255,255,0.1); }
+        .c4-overlay { position: absolute; inset: 24px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; z-index: 10; }
 
         /* Tic Tac Toe Premium */
         .ttt-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 320px; margin: 0 auto; }
@@ -143,14 +151,14 @@ const GamesView = {
         .ttt-cell.nutzer { color: #ef4444; text-shadow: 0 0 20px rgba(239,68,68,0.5); }
         .ttt-cell.poke { color: #3b82f6; text-shadow: 0 0 20px rgba(59,130,246,0.5); }
 
-        /* Wordgame Premium */
+        /* Wordgame & Akinator */
         .word-chat { display: flex; flex-direction: column; gap: 16px; background: rgba(0,0,0,0.2); padding: 24px; border-radius: 20px; max-height: 400px; overflow-y: auto; }
         .word-bubble { padding: 12px 20px; border-radius: 20px; max-width: 80%; font-size: 1.1rem; letter-spacing: 0.5px; animation: fadeIn 0.3s forwards; }
         .word-bubble.nutzer { align-self: flex-end; background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border-bottom-right-radius: 4px; box-shadow: 0 4px 15px rgba(99,102,241,0.3); }
         .word-bubble.poke { align-self: flex-start; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.05); color: white; border-bottom-left-radius: 4px; }
-        .word-hint { text-align: center; font-size: 0.9rem; color: #a855f7; margin-top: 10px; font-weight: 600; }
-        .word-input-container { display: flex; gap: 12px; margin-top: 20px; }
-        .word-input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 14px 20px; border-radius: 999px; color: white; font-size: 1.1rem; transition: border-color 0.3s; }
+        .word-hint { text-align: center; font-size: 1rem; color: #a855f7; margin-top: 15px; font-weight: 600; }
+        .word-input-container { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
+        .word-input { flex: 1; min-width: 200px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 14px 20px; border-radius: 999px; color: white; font-size: 1.1rem; transition: border-color 0.3s; }
         .word-input:focus { outline: none; border-color: #6366f1; background: rgba(255,255,255,0.1); }
       </style>
     `;
@@ -242,7 +250,8 @@ const GamesView = {
         try {
           const daten = await API.anfrage('GET', `/games/${spielId}`);
           if (daten.spiel.status !== this._aktivesSpiel.status ||
-              JSON.stringify(daten.spiel.state.zugAnzahl) !== JSON.stringify(this._aktivesSpiel.state?.zugAnzahl)) {
+              JSON.stringify(daten.spiel.state.zugAnzahl) !== JSON.stringify(this._aktivesSpiel.state?.zugAnzahl) ||
+              JSON.stringify(daten.spiel.state.chat) !== JSON.stringify(this._aktivesSpiel.state?.chat)) {
             this._aktivesSpiel = daten.spiel;
             this._spielBoardRendern();
           }
@@ -288,63 +297,222 @@ const GamesView = {
     else if (spiel.game_type === 'battleship') boardHtml = this._renderBattleship(state, nutzerAmZug);
     else if (spiel.game_type === 'ludo') boardHtml = this._renderLudo(state, nutzerAmZug);
     else if (spiel.game_type === 'wordgame') boardHtml = this._renderWordgame(state, nutzerAmZug);
+    else if (spiel.game_type === 'akinator') boardHtml = this._renderAkinator(state, nutzerAmZug);
+
+    // Chat Log HTML
+    let chatHtml = '';
+    if (state.chat && state.chat.length > 0) {
+      chatHtml = state.chat.map(m => `<div class="chat-msg ${m.absender}">${UI.escapeHtml(m.text)}</div>`).join('');
+    } else {
+      chatHtml = `<div style="text-align:center; color:var(--text-sekundaer); margin-top:20px; font-size:0.9rem;">Noch keine Nachrichten.</div>`;
+    }
 
     container.innerHTML = `
-      <div class="board-wrapper">
-        <div class="board-header">
-          <div>
-            <button class="btn btn-ghost btn-klein" style="margin-bottom:8px; opacity:0.7;" onclick="GamesView._zurueck()">← Zurück</button>
-            <div class="board-title">${meta.icon || '🎮'} ${UI.escapeHtml(meta.name || spiel.game_type)}</div>
+      <div style="display:flex; gap:20px; max-width:1200px; margin:0 auto; flex-wrap:wrap; align-items:flex-start;">
+        <div class="board-wrapper">
+          <div class="board-header">
+            <div>
+              <button class="btn btn-ghost btn-klein" style="margin-bottom:8px; opacity:0.7;" onclick="GamesView._zurueck()">← Zurück</button>
+              <div class="board-title">
+                ${meta.icon || '🎮'} ${UI.escapeHtml(meta.name || spiel.game_type)}
+                <button class="btn btn-sekundaer btn-klein" style="border-radius:50%; width:30px; height:30px; padding:0; display:flex; align-items:center; justify-content:center;" onclick="GamesView._zeigeRegeln('${spiel.game_type}')" title="Spielregeln">ℹ️</button>
+              </div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:flex-end;">
+              <span class="board-status ${statusKlasse}">${statusText}</span>
+              <button id="btn-reminder" class="btn btn-klein" onclick="GamesView._pokeErinnern(${spiel.id})">Poke erinnern (30s)</button>
+            </div>
           </div>
-          <div style="display:flex; flex-direction:column; align-items:flex-end;">
-            <span class="board-status ${statusKlasse}">${statusText}</span>
-            <button id="btn-reminder" class="btn btn-klein" onclick="GamesView._pokeErinnern(${spiel.id})">Poke erinnern (30s)</button>
+          ${boardHtml}
+          <div style="margin-top:30px; text-align:center;">
+            ${istAktiv ? `<button class="btn btn-ghost btn-klein" style="color:#ef4444;" onclick="GamesView._aufgeben(${spiel.id})">🏳️ Spiel aufgeben</button>` : `<button class="btn btn-primaer" style="border-radius:999px; padding:12px 30px; font-size:1.1rem;" onclick="GamesView._spielStarten('${spiel.game_type}')">Nochmal spielen</button>`}
           </div>
         </div>
-        ${boardHtml}
-        <div style="margin-top:30px; text-align:center;">
-          ${istAktiv ? `<button class="btn btn-ghost btn-klein" style="color:#ef4444;" onclick="GamesView._aufgeben(${spiel.id})">🏳️ Spiel aufgeben</button>` : `<button class="btn btn-primaer" style="border-radius:999px; padding:12px 30px; font-size:1.1rem;" onclick="GamesView._spielStarten('${spiel.game_type}')">Nochmal spielen</button>`}
+        
+        <div class="chat-wrapper">
+          <h3 style="margin-bottom:15px; font-size:1.1rem;">💬 Spiel-Chat</h3>
+          <div class="chat-log" id="game-chat-log">${chatHtml}</div>
+          <div style="display:flex; gap:10px;">
+            <input type="text" id="game-chat-input" class="word-input" style="padding:10px 15px; font-size:0.9rem;" placeholder="Schreibe Poke..." onkeydown="if(event.key==='Enter') GamesView._sendChat()">
+            <button class="btn btn-primaer" style="border-radius:999px; padding:0 15px;" onclick="GamesView._sendChat()">Senden</button>
+          </div>
         </div>
       </div>
     `;
 
     this._updateReminderButton(spiel.id);
+    
+    // Scroll chat to bottom
+    setTimeout(() => {
+      const chatLog = document.getElementById('game-chat-log');
+      if (chatLog) chatLog.scrollTop = chatLog.scrollHeight;
+    }, 0);
   },
 
-  _updateReminderButton(spielId) {
-    const btn = document.getElementById('btn-reminder');
-    if (!btn) return;
-    if (this._reminderInterval) clearInterval(this._reminderInterval);
+  _sendChat() {
+    const input = document.getElementById('game-chat-input');
+    const msg = input?.value?.trim();
+    if (!msg) return;
+    input.value = '';
     
-    if (!this._pokeTurnStart) {
-      btn.style.display = 'none';
-      return;
+    // Optimistic Chat
+    const chatLog = document.getElementById('game-chat-log');
+    if (chatLog) {
+      chatLog.insertAdjacentHTML('beforeend', `<div class="chat-msg nutzer">${UI.escapeHtml(msg)}</div>`);
+      chatLog.scrollTop = chatLog.scrollHeight;
     }
-
-    btn.style.display = 'inline-block';
     
-    this._reminderInterval = setInterval(() => {
-      const elapsed = (Date.now() - this._pokeTurnStart) / 1000;
-      const left = Math.max(0, 30 - Math.floor(elapsed));
-      if (left > 0) {
-        btn.disabled = true;
-        btn.textContent = `Warte auf Poke... (${left}s)`;
-      } else {
-        btn.disabled = false;
-        btn.textContent = `🔔 Poke anstupsen`;
-      }
-    }, 1000);
+    this._macheZug({ aktion: 'chat', nachricht: msg });
   },
 
-  async _pokeErinnern(spielId) {
-    try {
-      const btn = document.getElementById('btn-reminder');
-      if (btn) { btn.disabled = true; btn.textContent = 'Erinnere...'; }
-      await API.anfrage('POST', `/games/${spielId}/erinnern`);
-      UI.erfolg('Erinnerung gesendet!');
-      this._pokeTurnStart = Date.now(); // Reset timer
-      this._updateReminderButton(spielId);
-    } catch (e) { UI.fehler(e.message); }
+  _zeigeRegeln(gameType) {
+    let titel = '';
+    let text = '';
+    
+    // Globale CSS-Klassen für die Regeln (werden ins Modal injiziert)
+    const ruleStyles = `
+      <style>
+        .rule-section { margin-bottom: 20px; }
+        .rule-title { font-size: 1.2rem; font-weight: bold; color: #a855f7; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+        .rule-text { font-size: 1rem; color: var(--text-primaer); line-height: 1.6; }
+        .rule-list { margin-top: 10px; padding-left: 20px; list-style-type: none; }
+        .rule-list li { margin-bottom: 8px; position: relative; }
+        .rule-list li::before { content: '✨'; position: absolute; left: -25px; top: 0; font-size: 0.9rem; }
+        .rule-highlight { background: rgba(168, 85, 247, 0.15); padding: 2px 6px; border-radius: 4px; color: #c084fc; font-weight: 600; }
+        .rule-box { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-top: 15px; }
+      </style>
+    `;
+
+    switch (gameType) {
+      case 'connect4':
+        titel = '🟡 4 Gewinnt – Strategie & Schwerkraft';
+        text = `
+          <div class="rule-section">
+            <div class="rule-title">🎯 Das Spielziel</div>
+            <div class="rule-text">Tauche ein in den absoluten Strategie-Klassiker! Dein Ziel ist es, als erster Spieler <span class="rule-highlight">vier eigene Chips</span> in eine ununterbrochene Linie zu bringen.</div>
+          </div>
+          <div class="rule-section">
+            <div class="rule-title">📜 So wird gespielt</div>
+            <ul class="rule-list rule-text">
+              <li>Das Spielbrett besteht aus 7 Spalten und 6 Reihen.</li>
+              <li>Du spielst abwechselnd mit Poke. Klicke auf eine Spalte, um deinen Chip fallen zu lassen.</li>
+              <li>Chips fallen immer bis zum untersten freien Feld der Spalte durch.</li>
+              <li>Die Vierer-Reihe darf <strong>horizontal, vertikal oder diagonal</strong> sein!</li>
+            </ul>
+          </div>
+          <div class="rule-box rule-text">
+            <strong>💡 Profi-Tipp:</strong> Achte nicht nur auf deine eigenen Linien, sondern blockiere Poke rechtzeitig! Oft gewinnt derjenige, der den Gegner in eine Falle lockt.
+          </div>
+        `;
+        break;
+      case 'tictactoe':
+        titel = '⭕ Tic Tac Toe – Schnell & Taktisch';
+        text = `
+          <div class="rule-section">
+            <div class="rule-title">🎯 Das Spielziel</div>
+            <div class="rule-text">Der zeitlose Kampf zwischen Kreuz (✕) und Kreis (◯). Wer zuerst <span class="rule-highlight">drei Symbole in einer Reihe</span> hat, gewinnt das Duell!</div>
+          </div>
+          <div class="rule-section">
+            <div class="rule-title">📜 So wird gespielt</div>
+            <ul class="rule-list rule-text">
+              <li>Gespielt wird auf einem 3x3 Raster.</li>
+              <li>Du und Poke setzt abwechselnd eure Symbole auf freie Felder.</li>
+              <li>Die Reihe kann horizontal, vertikal oder diagonal verlaufen.</li>
+              <li>Sind alle 9 Felder belegt und niemand hat drei in einer Reihe, endet das Spiel unentschieden.</li>
+            </ul>
+          </div>
+          <div class="rule-box rule-text">
+            <strong>💡 Profi-Tipp:</strong> Die Mitte ist das mächtigste Feld. Wenn du startest, sichere sie dir!
+          </div>
+        `;
+        break;
+      case 'ludo':
+        titel = '🎲 Mensch ärgere dich nicht – Nervenkitzel pur!';
+        text = `
+          <div class="rule-section">
+            <div class="rule-title">🎯 Das Spielziel</div>
+            <div class="rule-text">Ein Rennen um die Welt! Bringe als Erster alle deine <span class="rule-highlight">vier Spielfiguren</span> sicher in dein Zielfeld.</div>
+          </div>
+          <div class="rule-section">
+            <div class="rule-title">📜 So wird gespielt</div>
+            <ul class="rule-list rule-text">
+              <li><strong>Würfeln:</strong> Ihr seid abwechselnd dran. Klicke auf "Würfeln", um deine Zahl zu bestimmen.</li>
+              <li><strong>Herauskommen:</strong> Du brauchst eine <strong>6</strong>, um eine Figur aus dem Haus auf das Startfeld zu setzen! Danach darfst du <strong>direkt nochmal würfeln</strong>.</li>
+              <li><strong>Bewegen:</strong> Klicke auf eine leuchtende Figur, um sie um die gewürfelte Augenzahl vorzurücken.</li>
+              <li><strong>Schlagen:</strong> Landest du genau auf einem Feld, auf dem Poke steht? Bam! Seine Figur wird zurück ins Haus geschickt (und umgekehrt!).</li>
+              <li><strong>Blockaden:</strong> Du kannst nicht auf ein Feld ziehen, das bereits von deiner eigenen Figur besetzt ist.</li>
+            </ul>
+          </div>
+          <div class="rule-box rule-text">
+            <strong>💡 Profi-Tipp:</strong> Ärgere dich nicht, wenn du kurz vor dem Ziel geschlagen wirst – Rache ist süß!
+          </div>
+        `;
+        break;
+      case 'battleship':
+        titel = '⚓ Schiffe versenken – Die große Seeschlacht';
+        text = `
+          <div class="rule-section">
+            <div class="rule-title">🎯 Das Spielziel</div>
+            <div class="rule-text">Spiele Admiral! Finde und <span class="rule-highlight">versenke die gesamte Flotte</span> von Poke, bevor er deine Schiffe auf den Grund des Ozeans schickt.</div>
+          </div>
+          <div class="rule-section">
+            <div class="rule-title">📜 So wird gespielt</div>
+            <ul class="rule-list rule-text">
+              <li><strong>Die Aufstellung:</strong> Zuerst platzierst du deine Flotte heimlich auf deinem Raster. Poke wählt zeitgleich sein Setup.</li>
+              <li><strong>Das Feuergefecht:</strong> Schießt abwechselnd auf die Koordinaten des gegnerischen Feldes.</li>
+              <li><strong>🌊 Wasser (Fehlschuss):</strong> Du hast nichts getroffen. Poke ist dran.</li>
+              <li><strong>💥 Treffer:</strong> Du hast ein Schiff erwischt! <strong>Und jetzt kommt das Beste: Du darfst direkt noch einmal schießen!</strong> Das gilt so lange, bis du Wasser triffst.</li>
+            </ul>
+          </div>
+          <div class="rule-box rule-text">
+            <strong>💡 Profi-Tipp:</strong> Schiffe können horizontal oder vertikal liegen. Wenn du triffst, schieße im nächsten Zug auf die angrenzenden Felder!
+          </div>
+        `;
+        break;
+      case 'wordgame':
+        titel = '🔤 Wortspiel – Der ultimative Buchstabensalat';
+        text = `
+          <div class="rule-section">
+            <div class="rule-title">🎯 Das Spielziel</div>
+            <div class="rule-text">Beweise deinen gigantischen Wortschatz in einer endlosen Kette aus Wörtern!</div>
+          </div>
+          <div class="rule-section">
+            <div class="rule-title">📜 So wird gespielt</div>
+            <ul class="rule-list rule-text">
+              <li>Der Startspieler nennt ein beliebiges Wort.</li>
+              <li>Der nächste Spieler muss nun ein Wort bilden, das <strong>mit dem letzten Buchstaben</strong> des vorherigen Wortes beginnt.</li>
+              <li><em>Beispiel:</em> Apfe<strong>l</strong> ➡️ <strong>L</strong>oc<strong>h</strong> ➡️ <strong>H</strong>au<strong>s</strong> ➡️ <strong>S</strong>and.</li>
+              <li>Kein Wort darf doppelt genannt werden!</li>
+              <li>Wem nichts mehr einfällt, der verliert.</li>
+            </ul>
+          </div>
+        `;
+        break;
+      case 'akinator':
+        titel = '🧞 Wer bin ich? (Akinator) – Mindgames';
+        text = `
+          <div class="rule-section">
+            <div class="rule-title">🎯 Das Spielziel</div>
+            <div class="rule-text">Bist du ein Gedankenleser? Ein Spieler denkt sich ein Wort aus, der andere muss es mit gezielten Fragen <span class="rule-highlight">erraten</span>.</div>
+          </div>
+          <div class="rule-section">
+            <div class="rule-title">📜 So wird gespielt</div>
+            <ul class="rule-list rule-text">
+              <li><strong>Die Rollen:</strong> Zu Beginn wählt ihr, wer sich das Wort ausdenkt (Wortgeber) und wer rät (Rater).</li>
+              <li><strong>Die Fragen:</strong> Der Rater darf bis zu 20 Fragen stellen.</li>
+              <li><strong>Die Antworten:</strong> Der Wortgeber darf nur mit <em>Ja, Nein, Ich weiß nicht, Wahrscheinlich ja, Wahrscheinlich nicht</em> oder <em>Überspringen</em> antworten.</li>
+              <li><strong>Die Auflösung:</strong> Der Rater kann jederzeit auf "Auflösen" klicken und seinen finalen Tipp abgeben.</li>
+              <li><strong>Das Urteil:</strong> Am Ende stimmen beide Spieler ab, ob das erratene Wort richtig war (Synonyme gelten!). Sind beide sich einig, gewinnt der Rater.</li>
+            </ul>
+          </div>
+          <div class="rule-box rule-text">
+            <strong>💡 Profi-Tipp:</strong> Fange mit ganz groben Kategorien an (Tier? Gegenstand? Ort?) und werde dann Schritt für Schritt spezifischer!
+          </div>
+        `;
+        break;
+    }
+    
+    UI.modalZeigen(titel, ruleStyles + text);
   },
 
   // ---------------- LUDO ----------------
@@ -408,6 +576,15 @@ const GamesView = {
   // ---------------- BATTLESHIP ----------------
   _renderBattleship(state, nutzerAmZug) {
     if (state.phase === 'setup') return this._renderBattleshipSetup();
+    if (state.phase === 'setup_poke') {
+      return `
+        <div style="text-align:center; padding: 40px;">
+          <div class="lade-spinner" style="width: 40px; height: 40px; border-width: 4px; border-color: #3b82f6 transparent #3b82f6 transparent; margin-bottom: 20px;"></div>
+          <h3>Poke wählt gerade seine Flotte...</h3>
+          <p style="color:var(--text-sekundaer);">Er hat drei Aufstellungen zur Auswahl bekommen und entscheidet sich gleich.</p>
+        </div>
+      `;
+    }
 
     const renderGrid = (feld, isPoke, klickbar) => {
       const cols = 'ABCDEFGHIJ';
@@ -477,7 +654,7 @@ const GamesView = {
         </div>
 
         <div>
-          ${!currSchiff ? `<button class="btn btn-primaer" style="font-size:1.2rem; padding:12px 30px; border-radius:999px;" onclick="GamesView._bsSetupFertig()">🚀 Schlacht beginnen</button>` : ''}
+          ${!currSchiff ? `<button class="btn btn-primaer" style="font-size:1.2rem; padding:12px 30px; border-radius:999px;" onclick="GamesView._bsSetupFertig()">🚀 Flotte bestätigen</button>` : ''}
           <button class="btn btn-ghost" style="color:#ef4444;" onclick="GamesView._spielOeffnen(GamesView._aktivesSpiel.id)">Neu aufstellen</button>
         </div>
       </div>
@@ -537,8 +714,6 @@ const GamesView = {
   // ---------------- CONNECT 4 ----------------
   _renderConnect4(state, nutzerAmZug) {
     let gridHtml = '';
-    // Connect 4 state.brett is [row][col] usually top to bottom.
-    // Let's assume row 0 is top.
     for (let r = 0; r < state.brett.length; r++) {
       for (let c = 0; c < state.brett[r].length; c++) {
         const val = state.brett[r][c];
@@ -547,20 +722,17 @@ const GamesView = {
       }
     }
 
-    let buttons = '';
+    let overlayCols = '';
     for (let c = 0; c < 7; c++) {
       const klickbar = nutzerAmZug && !state.gewinner;
       const onClick = klickbar ? `onclick="GamesView._optimisticC4(${c})"` : '';
-      buttons += `<div class="c4-col" style="display:flex; flex-direction:column;" ${onClick}>
-                    <div style="flex:1;"></div>
-                    <button class="c4-col-btn" ${!klickbar ? 'disabled' : ''}>⬇️</button>
-                  </div>`;
+      overlayCols += `<div class="c4-col" ${onClick}></div>`;
     }
 
     return `
       <div class="c4-container">
-        <div style="display:grid; grid-template-columns:repeat(7, 1fr); height:40px; margin-bottom:4px;">${buttons}</div>
         <div class="c4-grid">${gridHtml}</div>
+        <div class="c4-overlay">${overlayCols}</div>
       </div>
     `;
   },
@@ -608,9 +780,6 @@ const GamesView = {
   // ---------------- WORDGAME ----------------
   _renderWordgame(state, nutzerAmZug) {
     const bubs = state.woerter.map((w, i) => {
-      const isNutzer = i % 2 === 0; // Assuming nutzer always starts Wordgame first word logically. Actually wait, whoever starts first is recorded in DB. Let's just assume alternating based on who is amZug right now vs length.
-      // Better: if length is even, and amZug is nutzer, then nutzer made even moves.
-      // If we don't store exactly who made which move, we can alternate.
       const startsFirst = (state.amZug === 'nutzer' && state.woerter.length % 2 === 0) || (state.amZug === 'poke' && state.woerter.length % 2 !== 0);
       const cls = startsFirst ? (i % 2 === 0 ? 'nutzer' : 'poke') : (i % 2 === 0 ? 'poke' : 'nutzer');
       return `<div class="word-bubble ${cls}">${UI.escapeHtml(w)}</div>`;
@@ -622,7 +791,7 @@ const GamesView = {
 
     const input = (nutzerAmZug && !state.gewinner) ? `
       <div class="word-input-container">
-        <input type="text" id="word-input" class="word-input" placeholder="Tippe dein Wort hier..." autocomplete="off">
+        <input type="text" id="word-input" class="word-input" placeholder="Tippe dein Wort hier..." autocomplete="off" onkeydown="if(event.key==='Enter') GamesView._submitWord()">
         <button class="btn btn-primaer" style="border-radius:999px; padding:0 30px; font-weight:bold;" onclick="GamesView._submitWord()">Senden</button>
       </div>
     ` : '';
@@ -655,10 +824,149 @@ const GamesView = {
     this._macheZug({ wort });
   },
 
+  // ---------------- AKINATOR ----------------
+  _renderAkinator(state, nutzerAmZug) {
+    if (state.phase === 'setup') {
+      return `
+        <div style="max-width: 500px; margin: 0 auto; text-align:center;">
+          <h3 style="margin-bottom:20px;">Spielvorbereitung</h3>
+          <div style="text-align:left; margin-bottom: 20px;">
+            <label style="display:block; margin-bottom:8px; font-weight:bold;">1. Wer soll raten?</label>
+            <select id="aki-rater" class="word-input" style="width:100%; border-radius:12px;">
+              <option value="poke">Poke soll raten (Ich wähle ein Wort)</option>
+              <option value="nutzer">Ich will raten (Poke wählt ein Wort)</option>
+            </select>
+          </div>
+          <div style="text-align:left; margin-bottom: 20px;" id="aki-wort-container">
+            <label style="display:block; margin-bottom:8px; font-weight:bold;">2. Welches Wort soll Poke erraten?</label>
+            <input type="text" id="aki-wort" class="word-input" style="width:100%; border-radius:12px;" placeholder="Geheimes Wort...">
+          </div>
+          <div style="text-align:left; margin-bottom: 20px;">
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+              <input type="checkbox" id="aki-bonus" style="width:20px; height:20px;">
+              <span>Bonusfragen erlauben (Nach 20 Fragen noch weiter raten)</span>
+            </label>
+          </div>
+          <button class="btn btn-primaer" style="border-radius:999px; padding:12px 30px; font-size:1.1rem; width:100%;" onclick="GamesView._startAkinator()">🚀 Los geht's!</button>
+          
+          <script>
+            document.getElementById('aki-rater').addEventListener('change', function(e) {
+              const wortCont = document.getElementById('aki-wort-container');
+              if (e.target.value === 'poke') {
+                wortCont.style.display = 'block';
+              } else {
+                wortCont.style.display = 'none';
+              }
+            });
+          </script>
+        </div>
+      `;
+    }
+
+    if (state.phase === 'fragen') {
+      const isNutzerRater = state.rater === 'nutzer';
+      const maxFragen = state.bonusErlaubt ? '∞' : 20;
+      const count = state.fragen.filter(f => f.typ === 'antwort' && f.text.toLowerCase() !== 'überspringen').length;
+      
+      const bubs = state.fragen.map(f => {
+        const cls = f.absender === 'nutzer' ? 'nutzer' : 'poke';
+        const prefix = f.typ === 'loesung' ? '🎯 Lösung: ' : '';
+        return `<div class="word-bubble ${cls}"><strong>${prefix}${UI.escapeHtml(f.text)}</strong></div>`;
+      }).join('');
+
+      let interaktion = '';
+      if (nutzerAmZug) {
+        if (isNutzerRater) {
+          interaktion = `
+            <div class="word-input-container" style="flex-direction:column; gap:10px;">
+              <div style="display:flex; gap:10px;">
+                <input type="text" id="aki-frage" class="word-input" placeholder="Ja/Nein Frage stellen..." onkeydown="if(event.key==='Enter') GamesView._akiMacheZug({frage: this.value})">
+                <button class="btn btn-primaer" onclick="GamesView._akiMacheZug({frage: document.getElementById('aki-frage').value})">Fragen</button>
+              </div>
+              <div style="display:flex; gap:10px; margin-top:10px;">
+                <input type="text" id="aki-loesen" class="word-input" placeholder="Wort direkt erraten..." onkeydown="if(event.key==='Enter') GamesView._akiMacheZug({aktion: 'loesen', wort: this.value})">
+                <button class="btn btn-sekundaer" style="background:#ef4444;" onclick="GamesView._akiMacheZug({aktion: 'loesen', wort: document.getElementById('aki-loesen').value})">Auflösen!</button>
+              </div>
+            </div>
+          `;
+        } else {
+          interaktion = `
+            <div style="text-align:center; font-weight:bold; margin-bottom:10px;">Dein Wort: <span style="color:#a855f7;">${UI.escapeHtml(state.wort)}</span></div>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+              ${['Ja', 'Nein', 'Ich weiß nicht', 'Wahrscheinlich ja', 'Wahrscheinlich nicht', 'Überspringen'].map(a => 
+                `<button class="btn btn-sekundaer btn-klein" onclick="GamesView._macheZug({antwort: '${a}'})">${a}</button>`
+              ).join('')}
+            </div>
+          `;
+        }
+      }
+
+      return `
+        <div style="max-width: 600px; margin: 0 auto;">
+          <div style="text-align:center; margin-bottom:10px; color:var(--text-sekundaer);">Frage ${count} / ${maxFragen}</div>
+          <div class="word-chat" id="aki-chat-container">
+            ${bubs || '<p style="text-align:center; color:var(--text-sekundaer);">Noch keine Fragen gestellt.</p>'}
+            ${(state.amZug === 'poke') ? `<div class="word-bubble poke" style="opacity:0.7;"><em>Poke tippt...</em></div>` : ''}
+          </div>
+          <div style="margin-top:20px;">
+            ${interaktion}
+          </div>
+        </div>
+      `;
+    }
+
+    if (state.phase === 'voting') {
+      const myVote = state.voting.nutzer;
+      const loesung = state.fragen.find(f => f.typ === 'loesung')?.loesungswort || 'Nicht aufgelöst';
+      return `
+        <div style="max-width: 500px; margin: 0 auto; text-align:center; padding:30px; background:rgba(0,0,0,0.2); border-radius:24px;">
+          <h2 style="margin-bottom:10px;">Die Auflösung!</h2>
+          <p style="font-size:1.2rem;">Geratenes Wort: <strong style="color:#38bdf8;">${UI.escapeHtml(loesung)}</strong></p>
+          <p style="font-size:1.2rem; margin-bottom:30px;">Echtes Wort: <strong style="color:#a855f7;">${UI.escapeHtml(state.wort)}</strong></p>
+          
+          <h4 style="margin-bottom:15px;">Stimmen diese Wörter in etwa überein?</h4>
+          ${myVote === null ? `
+            <div style="display:flex; gap:20px; justify-content:center;">
+              <button class="btn btn-primaer" style="background:#10b981; padding:10px 40px; font-size:1.2rem;" onclick="GamesView._macheZug({aktion: 'abstimmen', zustimmung: true})">Ja, passt!</button>
+              <button class="btn btn-primaer" style="background:#ef4444; padding:10px 40px; font-size:1.2rem;" onclick="GamesView._macheZug({aktion: 'abstimmen', zustimmung: false})">Nein</button>
+            </div>
+          ` : `
+            <div style="color:var(--text-sekundaer);">Du hast abgestimmt. Warte auf Poke...</div>
+          `}
+        </div>
+      `;
+    }
+  },
+
+  _startAkinator() {
+    const rater = document.getElementById('aki-rater').value;
+    const bonus = document.getElementById('aki-bonus').checked;
+    const wortGeber = rater === 'poke' ? 'nutzer' : 'poke';
+    
+    let wort = '';
+    if (wortGeber === 'nutzer') {
+      wort = document.getElementById('aki-wort').value.trim();
+      if (!wort) { UI.fehler('Bitte gib ein geheimes Wort ein!'); return; }
+    } else {
+      // Fake a word if poke gives the word. We send something, backend should actually handle this or Poke handles this.
+      // Wait, in our logic, if wortGeber='poke', the user must still provide a placeholder for now, backend will fix it? No, in akinator backend, we need a word.
+      // We can just set a dummy word, and the webhook will override it. Or we can just let Poke think of one in his mind? Actually, the game logic requires `wort` to be set.
+      wort = 'geheim'; // TODO: Backend should probably assign a random word if Poke is wortGeber.
+    }
+    
+    this._macheZug({ wortGeber, wort, bonusErlaubt: bonus });
+  },
+
+  _akiMacheZug(zug) {
+    if (zug.frage) zug.frage = zug.frage.trim();
+    if (zug.wort) zug.wort = zug.wort.trim();
+    if (!zug.frage && !zug.wort) return;
+    this._macheZug(zug);
+  },
+
   // ---------------- GENERAL ----------------
   async _macheZug(zug) {
     try {
-      // Optische Deaktivierung des Boards
       const board = document.getElementById('spiel-board');
       if (board) board.style.pointerEvents = 'none';
 
@@ -674,7 +982,7 @@ const GamesView = {
       }
     } catch (e) {
       UI.fehler(e.message);
-      this._spielBoardRendern(); // Reset board if optimistic failed
+      this._spielBoardRendern(); 
     } finally {
       const board = document.getElementById('spiel-board');
       if (board) board.style.pointerEvents = 'auto';

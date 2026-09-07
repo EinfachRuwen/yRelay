@@ -374,9 +374,10 @@ router.post('/game-move/:gameId/:token', async (req, res) => {
   const Battleship = require('../services/game-logic/battleship');
   const Ludo = require('../services/game-logic/ludo');
   const Wordgame = require('../services/game-logic/wordgame');
+  const Akinator = require('../services/game-logic/akinator');
   const { notifyClients } = require('./schuldashboard');
 
-  const { zug } = req.body;
+  const { zug, chat } = req.body;
   let ergebnis;
 
   try {
@@ -394,10 +395,14 @@ router.post('/game-move/:gameId/:token', async (req, res) => {
         break;
       }
       case 'battleship': {
-        const r = parseInt(zug?.r ?? zug?.reihe ?? zug?.row);
-        const c = parseInt(zug?.c ?? zug?.spalte ?? zug?.col);
-        if (isNaN(r) || isNaN(c)) return res.status(400).json({ fehler: 'Zug erfordert: { "zug": { "r": 0-9, "c": 0-9 } }' });
-        ergebnis = Battleship.schiessen(state, r, c, 'poke');
+        if (zug?.setupWahl) {
+          ergebnis = Battleship.pokeSetupWaehlen(state, zug.setupWahl);
+        } else {
+          const r = parseInt(zug?.r ?? zug?.reihe ?? zug?.row);
+          const c = parseInt(zug?.c ?? zug?.spalte ?? zug?.col);
+          if (isNaN(r) || isNaN(c)) return res.status(400).json({ fehler: 'Zug erfordert: { "zug": { "r": 0-9, "c": 0-9 } }' });
+          ergebnis = Battleship.schiessen(state, r, c, 'poke');
+        }
         break;
       }
       case 'ludo': {
@@ -419,6 +424,10 @@ router.post('/game-move/:gameId/:token', async (req, res) => {
         ergebnis = Wordgame.wortEingeben(state, wort, 'poke');
         break;
       }
+      case 'akinator': {
+        ergebnis = Akinator.spielzugMachen(state, zug, 'poke');
+        break;
+      }
       default:
         return res.status(400).json({ fehler: 'Unbekannter Spieltyp.' });
     }
@@ -429,6 +438,13 @@ router.post('/game-move/:gameId/:token', async (req, res) => {
   if (!ergebnis.erfolg) return res.status(400).json({ fehler: ergebnis.fehler });
 
   const neuerState = ergebnis.state;
+  
+  // Game-Chat Integration
+  if (chat && typeof chat === 'string') {
+    neuerState.chat = neuerState.chat || [];
+    neuerState.chat.push({ absender: 'poke', text: chat.substring(0, 500) });
+  }
+
   const spielEnde = neuerState.gewinner !== null;
   db.prepare('UPDATE games SET state = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(JSON.stringify(neuerState), spielEnde ? 'finished' : 'active', spiel.id);

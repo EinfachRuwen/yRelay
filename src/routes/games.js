@@ -13,13 +13,23 @@ const TicTacToe = require('../services/game-logic/tictactoe');
 const Battleship = require('../services/game-logic/battleship');
 const Ludo = require('../services/game-logic/ludo');
 const Wordgame = require('../services/game-logic/wordgame');
+const Akinator = require('../services/game-logic/akinator');
 
 const SPIEL_META = {
   connect4:   { name: '4 Gewinnt', icon: '🟡', beschreibung: 'Verbinde 4 Steine in einer Reihe!', maxZuege: 42 },
   tictactoe:  { name: 'Tic Tac Toe', icon: '❌', beschreibung: 'Drei in einer Reihe gewinnt!', maxZuege: 9 },
   battleship: { name: 'Schiffe versenken', icon: '⚓', beschreibung: 'Versenke Pokes Flotte!', maxZuege: 200 },
   ludo:       { name: 'Mensch ärgere dich nicht', icon: '🎲', beschreibung: 'Bring alle Figuren ins Ziel!', maxZuege: 500 },
-  wordgame:   { name: 'Wortspiel', icon: '🔤', beschreibung: 'Buchstabenkette - jedes Wort muss mit dem letzten Buchstaben beginnen!', maxZuege: 999 },
+  wordgame: {
+    name: 'Wortspiel',
+    beschreibung: 'Nennt abwechselnd ein Wort, das mit dem Endbuchstaben des vorherigen Wortes beginnt.',
+    icon: '🔤'
+  },
+  akinator: {
+    name: 'Wer bin ich?',
+    beschreibung: 'Einer denkt sich ein Wort aus, der andere stellt bis zu 20 Ja/Nein-Fragen um es zu erraten.',
+    icon: '🧞'
+  }
 };
 
 router.use(requireAuth);
@@ -61,6 +71,7 @@ function erstelleSpielstandFuerTyp(gameType) {
     case 'battleship': return Battleship.erstelleSpielstand();
     case 'ludo':       return Ludo.erstelleSpielstand();
     case 'wordgame':   return Wordgame.erstelleSpielstand();
+    case 'akinator':   return Akinator.erstelleSpielstand();
     default: return null;
   }
 }
@@ -152,8 +163,8 @@ router.post('/starten', async (req, res) => {
   const initialState = erstelleSpielstandFuerTyp(gameType);
   if (!initialState) return res.status(500).json({ fehler: 'Spielstand konnte nicht erstellt werden.' });
 
-  // Zufällig entscheiden wer anfängt, außer bei Battleship (Setup-Phase startet immer beim Nutzer)
-  if (gameType !== 'battleship') {
+  // Zufällig entscheiden wer anfängt, außer bei Battleship (Setup) und Akinator (Setup)
+  if (gameType !== 'battleship' && gameType !== 'akinator') {
     initialState.amZug = Math.random() > 0.5 ? 'nutzer' : 'poke';
   }
 
@@ -174,7 +185,8 @@ router.post('/starten', async (req, res) => {
   const moveUrl = `${appUrl}/api/webhooks/game-move/${spiel.id}/${token}`;
   
   const startText = initialState.amZug === 'nutzer' ? '**Nutzer fängt an.** Warte auf seinen Zug, dann bist du dran.' : '**DU fängst an!** Mache direkt deinen ersten Zug.';
-  const pokeNachricht = `🎮 ${req.user.benutzername} möchte **${meta.name}** spielen!\n\n${meta.beschreibung}\n\nDu spielst als ${gameType === 'battleship' ? 'Verteidiger' : gameType === 'ludo' ? 'Blau 🔵' : gameType === 'connect4' ? '🟡 Gelb' : gameType === 'tictactoe' ? '⭕ Kreis' : 'Wortgeber'}.\n\n${startText}\n\nDein Spielzug-URL: POST ${moveUrl}\nBody-Format: { "zug": {...} }`;
+  const chatHinweis = '\n\nHinweis: Wenn du dem Nutzer während des Spiels etwas sagen willst, sende nicht einfach Text zurück, sondern füge deinem Webhook-Body ein `chat`-Feld hinzu (z.B. `{ "zug": {...}, "chat": "Haha, daneben!" }`).';
+  const pokeNachricht = `🎮 ${req.user.benutzername} möchte **${meta.name}** spielen!\n\n${meta.beschreibung}\n\nDu spielst als ${gameType === 'battleship' ? 'Verteidiger' : gameType === 'ludo' ? 'Blau 🔵' : gameType === 'connect4' ? '🟡 Gelb' : gameType === 'tictactoe' ? '⭕ Kreis' : 'Mitspieler'}.\n\n${startText}${chatHinweis}\n\nDein Spielzug-URL: POST ${moveUrl}\nBody-Format: { "zug": {...} }`;
 
   await sendePokeSpielnachricht(spiel, poke, pokeNachricht);
 
@@ -190,9 +202,21 @@ router.post('/:id/zug', async (req, res) => {
   let state;
   try { state = JSON.parse(spiel.state); } catch { return res.status(500).json({ fehler: 'Spielstand korrupt.' }); }
 
+  const { zug } = req.body;
+  const poke = holePokeProfil(req);
+
+  // 1. In-Game Chat Handling
+  if (zug && zug.aktion === 'chat') {
+    if (!zug.nachricht) return res.status(400).json({ fehler: 'Nachricht leer.' });
+    state.chat = state.chat || [];
+    state.chat.push({ absender: 'nutzer', text: zug.nachricht.substring(0, 500) });
+    db.prepare('UPDATE games SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(JSON.stringify(state), spiel.id);
+    await sendePokeSpielnachricht(spiel, poke, `💬 Spiel-Chat von ${req.user.benutzername}:\n"${zug.nachricht}"\n\nNutze das \`chat\`-Feld im Body bei deinem nächsten Spielzug, um zu antworten!`);
+    return res.json({ erfolg: true, state, spielStatus: spiel.status });
+  }
+
   if (state.amZug !== 'nutzer') return res.status(409).json({ fehler: 'Poke ist am Zug!' });
 
-  const { zug } = req.body;
   let ergebnis;
 
   switch (spiel.game_type) {
@@ -246,8 +270,15 @@ router.post('/:id/zug', async (req, res) => {
     }
     case 'wordgame': {
       const wort = zug?.wort;
-      if (!wort) return res.status(400).json({ fehler: 'Zug erfordert: { wort: "deinwort" }' });
-      ergebnis = Wordgame.wortEingeben(state, wort, 'nutzer');
+      if (zug?.aufgeben) ergebnis = Wordgame.aufgebenVerarbeiten(state, 'nutzer');
+      else {
+        if (!wort) return res.status(400).json({ fehler: 'Zug erfordert: { wort: "deinwort" }' });
+        ergebnis = Wordgame.wortEingeben(state, wort, 'nutzer');
+      }
+      break;
+    }
+    case 'akinator': {
+      ergebnis = Akinator.spielzugMachen(state, zug, 'nutzer');
       break;
     }
     default:
@@ -265,34 +296,31 @@ router.post('/:id/zug', async (req, res) => {
 
   logAudit(req.user.id, 'spielzug', { spielId: spiel.id, gameType: spiel.game_type, spieler: 'nutzer' });
 
-  // Poke informieren
-  if (!spielEnde) {
-    const poke = holePokeProfil(req);
-    let pokeMsg = `🎮 ${req.user.benutzername} hat gezogen - du bist dran!\n\n`;
-    let buttons = [];
-
-    switch (spiel.game_type) {
-      case 'connect4':
-        pokeMsg += Connect4.brettAlsAscii(neuerState.brett);
-        buttons = Connect4.pokeZugButtons();
-        break;
-      case 'tictactoe':
-        pokeMsg += TicTacToe.brettAlsAscii(neuerState.brett);
-        buttons = TicTacToe.pokeZugButtons(neuerState.brett);
-        break;
-      case 'battleship':
-        pokeMsg += Battleship.feldAlsAsciiNutzer(neuerState.pokeFeld) + '\n\nAuf welches Feld schießt du?';
-        buttons = Battleship.pokeVerfuegbareSchuesse(neuerState.nutzerFeld).slice(0, 8);
-        break;
-      case 'wordgame':
-        pokeMsg = Wordgame.pokeNachrichtErstellen(neuerState);
-        break;
+  // Benachrichtige Poke je nach Spiel
+  if (!spielEnde && neuerState.amZug === 'poke') {
+    let nachricht = `🔄 Dein Zug!`;
+    if (spiel.game_type === 'connect4') {
+      const btns = Connect4.pokeZugButtons();
+      nachricht += `\nWähle eine Spalte:\n` + btns.map(b => `- ${b.id} (${b.text})`).join('\n');
+    } else if (spiel.game_type === 'tictactoe') {
+      const btns = TicTacToe.pokeZugButtons(neuerState);
+      nachricht += `\nWähle ein Feld (0-8):\n` + btns.map(b => `- ${b.id}`).join('\n');
+    } else if (spiel.game_type === 'battleship') {
+      if (neuerState.phase === 'setup_poke') {
+        nachricht = `🛳️ Platziere deine Flotte! Wähle eine Aufstellung durch Senden von { "zug": { "setupWahl": "A" } } (oder B oder C):\n\nSetup A:\n${Battleship.feldAlsAsciiPoke(neuerState.pokeSetups.A)}\n\nSetup B:\n${Battleship.feldAlsAsciiPoke(neuerState.pokeSetups.B)}\n\nSetup C:\n${Battleship.feldAlsAsciiPoke(neuerState.pokeSetups.C)}`;
+      } else {
+        nachricht += `\nDein Ziel: Schieße auf das Feld des Nutzers.\n${Battleship.feldAlsAsciiNutzer(neuerState.nutzerFeld)}\nSende { "zug": { "r": reihe, "c": spalte } }`;
+      }
+    } else if (spiel.game_type === 'ludo') {
+      nachricht += `\n${Ludo.brettAlsText(neuerState)}`;
+    } else if (spiel.game_type === 'wordgame') {
+      nachricht = Wordgame.pokeNachrichtErstellen(neuerState);
+    } else if (spiel.game_type === 'akinator') {
+      nachricht = Akinator.pokeNachrichtErstellen(neuerState);
     }
-
-    await sendePokeSpielnachricht(spiel, poke, pokeMsg, buttons);
-  } else {
+    await sendePokeSpielnachricht(spiel, poke, nachricht);
+  } else if (spielEnde) {
     // Spielende melden
-    const poke = holePokeProfil(req);
     const gewInhalt = neuerState.gewinner === 'nutzer' ? `${req.user.benutzername} hat gewonnen! 🏆` : 'Unentschieden! 🤝';
     await sendePokeSpielnachricht(spiel, poke, `🎮 Spiel beendet! ${gewInhalt}`);
   }

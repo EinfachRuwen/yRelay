@@ -46,7 +46,7 @@ function spielzugMachen(state, figurIdx, augenzahl, spieler) {
   if (pos === hausWert) {
     if (augenzahl !== 6) return { erfolg: false, fehler: 'Zum Herausstellen wird eine 6 benötigt.' };
     // Prüfe ob eigene Figur auf Startfeld steht
-    if (figuren[spieler].includes(startFeld)) return { erfolg: false, fehler: 'Eigene Figur steht auf dem Startfeld.' };
+    if (figuren[spieler].includes(startFeld)) return { erfolg: false, fehler: 'Eigene Figur blockiert das Startfeld.' };
     figuren[spieler][figurIdx] = startFeld;
   } else {
     // Normale Bewegung
@@ -59,10 +59,20 @@ function spielzugMachen(state, figurIdx, augenzahl, spieler) {
     if (neuRelPos >= FELDER) {
       // In die Zielgasse
       const zielPos = zielOffset + (neuRelPos - FELDER);
-      if (zielPos > zielOffset + 3) return { erfolg: false, fehler: 'Zu weit.' };
+      if (zielPos > zielOffset + 3) return { erfolg: false, fehler: 'Zu weit gewürfelt für das Ziel.' };
+      if (figuren[spieler].includes(zielPos)) return { erfolg: false, fehler: 'Zielfeld ist bereits durch eigene Figur belegt.' };
+      
+      // Prüfen ob der Weg ins Ziel durch eigene Figuren in der Zielgasse blockiert ist (Optional, klassisch darf man nicht überspringen)
+      for (let z = pos + 1; z < zielPos; z++) {
+        if (figuren[spieler].includes(z)) return { erfolg: false, fehler: 'Weg im Ziel ist blockiert.' };
+      }
+      
       figuren[spieler][figurIdx] = zielPos;
     } else {
       neuPos = (startFeld + neuRelPos) % FELDER;
+      // Eigene Figuren dürfen nicht geschlagen/überschrieben werden
+      if (figuren[spieler].includes(neuPos)) return { erfolg: false, fehler: 'Zielfeld ist bereits durch eigene Figur belegt.' };
+      
       // Gegner schlagen
       const gegner = spieler === 'nutzer' ? 'poke' : 'nutzer';
       const gegnerHaus = HAUS[gegner];
@@ -95,11 +105,26 @@ function verfuegbareFiguren(state, spieler, augenzahl) {
   const zielOffset = ZIEL[spieler];
 
   return figuren.map((pos, idx) => {
-    if (pos === hausWert) return augenzahl === 6 ? idx : null;
-    if (pos >= zielOffset) {
-      const neuZiel = pos + augenzahl;
-      return neuZiel <= zielOffset + 3 ? idx : null;
+    if (pos === hausWert) {
+      return (augenzahl === 6 && !figuren.includes(startFeld)) ? idx : null;
     }
+    
+    // Relative Bewegung berechnen
+    const relPos = ((pos - startFeld) + FELDER) % FELDER;
+    const neuRelPos = relPos + augenzahl;
+
+    if (neuRelPos >= FELDER) {
+      const zielPos = zielOffset + (neuRelPos - FELDER);
+      if (zielPos > zielOffset + 3) return null;
+      if (figuren.includes(zielPos)) return null;
+      for (let z = pos + 1; z < zielPos; z++) {
+        if (figuren.includes(z)) return null;
+      }
+      return idx;
+    }
+    
+    const neuPos = (startFeld + neuRelPos) % FELDER;
+    if (figuren.includes(neuPos)) return null;
     return idx;
   }).filter(i => i !== null);
 }
