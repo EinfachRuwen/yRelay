@@ -152,6 +152,11 @@ router.post('/starten', async (req, res) => {
   const initialState = erstelleSpielstandFuerTyp(gameType);
   if (!initialState) return res.status(500).json({ fehler: 'Spielstand konnte nicht erstellt werden.' });
 
+  // Zufällig entscheiden wer anfängt, außer bei Battleship (Setup-Phase startet immer beim Nutzer)
+  if (gameType !== 'battleship') {
+    initialState.amZug = Math.random() > 0.5 ? 'nutzer' : 'poke';
+  }
+
   const token = crypto.randomBytes(20).toString('hex');
   const poke = holePokeProfil(req);
 
@@ -167,7 +172,9 @@ router.post('/starten', async (req, res) => {
   const meta = SPIEL_META[gameType];
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
   const moveUrl = `${appUrl}/api/webhooks/game-move/${spiel.id}/${token}`;
-  const pokeNachricht = `🎮 ${req.user.benutzername} möchte **${meta.name}** spielen!\n\n${meta.beschreibung}\n\nDu spielst als ${gameType === 'battleship' ? 'Angreifer' : gameType === 'ludo' ? 'Blau 🔵' : gameType === 'connect4' ? '🟡 Gelb' : gameType === 'tictactoe' ? '⭕ Kreis' : 'Wortgeber'}.\n\n**Nutzer fängt an.** Warte auf seinen Zug, dann bist du dran.\n\nDein Spielzug-URL: POST ${moveUrl}\nBody-Format: { "zug": {...} }`;
+  
+  const startText = initialState.amZug === 'nutzer' ? '**Nutzer fängt an.** Warte auf seinen Zug, dann bist du dran.' : '**DU fängst an!** Mache direkt deinen ersten Zug.';
+  const pokeNachricht = `🎮 ${req.user.benutzername} möchte **${meta.name}** spielen!\n\n${meta.beschreibung}\n\nDu spielst als ${gameType === 'battleship' ? 'Verteidiger' : gameType === 'ludo' ? 'Blau 🔵' : gameType === 'connect4' ? '🟡 Gelb' : gameType === 'tictactoe' ? '⭕ Kreis' : 'Wortgeber'}.\n\n${startText}\n\nDein Spielzug-URL: POST ${moveUrl}\nBody-Format: { "zug": {...} }`;
 
   await sendePokeSpielnachricht(spiel, poke, pokeNachricht);
 
@@ -202,9 +209,18 @@ router.post('/:id/zug', async (req, res) => {
       break;
     }
     case 'battleship': {
-      const r = parseInt(zug?.r), c = parseInt(zug?.c);
-      if (isNaN(r) || isNaN(c)) return res.status(400).json({ fehler: 'Zug erfordert: { r: 0-9, c: 0-9 }' });
-      ergebnis = Battleship.schiessen(state, r, c, 'nutzer');
+      if (state.phase === 'setup') {
+        const nutzerFeld = zug?.feld;
+        ergebnis = Battleship.setupAbschliessen(state, nutzerFeld);
+        if (ergebnis.erfolg) {
+          // Nach dem Setup bestimmen wer anfängt
+          ergebnis.state.amZug = Math.random() > 0.5 ? 'nutzer' : 'poke';
+        }
+      } else {
+        const r = parseInt(zug?.r), c = parseInt(zug?.c);
+        if (isNaN(r) || isNaN(c)) return res.status(400).json({ fehler: 'Zug erfordert: { r: 0-9, c: 0-9 }' });
+        ergebnis = Battleship.schiessen(state, r, c, 'nutzer');
+      }
       break;
     }
     case 'ludo': {
@@ -281,7 +297,31 @@ router.post('/:id/zug', async (req, res) => {
     await sendePokeSpielnachricht(spiel, poke, `🎮 Spiel beendet! ${gewInhalt}`);
   }
 
-  res.json({ erfolg: true, state: neuerState, spielStatus: neuerStatus });
+  const responseState = JSON.parse(JSON.stringify(neuerState));
+  // Bei Schiffe versenken: Poke-Feld ohne Schiffe liefern (verhindert Cheat/Aufdecken)
+  if (spiel.game_type === 'battleship' && responseState.pokeFeld) {
+    responseState.pokeFeldOhneSchiffe = responseState.pokeFeld.map(reihe => reihe.map(z => z === 1 ? 0 : z));
+    delete responseState.pokeFeld;
+  }
+
+  res.json({ erfolg: true, state: responseState, spielStatus: neuerStatus });
+});
+
+// ─── POST /api/games/:id/erinnern - Poke erinnern ──────────────────────────────
+router.post('/:id/erinnern', async (req, res) => {
+  const spiel = db.prepare('SELECT * FROM games WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!spiel) return res.status(404).json({ fehler: 'Spiel nicht gefunden.' });
+  if (spiel.status !== 'active') return res.status(409).json({ fehler: 'Spiel ist bereits beendet.' });
+
+  let state;
+  try { state = JSON.parse(spiel.state); } catch { return res.status(500).json({ fehler: 'Spielstand korrupt.' }); }
+
+  if (state.amZug !== 'poke') return res.status(409).json({ fehler: 'Poke ist nicht am Zug!' });
+
+  const poke = holePokeProfil(req);
+  await sendePokeSpielnachricht(spiel, poke, `🔔 ${req.user.benutzername} wartet auf deinen Zug! Bitte mach deinen nächsten Spielzug.`);
+  
+  res.json({ erfolg: true });
 });
 
 // ─── DELETE /api/games/:id - Spiel aufgeben ───────────────────────────────────

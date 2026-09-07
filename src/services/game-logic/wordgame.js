@@ -54,7 +54,7 @@ function aufgebenVerarbeiten(state, spieler) {
 function pokeNachrichtErstellen(state) {
   const letztes = state.woerter[state.woerter.length - 1];
   const anfangsBuchstabe = state.letzterBuchstabe?.toUpperCase();
-  return `🔤 Wortspiel - Du bist dran!\n\nLetztes Wort: **${letztes || '(noch keins)'}**\nDein Wort muss mit **${anfangsBuchstabe || 'einem beliebigen Buchstaben'}** beginnen.\n\nAlle bisherigen Wörter: ${state.woerter.join(', ') || 'Noch keine.'}\n\nAntworte mit deinem Wort über den Schul-Webhook (typ: "spielzug", daten: { wort: "dein_wort" }).`;
+  return `🔤 Wortspiel - Du bist dran!\n\nLetztes Wort: **${letztes || '(noch keins)'}**\nDein Wort muss mit **${anfangsBuchstabe || 'einem beliebigen Buchstaben'}** beginnen.\n\nAlle bisherigen Wörter: ${state.woerter.join(', ') || 'Noch keine.'}\n\n**WICHTIG:** Antworte nicht mit normalem Text! Sende eine HTTP POST Anfrage an deine Spielzug-URL mit diesem exakten Body (ersetze "deinwort" mit deinem gewählten Wort):\n\`\`\`json\n{ "zug": { "wort": "deinwort" } }\n\`\`\``;
 }
 
 module.exports = { erstelleSpielstand, wortEingeben, aufgebenVerarbeiten, pokeNachrichtErstellen };

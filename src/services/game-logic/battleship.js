@@ -52,15 +52,43 @@ function platzieren(feld, r, c, groesse, horizontal) {
 
 function erstelleSpielstand() {
   return {
-    // Nutzer-Feld (Poke schießt darauf): nutzer kennt beide
-    nutzerFeld: platzierungZufaellig(),
-    // Poke-Feld (Nutzer schießt darauf): nutzer sieht nur Treffer/Wasser, nicht Schiffe
+    // Nutzer-Feld fängt leer an, muss im Setup platziert werden
+    nutzerFeld: erstelleLeeresFeld(),
+    // Poke-Feld wird sofort zufällig generiert
     pokeFeld: platzierungZufaellig(),
     amZug: 'nutzer',
     gewinner: null,
     zugAnzahl: 0,
-    // Letzter Schuss von Poke
     letzterPokeSchuss: null,
+    phase: 'setup',
+  };
+}
+
+function setupAbschliessen(state, nutzerFeld) {
+  // Überprüfen, ob das übergebene Feld gültig ist (einfache Prüfung, ob es ein 10x10 Array ist)
+  if (!Array.isArray(nutzerFeld) || nutzerFeld.length !== GROESSE || !Array.isArray(nutzerFeld[0]) || nutzerFeld[0].length !== GROESSE) {
+    return { erfolg: false, fehler: 'Ungültiges Spielfeld.' };
+  }
+  
+  // Zähle Schiffe um zumindest grob zu prüfen
+  let schiffZellen = 0;
+  for (let r = 0; r < GROESSE; r++) {
+    for (let c = 0; c < GROESSE; c++) {
+      if (nutzerFeld[r][c] === 1) schiffZellen++;
+    }
+  }
+  
+  if (schiffZellen !== 20) { // 4 + 3+3 + 2+2+2 + 1+1+1+1 = 20
+    return { erfolg: false, fehler: 'Falsche Anzahl an Schiffsfeldern.' };
+  }
+
+  return { 
+    erfolg: true, 
+    state: {
+      ...state,
+      nutzerFeld,
+      phase: 'playing'
+    } 
   };
 }
 
@@ -140,4 +168,4 @@ function pokeKiZug(state) {
   return frei[Math.floor(Math.random() * frei.length)];
 }
 
-module.exports = { erstelleSpielstand, schiessen, feldAlsAsciiNutzer, pokeZugButtons, pokeVerfuegbareSchuesse, pokeKiZug };
+module.exports = { erstelleLeeresFeld, erstelleSpielstand, setupAbschliessen, schiessen, feldAlsAsciiNutzer, pokeZugButtons, pokeVerfuegbareSchuesse, pokeKiZug };
