@@ -621,7 +621,8 @@ router.get('/poke-data/verbindung', async (req, res) => {
     });
     const data = await efaRes.json();
 
-    const trips = Array.isArray(data?.trips) ? data.trips : [data?.trips].filter(Boolean);
+    const rawTrips = data?.trips?.trip || data?.trips?.trips || data?.trips?.tripList || data?.trips || [];
+    const trips = Array.isArray(rawTrips) ? rawTrips : [rawTrips].filter(Boolean);
 
     const verbindungen = trips.slice(0, 5).map(trip => {
       const legs = Array.isArray(trip.legs) ? trip.legs : [trip.legs].filter(Boolean);
