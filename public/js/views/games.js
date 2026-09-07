@@ -1052,7 +1052,6 @@ const GamesView = {
     this._aktivesSpiel = null;
     this.spieleLaden();
   },
-  },
 
   // ─── ERINNERUNGS-BUTTON LOGIK ──────────────────────────────────────────────
   _updateReminderButton(spielId) {

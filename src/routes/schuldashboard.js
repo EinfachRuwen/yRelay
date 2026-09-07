@@ -637,9 +637,9 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     // 3. Datei hochladen
     const formData = new FormData();
-    // Use File instead of Blob to ensure undici handles it correctly without hanging
-    const fileObj = new File([req.file.buffer], req.file.originalname, { type: req.file.mimetype });
-    formData.append('file', fileObj);
+    // Use Blob instead of File to prevent undici hanging bug with BufferSources
+    const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
+    formData.append('file', blob, req.file.originalname);
     
     // Pingvin Share requires chunking parameters in modern versions, otherwise it might hang waiting for chunks
     const uploadRes = await fetch(`${baseUrl}/api/shares/${shareId}/files?chunkIndex=0&totalChunks=1`, {
