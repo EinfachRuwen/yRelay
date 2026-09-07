@@ -56,11 +56,6 @@ function erstelleSpielstand() {
     nutzerFeld: erstelleLeeresFeld(),
     // Poke-Feld wird aus der Auswahl von Poke später gesetzt
     pokeFeld: null,
-    pokeSetups: {
-      A: platzierungZufaellig(),
-      B: platzierungZufaellig(),
-      C: platzierungZufaellig()
-    },
     amZug: 'nutzer',
     gewinner: null,
     zugAnzahl: 0,
@@ -97,14 +92,60 @@ function setupAbschliessen(state, nutzerFeld) {
   };
 }
 
-function pokeSetupWaehlen(state, wahl) {
-  if (!state.pokeSetups[wahl]) return { erfolg: false, fehler: 'Ungültige Wahl. Bitte wähle A, B oder C.' };
+function pokeSetupWaehlen(state, setup) {
+  if (!Array.isArray(setup)) return { erfolg: false, fehler: 'Das Setup muss ein Array von Schiffen sein.' };
+  
+  const feld = erstelleLeeresFeld();
+  const erwarteteSchiffe = {
+    'Schlachtschiff': 1,
+    'Kreuzer': 2,
+    'Zerstörer': 3,
+    'U-Boot': 4
+  };
+  
+  const groessen = {
+    'Schlachtschiff': 4,
+    'Kreuzer': 3,
+    'Zerstörer': 2,
+    'U-Boot': 1
+  };
+  
+  const platzierteSchiffe = {
+    'Schlachtschiff': 0,
+    'Kreuzer': 0,
+    'Zerstörer': 0,
+    'U-Boot': 0
+  };
+
+  for (const s of setup) {
+    if (!erwarteteSchiffe[s.name]) return { erfolg: false, fehler: `Unbekanntes Schiff: ${s.name}` };
+    if (typeof s.x !== 'number' || typeof s.y !== 'number') return { erfolg: false, fehler: `Fehlende Koordinaten (x, y) für ${s.name}` };
+    if (typeof s.horizontal !== 'boolean') return { erfolg: false, fehler: `Fehlende Eigenschaft 'horizontal' (true/false) für ${s.name}` };
+    
+    platzierteSchiffe[s.name]++;
+    if (platzierteSchiffe[s.name] > erwarteteSchiffe[s.name]) {
+      return { erfolg: false, fehler: `Zu viele Schiffe vom Typ ${s.name} (Maximal ${erwarteteSchiffe[s.name]}).` };
+    }
+    
+    const groesse = groessen[s.name];
+    if (!kannPlatzieren(feld, s.y, s.x, groesse, s.horizontal)) {
+      return { erfolg: false, fehler: `Das Schiff '${s.name}' auf x=${s.x}, y=${s.y} (horizontal=${s.horizontal}) ist außerhalb des Spielfelds oder überschneidet sich mit einem anderen Schiff!` };
+    }
+    platzieren(feld, s.y, s.x, groesse, s.horizontal);
+  }
+  
+  for (const typ in erwarteteSchiffe) {
+    if (platzierteSchiffe[typ] !== erwarteteSchiffe[typ]) {
+      return { erfolg: false, fehler: `Es fehlen Schiffe vom Typ ${typ} (Erwartet: ${erwarteteSchiffe[typ]}, Platziert: ${platzierteSchiffe[typ]}).` };
+    }
+  }
+
   const isPlaying = state.nutzerFeld.flat().some(x => x === 1);
   return {
     erfolg: true,
     state: {
       ...state,
-      pokeFeld: state.pokeSetups[wahl],
+      pokeFeld: feld,
       phase: isPlaying ? 'playing' : 'setup',
       amZug: isPlaying ? (state.startSpieler || 'nutzer') : 'nutzer'
     }

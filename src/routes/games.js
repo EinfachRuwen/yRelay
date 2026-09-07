@@ -170,16 +170,17 @@ router.post('/starten', async (req, res) => {
     initialState.amZug = 'nutzer';
   } else if (gameType === 'akinator') {
     const wortGeber = chosenStarter === 'nutzer' ? 'poke' : 'nutzer';
-    initialState.phase = 'fragen';
     initialState.wortGeber = wortGeber;
     initialState.rater = chosenStarter;
-    initialState.amZug = chosenStarter;
     initialState.bonusErlaubt = bonusErlaubt === true;
     
     if (wortGeber === 'poke') {
-      const WORTLISTE = ['Apfel', 'Banane', 'Katze', 'Hund', 'Haus', 'Auto', 'Computer', 'Schule', 'Baum', 'Tisch', 'Kaffee', 'Buch'];
-      initialState.wort = WORTLISTE[Math.floor(Math.random() * WORTLISTE.length)];
+      initialState.phase = 'wort_auswahl';
+      initialState.amZug = 'poke';
+      initialState.wort = null;
     } else {
+      initialState.phase = 'fragen';
+      initialState.amZug = chosenStarter;
       initialState.wort = req.body.geheimesWort || 'Geheimnis';
     }
   } else {
@@ -202,7 +203,12 @@ router.post('/starten', async (req, res) => {
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
   const moveUrl = `${appUrl}/api/webhooks/game-move/${spiel.id}/${token}`;
   
-  const startText = initialState.amZug === 'nutzer' ? '**Nutzer fängt an.** Warte auf seinen Zug, dann bist du dran.' : '**DU fängst an!** Mache direkt deinen ersten Zug.';
+  let startText = initialState.amZug === 'nutzer' ? '**Nutzer fängt an.** Warte auf seinen Zug, dann bist du dran.' : '**DU fängst an!** Mache direkt deinen ersten Zug.';
+  if (gameType === 'akinator' && initialState.phase === 'wort_auswahl') {
+    startText = '**Du bist dran!** Denke dir ein kreatives Wort (Gegenstand, Tier, Person etc.) aus, das der Nutzer erraten muss. Sende deinen Zug mit `{ "aktion": "wort_festlegen", "wort": "DeinWort" }`.';
+  } else if (gameType === 'battleship') {
+    startText = '**WICHTIG (Schiffe setzen):** Bevor das Schießen beginnt, musst du deine Flotte auf einem 10x10 Raster (0-9) aufbauen. Sende dein komplettes Setup als JSON-Array in deinem Zug. Beispiel:\n`{ "aktion": "setup", "auswahl": [ { "name": "Schlachtschiff", "x": 0, "y": 0, "horizontal": true }, { "name": "Kreuzer", "x": 2, "y": 3, "horizontal": false }, ... ] }`\nBenötigt werden: 1x Schlachtschiff (Länge 4), 2x Kreuzer (Länge 3), 3x Zerstörer (Länge 2), 4x U-Boot (Länge 1). Schiffe dürfen sich nicht berühren/überlappen und nicht über den Rand ragen!';
+  }
   const chatHinweis = '\n\nHinweis: Wenn du dem Nutzer während des Spiels etwas sagen willst, sende nicht einfach Text zurück, sondern füge deinem Webhook-Body ein `chat`-Feld hinzu (z.B. `{ "zug": {...}, "chat": "Haha, daneben!" }`).';
   const pokeNachricht = `🎮 ${req.user.benutzername} möchte **${meta.name}** spielen!\n\n${meta.beschreibung}\n\nDu spielst als ${gameType === 'battleship' ? 'Verteidiger' : gameType === 'ludo' ? 'Blau 🔵' : gameType === 'connect4' ? '🟡 Gelb' : gameType === 'tictactoe' ? '⭕ Kreis' : 'Mitspieler'}.\n\n${startText}${chatHinweis}\n\nDein Spielzug-URL: POST ${moveUrl}\nBody-Format: { "zug": {...} }`;
 

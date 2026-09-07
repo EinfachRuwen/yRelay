@@ -47,6 +47,25 @@ function spielzugMachen(state, zug, spieler) {
     };
   }
 
+  // Phase 1.5: Poke wählt ein Wort (nur wenn Poke der Wortgeber ist)
+  if (state.phase === 'wort_auswahl') {
+    if (spieler !== 'poke') return { erfolg: false, fehler: 'Warte auf Poke, dass er sich ein Wort überlegt.' };
+    
+    if (zug.aktion !== 'wort_festlegen' || !zug.wort) {
+      return { erfolg: false, fehler: 'Poke muss ein Wort festlegen. Aktion: wort_festlegen, Feld: wort' };
+    }
+
+    return {
+      erfolg: true,
+      state: {
+        ...state,
+        phase: 'fragen',
+        wort: zug.wort,
+        amZug: 'nutzer' // Der Nutzer (Rater) ist jetzt dran mit Fragen
+      }
+    };
+  }
+
   // Phase 2: Fragen & Raten
   if (state.phase === 'fragen') {
     // Rater stellt Frage oder löst auf

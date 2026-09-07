@@ -682,7 +682,7 @@ const GamesView = {
         <div style="text-align:center; padding: 40px;">
           <div class="lade-spinner" style="width: 40px; height: 40px; border-width: 4px; border-color: #3b82f6 transparent #3b82f6 transparent; margin-bottom: 20px;"></div>
           <h3>Poke wählt gerade seine Flotte...</h3>
-          <p style="color:var(--text-sekundaer);">Er hat drei Aufstellungen zur Auswahl bekommen und entscheidet sich gleich.</p>
+          <p style="color:var(--text-sekundaer);">Poke platziert seine Schiffe hochstrategisch auf dem Ozean. Mach dich auf etwas gefasst!</p>
         </div>
       `;
     }
@@ -927,6 +927,20 @@ const GamesView = {
 
   // ---------------- AKINATOR ----------------
   _renderAkinator(state, nutzerAmZug) {
+    if (state.phase === 'wort_auswahl') {
+      return `
+        <div style="text-align:center; padding: 40px 20px;">
+          <div style="font-size: 3rem; margin-bottom: 20px;">🤔</div>
+          <h3 style="margin-bottom: 15px; color: var(--text-primaer);">Warte auf Poke...</h3>
+          <p style="color: var(--text-sekundaer); max-width: 400px; margin: 0 auto; line-height: 1.5;">
+            Poke überlegt sich gerade ein kreatives Wort (Tier, Gegenstand, Person etc.), das du gleich erraten musst. 
+            Sobald Poke sein Wort festlegt, geht das Spiel automatisch los!
+          </p>
+          <div class="loader" style="margin: 30px auto;"></div>
+        </div>
+      `;
+    }
+
     if (state.phase === 'fragen') {
       const isNutzerRater = state.rater === 'nutzer';
       const maxFragen = state.bonusErlaubt ? '∞' : 20;
