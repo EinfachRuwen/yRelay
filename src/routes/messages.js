@@ -100,7 +100,7 @@ router.post('/senden', async (req, res) => {
     db.prepare('UPDATE messages SET poke_profile_id = ? WHERE id = ?').run(pokeProfil.id, messageId);
   }
 
-  // Nachricht an Poke senden
+  const agentName = pokeProfil?.name || 'KI-Agent';
   const ergebnis = await sendeFreieNachricht(req.user, pokeInhalt, messageId, replyToken, pokeProfil);
 
   // Status in Datenbank aktualisieren
@@ -117,11 +117,11 @@ router.post('/senden', async (req, res) => {
 
   if (!ergebnis.erfolg) {
     return res.status(502).json({
-      fehler: 'Poke konnte die Nachricht nicht empfangen. Bitte versuche es später erneut oder kontaktiere den Administrator.',
+      fehler: `${agentName} konnte die Nachricht nicht empfangen. Bitte versuche es später erneut oder kontaktiere den Administrator.`,
     });
   }
 
-  res.json({ nachricht: 'Nachricht erfolgreich an Poke gesendet.' });
+  res.json({ nachricht: `Nachricht erfolgreich an ${agentName} gesendet.` });
 });
 
 // POST /api/nachrichten/notfall - Notfallbenachrichtigung senden
@@ -165,6 +165,7 @@ router.post('/notfall', async (req, res) => {
     db.prepare('UPDATE messages SET poke_profile_id = ? WHERE id = ?').run(pokeProfilNotfall.id, messageId);
   }
 
+  const agentName = pokeProfilNotfall?.name || 'KI-Agent';
   const ergebnis = await sendeNotfallbenachrichtigung(req.user, pokeInhalt, prioritaet, messageId, replyToken, pokeProfilNotfall);
 
   // Status in Datenbank aktualisieren
@@ -181,22 +182,24 @@ router.post('/notfall', async (req, res) => {
 
   if (!ergebnis.erfolg) {
     return res.status(502).json({
-      fehler: 'Poke konnte die Notfallbenachrichtigung nicht empfangen. Bitte versuche es später erneut oder kontaktiere den Administrator.',
+      fehler: `${agentName} konnte die Notfallbenachrichtigung nicht empfangen. Bitte versuche es später erneut oder kontaktiere den Administrator.`,
     });
   }
 
-  res.json({ nachricht: 'Notfallbenachrichtigung erfolgreich an Poke gesendet.' });
+  res.json({ nachricht: `Notfallbenachrichtigung erfolgreich an ${agentName} gesendet.` });
 });
 
 // GET /api/nachrichten/meine - Eigene gesendete Nachrichten
 router.get('/meine', (req, res) => {
   const fixTZ = (d) => d ? d.replace(' ', 'T') + 'Z' : null;
   const nachrichten = db.prepare(`
-    SELECT id, type, priority, content, status, error_message, reply_content,
-           replied_at, user_replies, created_at, is_pinned, status_label, status_label_notiz, send_at
-    FROM messages
-    WHERE user_id = ?
-    ORDER BY is_pinned DESC, created_at DESC
+        SELECT m.id, m.type, m.priority, m.content, m.status, m.error_message, m.reply_content,
+          m.replied_at, m.user_replies, m.created_at, m.is_pinned, m.status_label, m.status_label_notiz, m.send_at,
+          pp.name AS agent_name
+        FROM messages m
+        LEFT JOIN poke_profiles pp ON pp.id = m.poke_profile_id
+        WHERE m.user_id = ?
+        ORDER BY m.is_pinned DESC, m.created_at DESC
     LIMIT 100
   `).all(req.user.id);
 
@@ -215,6 +218,7 @@ router.get('/meine', (req, res) => {
     statusLabel: n.status_label || null,
     statusLabelNotiz: n.status_label_notiz || null,
     geplantesSenden: fixTZ(n.send_at),
+    agentName: n.agent_name || 'KI-Agent',
   })));
 });
 
@@ -308,32 +312,18 @@ async function verarbeiteKlick(nachricht, btnId, user) {
   
   logAudit(user.id, 'button_click', { message_id: nachricht.id, button_id: btnId });
 
-  // Poke benachrichtigen
-  let webhookUrl = require('../db').getSetting('poke_webhook_url');
-  let apiKey = require('../db').getSetting('poke_api_key');
-
-  if (nachricht.poke_profile_id) {
-    const profil = db.prepare('SELECT webhook_url, api_key FROM poke_profiles WHERE id = ?').get(nachricht.poke_profile_id);
-    if (profil) {
-      webhookUrl = profil.webhook_url;
-      apiKey = profil.api_key;
-    }
-  }
-
-  if (webhookUrl && apiKey) {
-    const payload = { 
-      message: `[yRelay System] Der Nutzer ${user.username} hat auf deine Rückfrage den Button "${geklickterButton.text}" geklickt. Bitte richte deine nächste Antwort direkt an ${user.username}.`
-    };
-    try {
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    } catch (e) {
-      console.error('[yRelay] Fehler beim Senden des Button-Klicks an Poke:', e);
-    }
-  }
+  const agent = nachricht.poke_profile_id
+    ? db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(nachricht.poke_profile_id)
+    : null;
+  const { sendeSystemHinweis } = require('../services/poke');
+  const ergebnis = await sendeSystemHinweis(
+    { username: user.username, email: user.email },
+    `[yRelay System] Der Nutzer ${user.username} hat auf deine Rückfrage den Button "${geklickterButton.text}" geklickt. Bitte richte deine nächste Antwort direkt an ${user.username}.`,
+    nachricht.id,
+    nachricht.reply_token,
+    agent
+  );
+  if (!ergebnis.erfolg) console.error('[yRelay] Fehler beim Senden des Button-Klicks an den Agenten:', ergebnis.fehler);
 
   return geklickterButton;
 }
@@ -342,7 +332,7 @@ async function verarbeiteKlick(nachricht, btnId, user) {
 router.get('/klick/:id/:token/:btnId', async (req, res) => {
   const { id, token, btnId } = req.params;
   const nachricht = db.prepare(`
-    SELECT m.id, m.reply_content, m.user_replies, m.poke_profile_id, u.username, u.id as user_id
+    SELECT m.id, m.reply_token, m.content, m.reply_content, m.user_replies, m.poke_profile_id, u.username, u.email, u.id as user_id
     FROM messages m JOIN users u ON m.user_id = u.id 
     WHERE m.id = ? AND m.reply_token = ?
   `).get(id, token);
@@ -354,7 +344,7 @@ router.get('/klick/:id/:token/:btnId', async (req, res) => {
   }
 
   try {
-    await verarbeiteKlick(nachricht, btnId, { id: nachricht.user_id, username: nachricht.username });
+    await verarbeiteKlick(nachricht, btnId, { id: nachricht.user_id, username: nachricht.username, email: nachricht.email });
     res.redirect(`${appUrl}/#dashboard`);
   } catch (err) {
     res.redirect(`${appUrl}/#dashboard?fehler=button`);
@@ -365,7 +355,7 @@ router.get('/klick/:id/:token/:btnId', async (req, res) => {
 router.post('/klick/:id', async (req, res) => {
   const { btnId } = req.body;
   const nachricht = db.prepare(`
-    SELECT m.id, m.reply_content, m.user_replies, m.poke_profile_id, m.user_id
+    SELECT m.id, m.reply_token, m.content, m.reply_content, m.user_replies, m.poke_profile_id, m.user_id
     FROM messages m WHERE m.id = ? AND m.user_id = ?
   `).get(req.params.id, req.user.id);
 
@@ -373,7 +363,7 @@ router.post('/klick/:id', async (req, res) => {
   if (!btnId) return res.status(400).json({ fehler: 'Button-ID fehlt.' });
 
   try {
-    const btn = await verarbeiteButtonKlick(nachricht, btnId, req.user);
+    const btn = await verarbeiteKlick(nachricht, btnId, req.user);
     res.json({ nachricht: `Button "${btn.text}" erfolgreich geklickt.` });
   } catch (err) {
     res.status(400).json({ fehler: err.message });
@@ -393,7 +383,7 @@ router.post('/:id/antworten', async (req, res) => {
   }
 
   const nachricht = db.prepare(`
-    SELECT id, content, reply_content, user_replies, reply_token
+    SELECT id, content, reply_content, user_replies, reply_token, poke_profile_id
     FROM messages
     WHERE id = ? AND user_id = ?
   `).get(id, req.user.id);
@@ -427,11 +417,11 @@ router.post('/:id/antworten', async (req, res) => {
   nutzerAntworten.push(neueAntwort);
   db.prepare('UPDATE messages SET user_replies = ? WHERE id = ?').run(JSON.stringify(nutzerAntworten), id);
 
-  // Vollständigen Verlauf an Poke senden
+  // Vollständigen Verlauf an den Agenten senden
   const verlaufText = [
     `URSPRÜNGLICHE NACHRICHT:
 ${nachricht.content}`,
-    ...pokeAntworten.map((a, i) => `POKES ANTWORT ${pokeAntworten.length > 1 ? (i + 1) + ' ' : ''}(${a.time ? new Date(a.time).toLocaleString('de-DE') : 'unbekannt'}):
+    ...pokeAntworten.map((a, i) => `AGENTEN-ANTWORT ${pokeAntworten.length > 1 ? (i + 1) + ' ' : ''}(${a.time ? new Date(a.time).toLocaleString('de-DE') : 'unbekannt'}):
 ${a.text}`),
     ...nutzerAntworten.slice(0, -1).map((a, i) => `ANTWORT VON ${req.user.username} (${a.time ? new Date(a.time).toLocaleString('de-DE') : 'unbekannt'}):
 ${a.text}`),
@@ -439,37 +429,26 @@ ${a.text}`),
 ${inhalt.trim()}`,
   ].join('\n\n---\n\n');
 
+  const agent = nachricht.poke_profile_id
+    ? db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(nachricht.poke_profile_id)
+    : null;
+  const agentName = agent?.name || 'KI-Agent';
   const appUrl = require('../db').getSetting('app_url') || 'http://localhost:3000';
-  const antwortLink = `${appUrl}/api/webhooks/poke-reply/${nachricht.id}/${nachricht.reply_token}`;
+  const route = /poke/i.test(agentName) ? 'poke-reply' : 'agent-reply';
+  const antwortLink = agent?.interface_mode === 'website'
+    ? `${appUrl}/agent/${nachricht.id}/${nachricht.reply_token}`
+    : `${appUrl}/api/webhooks/${route}/${nachricht.id}/${nachricht.reply_token}`;
 
-  const pokeNachricht = `[yRelay] ${req.user.username} hat auf deine Antwort geantwortet:
+  const agentNachricht = `[yRelay] ${req.user.username} hat auf deine Antwort geantwortet:
 
 ${verlaufText}
 
 ---
-Du kannst weiterhin antworten (auch mehrfach):
-${antwortLink}`;
+Du kannst weiterhin antworten (auch mehrfach). ${agent?.interface_mode === 'website' ? `Öffne ${antwortLink}` : `Sende POST-JSON {"message":"Deine Antwort"} an ${antwortLink}`}`;
 
-  const { sendeFreieNachricht } = require('../services/poke');
-  // Direkt über den Poke-Webhook senden (Hilfsfunktion missbrauchen mit custom payload)
-  const webhookUrl = require('../db').getSetting('poke_webhook_url');
-  const apiKey = require('../db').getSetting('poke_api_key');
-
-  if (webhookUrl && apiKey) {
-    try {
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message: pokeNachricht }),
-      });
-    } catch (err) {
-      console.error('[yRelay] Fehler beim Senden der Nutzer-Antwort an Poke:', err.message);
-      // Kein Fehler zurückgeben - Antwort wurde bereits gespeichert
-    }
-  }
+  const { sendeSystemHinweis } = require('../services/poke');
+  const zustellung = await sendeSystemHinweis(req.user, agentNachricht, nachricht.id, nachricht.reply_token, agent);
+  if (!zustellung.erfolg) console.error('[yRelay] Fehler beim Senden der Nutzer-Antwort an den Agenten:', zustellung.fehler);
 
   res.json({ nachricht: 'Antwort erfolgreich gesendet.' });
 });

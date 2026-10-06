@@ -83,7 +83,7 @@ router.post('/einladung-annehmen', (req, res) => {
 
   // Admin-Benachrichtigung: Alle Admins laden und informieren
   const { sendePushUndMail } = require('../services/notify');
-  const admins = db.prepare(`SELECT id, username, email, ntfy_topic, email_notifications FROM users WHERE role = 'admin' AND is_active = 1`).all();
+  const admins = db.prepare(`SELECT id, username, email, ntfy_topic, email_notifications, pushover_user_key FROM users WHERE role = 'admin' AND is_active = 1`).all();
   
   const inhalt = `Der Nutzer <strong>${user.username}</strong> (${user.email || 'keine E-Mail'}) hat soeben seine Einladung angenommen und das Konto aktiviert.`;
   
@@ -123,6 +123,7 @@ router.get('/ich', requireAuth, (req, res) => {
     has_seen_onboarding: req.user.has_seen_onboarding === 1,
     ntfy_topic: req.user.ntfy_topic || null,
     email_notifications: req.user.email_notifications === 1,
+    pushover_configured: !!req.user.pushover_user_key,
     has_schul_access: req.user.has_schul_access === 1,
     schul_poke_profile_id: req.user.schul_poke_profile_id,
     schul_dashboard_global_enabled: require('../db').getSetting('schul_dashboard_enabled') === 'true'
@@ -137,7 +138,7 @@ router.patch('/onboarding', requireAuth, (req, res) => {
 
 // PUT /api/auth/profil - Eigenes Profil aktualisieren
 router.put('/profil', requireAuth, (req, res) => {
-  const { anzeigename, ntfy_topic, email_notifications } = req.body;
+  const { anzeigename, ntfy_topic, email_notifications, pushover_enabled, pushover_user_key } = req.body;
   const ntfyVal = ntfy_topic && ntfy_topic.trim() !== '' ? ntfy_topic.trim() : null;
 
   if (ntfyVal && !isValidNtfyTopic(ntfyVal)) {
@@ -145,9 +146,17 @@ router.put('/profil', requireAuth, (req, res) => {
   }
 
   const emailNotif = email_notifications === false ? 0 : 1;
+  const currentPushoverKey = db.prepare('SELECT pushover_user_key FROM users WHERE id = ?').get(req.user.id)?.pushover_user_key;
+  const submittedPushoverKey = typeof pushover_user_key === 'string' ? pushover_user_key.trim() : '';
+  if (pushover_enabled && !submittedPushoverKey && !currentPushoverKey) {
+    return res.status(400).json({ fehler: 'Für Pushover muss ein User-Key eingetragen werden.' });
+  }
+  const pushoverKey = pushover_enabled
+    ? (submittedPushoverKey || currentPushoverKey)
+    : null;
 
-  db.prepare('UPDATE users SET display_name = ?, ntfy_topic = ?, email_notifications = ? WHERE id = ?')
-    .run(anzeigename || null, ntfyVal, emailNotif, req.user.id);
+  db.prepare('UPDATE users SET display_name = ?, ntfy_topic = ?, email_notifications = ?, pushover_user_key = ? WHERE id = ?')
+    .run(anzeigename || null, ntfyVal, emailNotif, pushoverKey, req.user.id);
   
   logAudit(req.user.id, 'profile_updated', { anzeigename, ntfy_topic: ntfyVal, email_notifications: emailNotif });
   

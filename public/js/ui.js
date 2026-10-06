@@ -154,8 +154,8 @@ const UI = {
     return '-';
   },
 
-  // ─── Poke-Antworten rendern (mehrere möglich) ────────────────────────
-  renderAntworten(nachrichtId, replyContent, userRepliesContent = null) {
+  // ─── Agenten-Antworten rendern (mehrere möglich) ─────────────────────
+  renderAntworten(nachrichtId, replyContent, userRepliesContent = null, agentName = 'KI-Agent') {
     if (!replyContent) return '';
 
     // Rückwärtskompatibel: JSON-Array oder Plain-Text für Poke-Antworten
@@ -212,7 +212,7 @@ const UI = {
         return `
           <div style="margin-top: 12px; padding: 12px 16px; background: rgba(6, 182, 212, 0.08); border-left: 3px solid var(--farbe-akzent); border-radius: 4px;">
             <div style="font-size: 11px; color: var(--farbe-akzent); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-              🤖 Poke hat geantwortet${this.escapeHtml(datumTxt)}
+              🤖 ${this.escapeHtml(agentName)} hat geantwortet${this.escapeHtml(datumTxt)}
             </div>
             <div style="font-size: 13px; color: var(--farbe-text); line-height: 1.5; white-space: pre-wrap;">${this.escapeHtml(a.text)}</div>
             ${buttonsHtml}

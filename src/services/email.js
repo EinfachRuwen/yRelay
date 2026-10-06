@@ -2,6 +2,12 @@
 const nodemailer = require('nodemailer');
 const { getSetting } = require('../db');
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char]);
+}
+
 /**
  * Erstellt einen Nodemailer-Transporter mit den aktuellen Einstellungen.
  */
@@ -166,11 +172,15 @@ async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachric
 
   const absender = getSetting('smtp_from') || getSetting('smtp_user');
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
+  const safePokeName = escapeHtml(pokeName);
+  const safeEmpfaengerName = escapeHtml(empfaengerName);
+  const safeAntwort = escapeHtml(neuePokeAntwort);
+  const safeOriginalNachricht = escapeHtml(originalNachricht.replace(/\[SPECIAL:[A-Z_]+\]\s*/g, '').split('\n\nHinweis für Poke:')[0]);
 
   const betreff = istFolgeantwort ? `Antwort von ${pokeName} erhalten 🤖` : `${pokeName} hat auf deine Anfrage reagiert! 🚀`;
   const headerTitel = istFolgeantwort ? 'Folgeantwort' : 'Neue Antwort';
   const headerIcon = '🤖';
-  const headerSubtitle = `${pokeName} hat eine Nachricht für dich.`;
+  const headerSubtitle = `${safePokeName} hat eine Nachricht für dich.`;
   const headerAccent = istFolgeantwort ? '#8b5cf6, #6366f1' : '#06b6d4, #38bdf8';
 
   // Bisheriger Verlauf (ohne die aktuelle Antwort von Poke) für Folgeantworten
@@ -185,12 +195,12 @@ async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachric
         const bgColor = isPoke ? 'rgba(6,182,212,0.07)' : 'rgba(99,102,241,0.07)';
         const borderColor = isPoke ? '#0e7490' : '#4f46e5';
         const labelColor = isPoke ? '#22d3ee' : '#818cf8';
-        const label = isPoke ? `🤖 ${pokeName}` : `👤 ${eintrag.name || empfaengerName}`;
+        const label = isPoke ? `🤖 ${safePokeName}` : `👤 ${escapeHtml(eintrag.name || empfaengerName)}`;
 
         return `
           <div style="margin-bottom:10px;padding:12px 14px;background:${bgColor};border-left:3px solid ${borderColor};border-radius:6px;">
             <p style="margin:0 0 5px;font-size:11px;color:${labelColor};font-weight:600;">${label}${zeitString ? ' · ' + zeitString : ''}</p>
-            <p style="margin:0;color:#cbd5e1;font-size:13px;line-height:1.6;white-space:pre-wrap;">${eintrag.text}</p>
+            <p style="margin:0;color:#cbd5e1;font-size:13px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(eintrag.text)}</p>
           </div>
         `;
       }).join('')}
@@ -198,12 +208,12 @@ async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachric
   ` : '';
 
   const body = `
-    <p style="margin:0 0 20px;font-size:17px;font-weight:600;color:#f1f5f9;">Hallo ${empfaengerName},</p>
+    <p style="margin:0 0 20px;font-size:17px;font-weight:600;color:#f1f5f9;">Hallo ${safeEmpfaengerName},</p>
 
     <!-- Neue Poke-Antwort -->
     <div style="margin-bottom:20px;padding:20px;background:rgba(6,182,212,0.08);border-left:4px solid #06b6d4;border-radius:8px;">
-      <p style="margin:0 0 8px;font-weight:700;color:#22d3ee;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">🤖 ${pokeName}s ${istFolgeantwort ? 'neue ' : ''}Antwort</p>
-      <p style="margin:0;color:#f8fafc;font-size:15px;line-height:1.7;white-space:pre-wrap;">${neuePokeAntwort}</p>
+      <p style="margin:0 0 8px;font-weight:700;color:#22d3ee;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">🤖 ${safePokeName}s ${istFolgeantwort ? 'neue ' : ''}Antwort</p>
+      <p style="margin:0;color:#f8fafc;font-size:15px;line-height:1.7;white-space:pre-wrap;">${safeAntwort}</p>
     </div>
 
     ${verlaufHtml}
@@ -211,16 +221,16 @@ async function sendeAntwortMail(empfaengerEmail, empfaengerName, originalNachric
     <!-- Ursprüngliche Nachricht -->
     <div style="margin-bottom:24px;padding:16px;background:rgba(148,163,184,0.05);border-left:4px solid #334155;border-radius:8px;">
       <p style="margin:0 0 8px;font-weight:600;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Deine ursprüngliche Nachricht</p>
-      <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.6;white-space:pre-wrap;">${originalNachricht.replace(/\[SPECIAL:[A-Z_]+\]\s*/g, '').split('\n\nHinweis für Poke:')[0]}</p>
+      <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.6;white-space:pre-wrap;">${safeOriginalNachricht}</p>
     </div>
 
     <div style="text-align:center;">
-      <a href="${appUrl}" style="display:inline-block;padding:12px 28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;border-radius:8px;box-shadow:0 4px 12px rgba(99,102,241,0.35);">Zum Dashboard & Antworten →</a>
+      <a href="${escapeHtml(appUrl)}" style="display:inline-block;padding:12px 28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;border-radius:8px;box-shadow:0 4px 12px rgba(99,102,241,0.35);">Zum Dashboard & Antworten →</a>
     </div>
     
     <div style="margin-top:24px;padding:16px;background:rgba(239, 68, 68, 0.1);border-left:4px solid #ef4444;border-radius:4px;">
       <p style="margin:0;color:#f87171;font-size:13px;font-weight:600;">⚠️ WICHTIG:</p>
-      <p style="margin:4px 0 0;color:#94a3b8;font-size:13px;">Bitte antworte <strong>NICHT</strong> direkt auf diese E-Mail! ${pokeName} kann deine Antwort nur empfangen, wenn du sie über das yRelay Dashboard verschickst.</p>
+      <p style="margin:4px 0 0;color:#94a3b8;font-size:13px;">Bitte antworte <strong>NICHT</strong> direkt auf diese E-Mail! ${safePokeName} kann deine Antwort nur empfangen, wenn du sie über das yRelay Dashboard verschickst.</p>
     </div>
   `;
 
@@ -400,6 +410,9 @@ async function sendeRueckfrageMail(empfaengerEmail, empfaengerName, originalNach
   if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
 
   const appUrl = getSetting('app_url') || '';
+  const safePokeName = escapeHtml(pokeName);
+  const safeEmpfaengerName = escapeHtml(empfaengerName);
+  const safeAntwort = escapeHtml(antwortText);
   
   // Buttons als Links rendern
   const buttonsHtml = buttons.map(btn => {
@@ -411,16 +424,16 @@ async function sendeRueckfrageMail(empfaengerEmail, empfaengerName, originalNach
     const url = `${appUrl}/api/nachrichten/klick/${nachrichtId}/${token}/${encodeURIComponent(btn.id)}`;
     
     return `<a href="${url}" style="display:block;margin-bottom:10px;padding:14px 20px;background:${bg};color:white;text-decoration:none;border-radius:8px;font-weight:600;text-align:center;font-size:15px;">
-      ${btn.text}
+      ${escapeHtml(btn.text)}
     </a>`;
   }).join('');
 
   const bodyContent = `
-    <h2 style="margin:0 0 16px;color:#f1f5f9;font-size:18px;">Rückfrage von ${pokeName} an ${empfaengerName},</h2>
+    <h2 style="margin:0 0 16px;color:#f1f5f9;font-size:18px;">Rückfrage von ${safePokeName} an ${safeEmpfaengerName},</h2>
     
     <div style="background:rgba(255,255,255,0.03);border-left:3px solid #6366f1;padding:16px;margin-bottom:24px;border-radius:0 8px 8px 0;">
-      <p style="margin:0;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${pokeName} fragt:</p>
-      <p style="margin:0;color:#f1f5f9;font-size:15px;line-height:1.6;white-space:pre-wrap;">${antwortText}</p>
+      <p style="margin:0;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${safePokeName} fragt:</p>
+      <p style="margin:0;color:#f1f5f9;font-size:15px;line-height:1.6;white-space:pre-wrap;">${safeAntwort}</p>
     </div>
     
     <div style="margin-bottom:24px;">
@@ -429,14 +442,14 @@ async function sendeRueckfrageMail(empfaengerEmail, empfaengerName, originalNach
     </div>
 
     ${appUrl ? `<div style="text-align:center;margin-top:24px;">
-      <a href="${appUrl}/#dashboard" style="display:inline-block;padding:10px 20px;background:transparent;color:#94a3b8;text-decoration:underline;font-size:13px;">Oder im Dashboard beantworten</a>
+      <a href="${escapeHtml(appUrl)}/#dashboard" style="display:inline-block;padding:10px 20px;background:transparent;color:#94a3b8;text-decoration:underline;font-size:13px;">Oder im Dashboard beantworten</a>
     </div>` : ''}
   `;
 
   const html = emailTemplate(
     '❓',
     'Aktion erforderlich',
-    `${pokeName} benötigt eine Entscheidung von dir.`,
+    `${safePokeName} benötigt eine Entscheidung von dir.`,
     '#f59e0b, #d97706',
     bodyContent
   );
@@ -445,7 +458,7 @@ async function sendeRueckfrageMail(empfaengerEmail, empfaengerName, originalNach
     const info = await transporter.sendMail({
       from: `"yRelay" <${getSetting('smtp_from') || getSetting('smtp_user')}>`,
       to: empfaengerEmail,
-      subject: `[yRelay] Rückfrage von Poke`,
+      subject: `[yRelay] Rückfrage von ${pokeName}`,
       html,
     });
     return { erfolg: true, messageId: info.messageId };
@@ -496,6 +509,67 @@ async function sendeSystemBenachrichtigung(empfaengerEmail, empfaengerName, betr
   }
 }
 
+async function sendeAgentenNachricht(empfaengerEmail, agentName, nachricht, antwortUrl, websiteModus) {
+  const transporter = erstelleTransporter();
+  if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
+  const absender = getSetting('smtp_from') || getSetting('smtp_user');
+  const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char]);
+  const safeName = escapeHtml(agentName);
+  const safeMessage = escapeHtml(nachricht);
+  const text = websiteModus
+    ? `${nachricht}\n\nAntworten: ${antwortUrl}`
+    : `${nachricht}\n\nSende deine Antwort als POST-Request mit JSON {"message":"..."} an ${antwortUrl}`;
+  const replyMarkup = websiteModus
+    ? `<a href="${escapeHtml(antwortUrl)}" style="color:#38bdf8;">${escapeHtml(antwortUrl)}</a>`
+    : `<code style="word-break:break-all;color:#38bdf8;">${escapeHtml(antwortUrl)}</code>`;
+  const body = `
+    <p style="color:#cbd5e1;font-size:15px;">${safeMessage.replace(/\n/g, '<br>')}</p>
+    <p style="color:#94a3b8;font-size:13px;">${websiteModus ? 'Öffne die geschützte Antwortseite:' : 'Sende deine Antwort an diesen API-Endpunkt:'}</p>
+    <p style="word-break:break-all;">${replyMarkup}</p>
+  `;
+  try {
+    await transporter.sendMail({
+      from: `"yRelay" <${absender}>`,
+      to: empfaengerEmail,
+      subject: `Neue Nachricht für ${agentName}`,
+      text,
+      html: emailTemplate('🤖', `Nachricht für ${safeName}`, 'Neue Anfrage über yRelay', '#06b6d4, #38bdf8', body),
+    });
+    return { erfolg: true };
+  } catch (err) {
+    console.error('[yRelay] E-Mail-Fehler (Agent):', err.message);
+    return { erfolg: false, fehler: err.message };
+  }
+}
+
+async function sendeAgentenAuftrag(empfaengerEmail, agentName, betreff, nachricht) {
+  const transporter = erstelleTransporter();
+  if (!transporter) return { erfolg: false, fehler: 'SMTP ist nicht konfiguriert.' };
+  const absender = getSetting('smtp_from') || getSetting('smtp_user');
+  const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char]);
+  const linkedText = escapeHtml(nachricht).replace(/https?:\/\/[^\s<]+/g, url =>
+    `<a href="${url}" style="color:#38bdf8;word-break:break-all;">${url}</a>`
+  );
+  try {
+    await transporter.sendMail({
+      from: `"yRelay" <${absender}>`,
+      to: empfaengerEmail,
+      subject: betreff,
+      text: nachricht,
+      html: emailTemplate('🤖', escapeHtml(betreff), `Auftrag für ${escapeHtml(agentName)}`, '#06b6d4, #38bdf8',
+        `<div style="white-space:pre-wrap;color:#cbd5e1;font:14px/1.7 monospace;">${linkedText}</div>`),
+    });
+    return { erfolg: true };
+  } catch (err) {
+    console.error('[yRelay] E-Mail-Fehler (Agentenauftrag):', err.message);
+    return { erfolg: false, fehler: err.message };
+  }
+}
+
 /**
  * Sendet eine manuelle E-Mail aus dem Admin-Panel.
  */
@@ -538,6 +612,8 @@ module.exports = {
   sendeAntwortMail,
   sendeRueckfrageMail,
   sendeSystemBenachrichtigung,
+  sendeAgentenNachricht,
+  sendeAgentenAuftrag,
   sendeManuelleMail,
   testeSMTP,
 };

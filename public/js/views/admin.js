@@ -38,7 +38,7 @@ const AdminView = {
             <button class="admin-tab" data-tab="labels" role="tab">🏷️ <span class="tab-text">Labels</span></button>
             <button class="admin-tab" data-tab="audit" role="tab">📜 <span class="tab-text">Audit Log</span></button>
             <button class="admin-tab" data-tab="einstellungen" role="tab">🔧 <span class="tab-text">Einstellungen</span></button>
-            <button class="admin-tab" data-tab="poke-profile" role="tab">🤖 <span class="tab-text">Poke-Profile</span></button>
+            <button class="admin-tab" data-tab="poke-profile" role="tab">🤖 <span class="tab-text">KI-Agenten</span></button>
             <button class="admin-tab" data-tab="spiele" role="tab">🎮 <span class="tab-text">Spiele</span></button>
             <button class="admin-tab" data-tab="email-tool" role="tab">📧 <span class="tab-text">E-Mail Tool</span></button>
           </div>
@@ -481,7 +481,7 @@ const AdminView = {
                               </button>
                               <button class="btn btn-sekundaer btn-klein"
                                 onclick="AdminView.nutzerPokeProfileBearbeiten(${n.id})"
-                                title="Poke-Profile zuweisen">
+                                title="KI-Agenten zuweisen">
                                 🤖
                               </button>
                               <button class="btn btn-sekundaer btn-klein"
@@ -564,12 +564,12 @@ const AdminView = {
       const nutzerProfileIds = (nutzer.poke_profile || []).map(p => p.id);
 
       let html = `<form id="profil-zuweisen-form" style="display:flex; flex-direction:column; gap:15px;">
-        <p>Wähle aus, welche Poke-Profile <strong>${UI.escapeHtml(name)}</strong> nutzen darf:</p>
+        <p>Wähle aus, welche KI-Agenten <strong>${UI.escapeHtml(name)}</strong> nutzen darf:</p>
         <div style="display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto; padding-right:10px;">
       `;
 
       if (alleProfile.length === 0) {
-        html += `<p>Es wurden noch keine Poke-Profile angelegt.</p>`;
+        html += `<p>Es wurden noch keine KI-Agenten angelegt.</p>`;
       } else {
         alleProfile.forEach(p => {
           const checked = nutzerProfileIds.includes(p.id) ? 'checked' : '';
@@ -590,7 +590,7 @@ const AdminView = {
 
       UI.modalZeigen(`
         <div class="modal-header">
-          <span class="modal-titel">🤖 Poke-Profile für ${UI.escapeHtml(name)}</span>
+          <span class="modal-titel">🤖 KI-Agenten für ${UI.escapeHtml(name)}</span>
           <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
         </div>
         <div class="modal-koerper">
@@ -607,7 +607,7 @@ const AdminView = {
         
         try {
           await API.adminPokeProfileZuweisen(nutzerId, ausgewaehlte);
-          UI.erfolg('Poke-Profile erfolgreich zugewiesen.');
+          UI.erfolg('KI-Agenten erfolgreich zugewiesen.');
           UI.schliesseModal();
           await this.tabLaden('nutzer');
         } catch (err) {
@@ -1101,7 +1101,7 @@ const AdminView = {
 
             <!-- SMTP -->
             <div class="einstellungen-sektion">
-              <div class="einstellungen-sektion-titel">📧 SMTP (optional - für Einladungsmails)</div>
+              <div class="einstellungen-sektion-titel">📧 SMTP (für E-Mails)</div>
               <div class="einstellungen-grid">
                 <div class="formular-gruppe">
                   <label class="formular-label" for="smtp-host">SMTP-Server</label>
@@ -1125,6 +1125,17 @@ const AdminView = {
                 <input class="formular-eingabe" type="email" id="smtp-from" value="${UI.escapeHtml(einstellungen.smtpFrom)}" placeholder="yrelay@example.com">
               </div>
               <button type="button" class="btn btn-sekundaer btn-klein" id="smtp-test-btn">🔌 SMTP-Verbindung testen</button>
+            </div>
+
+            <hr class="trennlinie">
+
+            <div class="einstellungen-sektion">
+              <div class="einstellungen-sektion-titel">📲 Pushover (optional)</div>
+              <div class="formular-gruppe">
+                <label class="formular-label" for="pushover-app-token">Anwendungs-Token</label>
+                <input class="formular-eingabe" type="password" id="pushover-app-token" autocomplete="new-password" placeholder="${einstellungen.pushoverAppTokenGesetzt ? '•••••••• (unverändert)' : 'Pushover Application API Token'}">
+                <p class="text-gedaempft" style="margin-top:6px;">Nutzer hinterlegen ihren persönlichen Pushover User-Key im eigenen Profil.</p>
+              </div>
             </div>
 
             <hr class="trennlinie">
@@ -1286,6 +1297,7 @@ const AdminView = {
         await API.adminEinstellungenSpeichern({
           pokeWebhookUrl: document.getElementById('poke-url').value.trim(),
           pokeApiKey: document.getElementById('poke-key').value || '••••••••',
+          pushoverAppToken: document.getElementById('pushover-app-token').value || '••••••••',
           smtpHost: document.getElementById('smtp-host').value.trim(),
           smtpPort: document.getElementById('smtp-port').value.trim(),
           smtpUser: document.getElementById('smtp-user').value.trim(),
@@ -1409,8 +1421,8 @@ const AdminView = {
         <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
           <div class="karte-icon karte-icon-primaer">🤖</div>
           <div style="flex: 1; min-width: 200px;">
-            <div class="karte-titel">Poke-Profile verwalten</div>
-            <div class="karte-untertitel">${profile.length} Profile (Bots) aktiv</div>
+            <div class="karte-titel">KI-Agenten verwalten</div>
+            <div class="karte-untertitel">${profile.length} Agenten aktiv</div>
           </div>
           <div>
             <button id="admin-neues-profil-btn" class="btn btn-primaer btn-klein">+ Neues Profil</button>
@@ -1419,14 +1431,14 @@ const AdminView = {
         <div class="karte-koerper">
           <div class="info-box info" style="margin-bottom: 20px;">
             <span>ℹ️</span>
-            <span>Hier kannst du verschiedene Profile (Bots) anlegen, die mit unterschiedlichen Webhook-URLs und API-Keys arbeiten. Das Standard-Profil wird verwendet, wenn kein anderes Profil gewählt wurde.</span>
+            <span>Lege Agenten mit Webhook- oder E-Mail-Zustellung an und wähle, ob Antworten per API oder über eine geschützte Webseite eingehen.</span>
           </div>
           
           <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
     `;
 
     if (profile.length === 0) {
-      html += `<p style="grid-column: 1 / -1; color: var(--farbe-text-schwach); text-align: center; padding: 20px;">Keine Poke-Profile gefunden.</p>`;
+      html += `<p style="grid-column: 1 / -1; color: var(--farbe-text-schwach); text-align: center; padding: 20px;">Noch keine KI-Agenten angelegt.</p>`;
     } else {
       profile.forEach(p => {
         html += `
@@ -1437,7 +1449,8 @@ const AdminView = {
                 ${p.ist_standard ? '<span class="status-badge aktiv" style="padding: 2px 8px; font-size: 11px;">Standard</span>' : ''}
               </div>
               <p style="margin:0 0 16px 0; font-size:12px; color:var(--farbe-text-gedaempft); word-break: break-all;">
-                <strong>Webhook:</strong><br> ${UI.escapeHtml(p.webhook_url.substring(0, 40))}...
+                <strong>${p.transport === 'email' ? 'E-Mail' : 'Webhook'}:</strong><br> ${UI.escapeHtml(p.transport === 'email' ? p.email : (p.webhook_url || '').substring(0, 40))}${p.transport !== 'email' && p.webhook_url?.length > 40 ? '...' : ''}<br>
+                <strong>Antwort:</strong> ${p.interface_mode === 'website' ? 'Webseite' : 'API'}
               </p>
             </div>
             <div style="display:flex; gap:8px;">
@@ -1485,7 +1498,7 @@ const AdminView = {
     const formHtml = `
       <form id="profil-form" style="display:flex; flex-direction:column; gap:15px;">
         <div class="formular-gruppe">
-          <label class="formular-label">Name</label>
+          <label class="formular-label" for="prof-name">Name des KI-Agenten</label>
           <input type="text" id="prof-name" class="formular-eingabe" value="${isEdit ? UI.escapeHtml(profil.name) : ''}" required>
         </div>
         <div style="display:flex; gap:15px;">
@@ -1499,12 +1512,30 @@ const AdminView = {
           </div>
         </div>
         <div class="formular-gruppe">
-          <label class="formular-label">Pushover Webhook URL</label>
-          <input type="url" id="prof-webhook" class="formular-eingabe" value="${isEdit ? UI.escapeHtml(profil.webhook_url) : ''}" required>
+          <label class="formular-label" for="prof-transport">Nachrichtenzustellung</label>
+          <select id="prof-transport" class="formular-select">
+            <option value="webhook" ${!isEdit || profil.transport !== 'email' ? 'selected' : ''}>Webhook</option>
+            <option value="email" ${isEdit && profil.transport === 'email' ? 'selected' : ''}>E-Mail über SMTP</option>
+          </select>
         </div>
-        <div class="formular-gruppe">
+        <div class="formular-gruppe" id="prof-webhook-group">
+          <label class="formular-label">Webhook-URL</label>
+          <input type="url" id="prof-webhook" class="formular-eingabe" value="${isEdit ? UI.escapeHtml(profil.webhook_url || '') : ''}">
+        </div>
+        <div class="formular-gruppe" id="prof-apikey-group">
           <label class="formular-label">API Key (Token)</label>
           <input type="password" id="prof-apikey" class="formular-eingabe" value="" placeholder="${isEdit && profil.api_key_gesetzt ? 'Gespeicherter Key bleibt unverändert' : 'Bearer-Token eingeben'}" ${isEdit ? '' : 'required'}>
+        </div>
+        <div class="formular-gruppe" id="prof-email-group" style="display:none;">
+          <label class="formular-label" for="prof-email">Agenten-E-Mail-Adresse</label>
+          <input type="email" id="prof-email" class="formular-eingabe" value="${isEdit ? UI.escapeHtml(profil.email || '') : ''}">
+        </div>
+        <div class="formular-gruppe">
+          <label class="formular-label" for="prof-interface">Antwortweg</label>
+          <select id="prof-interface" class="formular-select">
+            <option value="api" ${!isEdit || profil.interface_mode !== 'website' ? 'selected' : ''}>API-Aufruf (POST)</option>
+            <option value="website" ${isEdit && profil.interface_mode === 'website' ? 'selected' : ''}>Geschützte Webseite</option>
+          </select>
         </div>
         <div class="formular-gruppe" style="display:flex; align-items:center; gap:10px;">
           <input type="checkbox" id="prof-standard" style="width: 18px; height: 18px;" ${isEdit && profil.ist_standard ? 'checked' : ''}>
@@ -1524,6 +1555,18 @@ const AdminView = {
       </div>
     `);
 
+    const updateTransportFields = () => {
+      const emailTransport = document.getElementById('prof-transport').value === 'email';
+      document.getElementById('prof-webhook-group').style.display = emailTransport ? 'none' : '';
+      document.getElementById('prof-apikey-group').style.display = emailTransport ? 'none' : '';
+      document.getElementById('prof-email-group').style.display = emailTransport ? '' : 'none';
+      document.getElementById('prof-webhook').required = !emailTransport;
+      document.getElementById('prof-apikey').required = !emailTransport && !isEdit;
+      document.getElementById('prof-email').required = emailTransport;
+    };
+    document.getElementById('prof-transport').addEventListener('change', updateTransportFields);
+    updateTransportFields();
+
     document.getElementById('profil-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = e.target.querySelector('button');
@@ -1535,6 +1578,9 @@ const AdminView = {
         farbe: document.getElementById('prof-farbe').value,
         webhook_url: document.getElementById('prof-webhook').value,
         api_key: document.getElementById('prof-apikey').value,
+        transport: document.getElementById('prof-transport').value,
+        email: document.getElementById('prof-email').value,
+        interface_mode: document.getElementById('prof-interface').value,
         ist_standard: document.getElementById('prof-standard').checked ? 1 : 0
       };
 

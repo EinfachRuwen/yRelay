@@ -1,36 +1,65 @@
 // yRelay - Reminder-Service
-// Überwacht unbeantwortete Nachrichten und pikt Poke an bzw. benachrichtigt Nutzer
+// Überwacht unbeantwortete Nachrichten, erinnert Agenten und benachrichtigt Nutzer
 const { db, getSetting, logAudit } = require('../db');
-const { sendeAusstehendeAntwortMail } = require('./email');
 
-// Poke direkt über den Webhook antriggern (ohne neue DB-Nachricht zu erstellen)
+// Agenten direkt erinnern, ohne eine neue Nachricht in der Datenbank anzulegen
 async function pokeErinnern(message) {
   let webhookUrl = getSetting('poke_webhook_url');
   let apiKey = getSetting('poke_api_key');
+  let agent = null;
 
   if (message.poke_profile_id) {
-    const profil = db.prepare('SELECT webhook_url, api_key FROM poke_profiles WHERE id = ?').get(message.poke_profile_id);
-    if (profil) {
-      webhookUrl = profil.webhook_url;
-      apiKey = profil.api_key;
+    agent = db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(message.poke_profile_id) || null;
+    if (agent) {
+      webhookUrl = agent.webhook_url;
+      apiKey = agent.api_key;
     }
   }
 
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
+  const agentName = agent?.name || 'KI-Agent';
+  const replyRoute = /poke/i.test(agentName) ? 'poke-reply' : 'agent-reply';
+  const schoolIntegration = message.type === 'school' && agent?.interface_mode === 'website'
+    ? db.prepare('SELECT id, token FROM schul_integrationen WHERE nutzer_id = ? AND profil_id = ?').get(message.user_id, agent.id)
+    : null;
+  const antwortLink = agent?.interface_mode === 'website'
+    ? (schoolIntegration
+      ? `${appUrl}/agent/school/${schoolIntegration.id}/${schoolIntegration.token}?messageId=${message.id}&messageToken=${message.reply_token}`
+      : `${appUrl}/agent/${message.id}/${message.reply_token}`)
+    : `${appUrl}/api/webhooks/${replyRoute}/${message.id}/${message.reply_token}`;
+  const websiteModus = agent?.interface_mode === 'website';
+  const antwortAnweisung = agent?.interface_mode === 'website'
+    ? (schoolIntegration
+      ? `Öffne die yRelay-Schul-Webseite und trage die passenden Schul-Dashboard-Daten dort ein: ${antwortLink}. Sende keine HTTP-Anfragen selbst.`
+      : `Öffne die yRelay-Antwortseite und erledige die Aufgabe dort: ${antwortLink}. Dort kannst du antworten, Buttons anbieten und Statusaktionen auswählen. Sende keine HTTP-Anfragen selbst.`)
+    : `Sende deine Antwort per POST als JSON {"message":"Deine Antwort"} an: ${antwortLink}`;
+  const buttonsAnweisung = websiteModus
+    ? (schoolIntegration
+      ? 'Schul-Dashboard-Einträge übermittelst du über die Bereiche auf der Webseite.'
+      : 'Bei einer Rückfrage kannst du auf der Webseite bis zu 5 Buttons als JSON-Array hinzufügen; die Auswahl wird dir als neue System-Nachricht zugestellt.')
+    : 'Bei einer Rückfrage kannst du im API-Modus ein buttons-Array mitsenden (maximal 5); der Nutzer erhält danach eine System-Nachricht mit seiner Auswahl.';
+  const statusAnweisung = websiteModus
+    ? (schoolIntegration ? '' : 'Statusaktionen erledigst du über die Statusauswahl auf derselben Webseite.')
+    : `Statusaktionen: POST {"action":"erledigt","notiz":"Optional"} an ${appUrl}/api/webhooks/poke-action/${message.id}/${message.reply_token}. Verfügbar: erledigt, in_bearbeitung, offen, pin, unpin`;
 
-  if (!webhookUrl || !apiKey) return false;
-
-  const antwortLink = `${appUrl}/api/webhooks/poke-reply/${message.id}/${message.reply_token}`;
-
-  const erinnerungstext = `[yRelay REMINDER] 🔔 Poke, du hast eine unbeantwortete Nachricht!
+  const erinnerungstext = `[yRelay REMINDER] 🔔 ${agentName}, du hast eine unbeantwortete Nachricht!
 
 Eine Nachricht von ${message.username} (${message.email}) wartet seit über 5 Minuten auf deine erste Antwort.
 
 Ursprüngliche Nachricht:
 ${message.content}
 
-BITTE ANTWORTE SOFORT. Der Absender wartet. Sende POST {"message": "Deine Antwort"} an:
-${antwortLink}`;
+WICHTIG: Du MUSST auf diese Nachricht antworten. Der Absender wartet. Du kannst mehrfach antworten; jede Antwort wird gespeichert und dem Absender per E-Mail und im Dashboard angezeigt.
+${antwortAnweisung}
+${buttonsAnweisung}
+${statusAnweisung}`;
+
+  if (agent?.transport === 'email') {
+    const { sendeAgentenAuftrag } = require('./email');
+    const ergebnis = await sendeAgentenAuftrag(agent.email, agentName, `Erinnerung: Aufgabe für ${agentName}`, erinnerungstext);
+    return ergebnis.erfolg;
+  }
+  if (!webhookUrl || !apiKey) return false;
 
   try {
     const res = await fetch(webhookUrl, {
@@ -43,7 +72,7 @@ ${antwortLink}`;
     });
     return res.ok;
   } catch (err) {
-    console.error('[yRelay Reminder] Poke-Webhook Fehler:', err.message);
+    console.error('[yRelay Reminder] Agenten-Webhook Fehler:', err.message);
     return false;
   }
 }
@@ -57,8 +86,8 @@ async function pruefe() {
   try {
     // ─── Geplante Nachrichten versenden ──────────────────────────────────────
     const zuSenden = db.prepare(`
-      SELECT m.id, m.content, m.type, m.priority, m.reply_token, m.poke_profile_id,
-             u.email, u.username, u.id as user_id, u.ntfy_topic, u.email_notifications
+          SELECT m.id, m.content, m.type, m.priority, m.reply_token, m.poke_profile_id,
+              u.email, u.username, u.id as user_id, u.ntfy_topic, u.email_notifications, u.pushover_user_key
       FROM messages m
       JOIN users u ON m.user_id = u.id
       WHERE m.status = 'geplant'
@@ -91,14 +120,15 @@ async function pruefe() {
 
         logAudit(msg.user_id, 'scheduled_message_processed', { message_id: msg.id, success: ergebnis.erfolg });
 
+        const agentName = db.prepare('SELECT name FROM poke_profiles WHERE id = ?').get(msg.poke_profile_id)?.name || 'KI-Agent';
         // 🔔 Benachrichtigung senden
         const { sendePushUndMail } = require('./notify');
-        const userDaten = db.prepare('SELECT email, username, ntfy_topic, email_notifications FROM users WHERE id = ?').get(msg.user_id);
+        const userDaten = db.prepare('SELECT email, username, ntfy_topic, email_notifications, pushover_user_key FROM users WHERE id = ?').get(msg.user_id);
         
         if (ergebnis.erfolg) {
           sendePushUndMail(userDaten, {
             betreff: 'Geplante Nachricht versendet ⏰',
-            inhalt: `Deine geplante Nachricht wurde soeben erfolgreich an Poke weitergeleitet.<br><br><em>"${msg.content}"</em>`,
+            inhalt: `Deine geplante Nachricht wurde soeben erfolgreich an ${agentName} weitergeleitet.<br><br><em>"${msg.content}"</em>`,
             icon: '⏰',
             farbe: '#10b981, #059669',
             ntfyTags: ['alarm_clock', 'white_check_mark']
@@ -106,7 +136,7 @@ async function pruefe() {
         } else {
           sendePushUndMail(userDaten, {
             betreff: 'Fehler bei geplanter Nachricht 🚨',
-            inhalt: `Deine geplante Nachricht konnte leider <strong>nicht</strong> an Poke gesendet werden.<br><br><strong>Fehler:</strong> ${ergebnis.fehler}<br><em>"${msg.content}"</em>`,
+            inhalt: `Deine geplante Nachricht konnte leider <strong>nicht</strong> an ${agentName} gesendet werden.<br><br><strong>Fehler:</strong> ${ergebnis.fehler}<br><em>"${msg.content}"</em>`,
             icon: '🚨',
             farbe: '#ef4444, #b91c1c',
             ntfyTags: ['warning', 'x'],
@@ -120,7 +150,7 @@ async function pruefe() {
 
         // 🔔 Benachrichtigung senden (Catch-Block)
         const { sendePushUndMail } = require('./notify');
-        const userDaten = db.prepare('SELECT email, username, ntfy_topic, email_notifications FROM users WHERE id = ?').get(msg.user_id);
+        const userDaten = db.prepare('SELECT email, username, ntfy_topic, email_notifications, pushover_user_key FROM users WHERE id = ?').get(msg.user_id);
         sendePushUndMail(userDaten, {
           betreff: 'Fehler bei geplanter Nachricht 🚨',
           inhalt: `Deine geplante Nachricht konnte aufgrund eines internen Fehlers <strong>nicht</strong> gesendet werden.<br><br><strong>Fehler:</strong> ${err.message}`,
@@ -133,11 +163,11 @@ async function pruefe() {
     }
     // Nachrichten holen, die:
     // - Status 'gesendet' haben
-    // - Noch KEINE Poke-Antwort haben (reply_content IS NULL)
+    // - Noch KEINE Agentenantwort haben (reply_content IS NULL)
     // - Vor mehr als 5 Minuten erstellt wurden
     const unbeantwortete = db.prepare(`
-      SELECT m.id, m.content, m.reply_token, m.reminder_sent_at, m.user_notified_at,
-             m.created_at, m.poke_profile_id, u.email, u.username, u.ntfy_topic, u.email_notifications
+            SELECT m.id, m.type, m.user_id, m.content, m.reply_token, m.reminder_sent_at, m.user_notified_at,
+              m.created_at, m.poke_profile_id, u.email, u.username, u.ntfy_topic, u.email_notifications, u.pushover_user_key
       FROM messages m
       JOIN users u ON m.user_id = u.id
       WHERE m.status = 'gesendet'
@@ -157,9 +187,9 @@ async function pruefe() {
         continue;
       }
 
-      // Schritt 1: Nach 5 Minuten - Poke erinnern (nur einmal)
+      // Schritt 1: Nach 5 Minuten - Agent erinnern (nur einmal)
       if (alter >= fuenfMinutenMs && !msg.reminder_sent_at) {
-        console.log(`[yRelay Reminder] Nachricht ${msg.id} ist ${Math.floor(alter / 60000)} Min. alt - erinnere Poke.`);
+        console.log(`[yRelay Reminder] Nachricht ${msg.id} ist ${Math.floor(alter / 60000)} Min. alt - erinnere Agenten.`);
 
         const erfolg = await pokeErinnern(msg);
 
@@ -168,9 +198,9 @@ async function pruefe() {
         db.prepare('UPDATE messages SET reminder_sent_at = CURRENT_TIMESTAMP WHERE id = ?').run(msg.id);
 
         if (erfolg) {
-          console.log(`[yRelay Reminder] Poke wurde für Nachricht ${msg.id} erfolgreich erinnert.`);
+          console.log(`[yRelay Reminder] Agent wurde für Nachricht ${msg.id} erfolgreich erinnert.`);
         } else {
-          console.warn(`[yRelay Reminder] Poke-Erinnerung für Nachricht ${msg.id} fehlgeschlagen (Webhook-Fehler).`);
+          console.warn(`[yRelay Reminder] Agenten-Erinnerung für Nachricht ${msg.id} fehlgeschlagen.`);
         }
       }
 
@@ -181,17 +211,14 @@ async function pruefe() {
         // Immer zuerst als "gesendet" markieren (Idempotenz vor dem await)
         db.prepare('UPDATE messages SET user_notified_at = CURRENT_TIMESTAMP WHERE id = ?').run(msg.id);
 
-        if (msg.email && String(msg.email_notifications) !== '0' && String(msg.email_notifications) !== 'false') {
-          sendeAusstehendeAntwortMail(msg.email, msg.username, msg.content).then(ergebnis => {
-            if (ergebnis.erfolg) {
-              console.log(`[yRelay Reminder] Nutzer ${msg.username} wurde für Nachricht ${msg.id} benachrichtigt.`);
-            } else {
-              console.warn(`[yRelay Reminder] Mail-Fehler für Nachricht ${msg.id}: ${ergebnis.fehler}`);
-            }
-          }).catch(err => {
-            console.error('[yRelay Reminder] Kritischer Mail-Fehler:', err.message);
-          });
-        }
+        const { sendePushUndMail } = require('./notify');
+        sendePushUndMail(msg, {
+          betreff: 'Noch keine Antwort auf deine Nachricht',
+          inhalt: `Deine Nachricht wartet noch auf eine Antwort.<br><br><em>"${msg.content}"</em>`,
+          icon: '⏳',
+          ntfyTags: ['hourglass', 'envelope'],
+          ntfyPriority: 4,
+        }).catch(err => console.error('[yRelay Reminder] Benachrichtigung fehlgeschlagen:', err.message));
       }
     }
   } catch (err) {

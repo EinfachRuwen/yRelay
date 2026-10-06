@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { db, getSetting, logAudit } = require('../db');
-const { sendeFreieNachricht } = require('../services/poke');
+const { sendeAgentenAuftrag } = require('../services/poke');
 
 // Spiellogik-Module
 const Connect4 = require('../services/game-logic/connect4');
@@ -113,27 +113,25 @@ function erstelleSpielstandFuerTyp(gameType) {
 
 async function sendePokeSpielnachricht(spiel, poke, nachrichtentext, buttons = []) {
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
-  const webhookUrl = poke?.webhook_url || getSetting('poke_webhook_url');
-  const apiKey = poke?.api_key || getSetting('poke_api_key');
-  if (!webhookUrl || !apiKey) return;
-
   const moveUrl = `${appUrl}/api/webhooks/game-move/${spiel.id}/${spiel.webhook_token}`;
-  let nachricht = nachrichtentext + `\n\nSpielmodus: **${SPIEL_META[spiel.game_type]?.name}**\nDein Spielzug-URL: POST ${moveUrl}`;
-
-  const payload = { message: nachricht };
-  if (buttons.length > 0) {
-    // Maximal 8 Buttons, Pushover-kompatibel
-    payload.buttons = buttons.slice(0, 8);
-  }
+  const browserUrl = `${appUrl}/agent/game/${spiel.id}/${spiel.webhook_token}`;
+  const websiteMode = poke?.interface_mode === 'website';
+  const nachricht = websiteMode
+    ? `${nachrichtentext}\n\nINTERAKTION ÜBER DIE WEBSITE: Öffne ${browserUrl}. Dort findest du den aktuellen Spielstand und das passende Zugformular. Sende keine HTTP-Anfragen; gib den beschriebenen Zug in die Formularfelder ein und klicke auf „Spielzug senden“.`
+    : `${nachrichtentext}\n\nSpielmodus: **${SPIEL_META[spiel.game_type]?.name}**\nDein Spielzug-URL: POST ${moveUrl}`;
 
   try {
-    await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    const result = await sendeAgentenAuftrag(
+      { username: 'yRelay', email: null },
+      nachricht,
+      poke,
+      buttons.length > 0 ? { buttons: buttons.slice(0, 8) } : {}
+    );
+    if (!result.erfolg) console.error('[Spielebereich] Agentenauftrag fehlgeschlagen:', result.fehler);
+    return result;
   } catch (e) {
-    console.error('[Spielebereich] Fehler beim Senden der Poke-Spielnachricht:', e.message);
+    console.error('[Spielebereich] Fehler beim Senden der Agentenspielnachricht:', e.message);
+    return { erfolg: false, fehler: e.message };
   }
 }
 
@@ -237,6 +235,7 @@ router.post('/starten', async (req, res) => {
   const meta = SPIEL_META[gameType];
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
   const moveUrl = `${appUrl}/api/webhooks/game-move/${spiel.id}/${token}`;
+  const websiteMode = poke?.interface_mode === 'website';
   
   let startText = initialState.amZug === 'nutzer' ? '**Nutzer fängt an.** Warte auf seinen Zug, dann bist du dran.' : '**DU fängst an!** Mache direkt deinen ersten Zug.';
   if (gameType === 'akinator' && initialState.phase === 'wort_auswahl') {
@@ -244,10 +243,20 @@ router.post('/starten', async (req, res) => {
   } else if (gameType === 'battleship') {
     startText = '**WICHTIG (Schiffe setzen):** Bevor das Schießen beginnt, musst du deine Flotte auf einem 10x10 Raster (0-9) aufbauen. Sende dein komplettes Setup als JSON-Array in deinem Zug. Beispiel:\n`{ "aktion": "setup", "auswahl": [ { "name": "Schlachtschiff", "x": 0, "y": 0, "horizontal": true }, { "name": "Kreuzer", "x": 2, "y": 3, "horizontal": false }, ... ] }`\nBenötigt werden: 1x Schlachtschiff (Länge 4), 2x Kreuzer (Länge 3), 3x Zerstörer (Länge 2), 4x U-Boot (Länge 1). Schiffe dürfen sich nicht berühren/überlappen und nicht über den Rand ragen!';
   }
-  const chatHinweis = '\n\nHinweis: Wenn du dem Nutzer während des Spiels etwas sagen willst, sende nicht einfach Text zurück, sondern füge deinem Webhook-Body ein `chat`-Feld hinzu (z.B. `{ "zug": {...}, "chat": "Haha, daneben!" }`).';
-  const pokeNachricht = `🎮 ${req.user.benutzername} möchte **${meta.name}** spielen!\n\n${meta.beschreibung}\n\nDu spielst als ${gameType === 'battleship' ? 'Verteidiger' : gameType === 'ludo' ? 'Blau 🔵' : gameType === 'connect4' ? '🟡 Gelb' : gameType === 'tictactoe' ? '⭕ Kreis' : 'Mitspieler'}.\n\n${startText}${chatHinweis}\n\nDein Spielzug-URL: POST ${moveUrl}\nBody-Format: { "zug": {...} }`;
+  if (websiteMode && gameType === 'akinator' && initialState.phase === 'wort_auswahl') {
+    startText = 'Lege dein geheimes Wort über das Wortfeld auf der Spielseite fest.';
+  }
+  const chatHinweis = websiteMode
+    ? '\n\nDu kannst Spiel-Chat auf der Website im optionalen Chat-Feld mitschicken.'
+    : '\n\nHinweis: Für Spiel-Chat füge deinem Webhook-Body ein `chat`-Feld hinzu (z.B. `{ "zug": {...}, "chat": "Dein Kommentar" }`).';
+  const zugHinweis = websiteMode ? '' : `\n\nDein Spielzug-URL: POST ${moveUrl}\nBody-Format: { "zug": {...} }`;
+  const pokeNachricht = `🎮 ${req.user.benutzername} möchte **${meta.name}** spielen!\n\n${meta.beschreibung}\n\nDu spielst als ${gameType === 'battleship' ? 'Verteidiger' : gameType === 'ludo' ? 'Blau 🔵' : gameType === 'connect4' ? '🟡 Gelb' : gameType === 'tictactoe' ? '⭕ Kreis' : 'Mitspieler'}.\n\n${startText}${chatHinweis}${zugHinweis}`;
 
-  await sendePokeSpielnachricht(spiel, poke, pokeNachricht);
+  const zustellung = await sendePokeSpielnachricht(spiel, poke, pokeNachricht);
+  if (!zustellung?.erfolg) {
+    db.prepare('DELETE FROM games WHERE id = ?').run(spiel.id);
+    return res.status(502).json({ fehler: `Der Spielauftrag konnte nicht an ${poke?.name || 'den KI-Agenten'} zugestellt werden. ${zustellung?.fehler || ''}`.trim() });
+  }
 
   res.json({ erfolg: true, spiel: { ...spiel, state: JSON.parse(spiel.state), meta } });
 });
@@ -270,8 +279,8 @@ router.post('/:id/zug', async (req, res) => {
     state.chat = state.chat || [];
     state.chat.push({ absender: 'nutzer', text: zug.nachricht.substring(0, 500) });
     db.prepare('UPDATE games SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(JSON.stringify(state), spiel.id);
-    await sendePokeSpielnachricht(spiel, poke, `💬 Spiel-Chat von ${req.user.benutzername}:\n"${zug.nachricht}"\n\nNutze das \`chat\`-Feld im Body bei deinem nächsten Spielzug, um zu antworten!`);
-    return res.json({ erfolg: true, state, spielStatus: spiel.status });
+    const zustellung = await sendePokeSpielnachricht(spiel, poke, `💬 Spiel-Chat von ${req.user.benutzername}:\n"${zug.nachricht}"\n\nNutze das \`chat\`-Feld im Body bei deinem nächsten Spielzug, um zu antworten!`);
+    return res.json({ erfolg: true, state, spielStatus: spiel.status, warnung: zustellung?.erfolg ? null : 'Der Spiel-Chat konnte dem Agenten nicht zugestellt werden.' });
   }
 
   if (state.amZug !== 'nutzer') return res.status(409).json({ fehler: 'Poke ist am Zug!' });
@@ -356,6 +365,7 @@ router.post('/:id/zug', async (req, res) => {
   logAudit(req.user.id, 'spielzug', { spielId: spiel.id, gameType: spiel.game_type, spieler: 'nutzer' });
 
   // Benachrichtige Poke je nach Spiel
+  let zustellung = null;
   if (!spielEnde && neuerState.amZug === 'poke') {
     let nachricht = `🔄 Dein Zug!`;
     if (spiel.game_type === 'connect4') {
@@ -373,15 +383,15 @@ router.post('/:id/zug', async (req, res) => {
     } else if (spiel.game_type === 'ludo') {
       nachricht += `\n${Ludo.brettAlsText(neuerState)}`;
     } else if (spiel.game_type === 'wordgame') {
-      nachricht = Wordgame.pokeNachrichtErstellen(neuerState);
+      nachricht = Wordgame.pokeNachrichtErstellen(neuerState, poke?.interface_mode === 'website');
     } else if (spiel.game_type === 'akinator') {
-      nachricht = Akinator.pokeNachrichtErstellen(neuerState);
+      nachricht = Akinator.pokeNachrichtErstellen(neuerState, poke?.interface_mode === 'website');
     }
-    await sendePokeSpielnachricht(spiel, poke, nachricht);
+    zustellung = await sendePokeSpielnachricht(spiel, poke, nachricht);
   } else if (spielEnde) {
     // Spielende melden
     const gewInhalt = neuerState.gewinner === 'nutzer' ? `${req.user.benutzername} hat gewonnen! 🏆` : 'Unentschieden! 🤝';
-    await sendePokeSpielnachricht(spiel, poke, `🎮 Spiel beendet! ${gewInhalt}`);
+    zustellung = await sendePokeSpielnachricht(spiel, poke, `🎮 Spiel beendet! ${gewInhalt}`);
   }
 
   const responseState = JSON.parse(JSON.stringify(neuerState));
@@ -391,7 +401,7 @@ router.post('/:id/zug', async (req, res) => {
     delete responseState.pokeFeld;
   }
 
-  res.json({ erfolg: true, state: responseState, spielStatus: neuerStatus });
+  res.json({ erfolg: true, state: responseState, spielStatus: neuerStatus, warnung: zustellung && !zustellung.erfolg ? 'Der Spielstatus wurde gespeichert, aber der Agent konnte nicht benachrichtigt werden.' : null });
 });
 
 // ─── POST /api/games/:id/erinnern - Poke erinnern ──────────────────────────────
@@ -406,8 +416,9 @@ router.post('/:id/erinnern', async (req, res) => {
   if (state.amZug !== 'poke') return res.status(409).json({ fehler: 'Poke ist nicht am Zug!' });
 
   const poke = holePokeProfil(req);
-  await sendePokeSpielnachricht(spiel, poke, `🔔 ${req.user.benutzername} wartet auf deinen Zug! Bitte mach deinen nächsten Spielzug.`);
-  
+  const zustellung = await sendePokeSpielnachricht(spiel, poke, `🔔 ${req.user.benutzername} wartet auf deinen Zug! Bitte mach deinen nächsten Spielzug.`);
+  if (!zustellung?.erfolg) return res.status(502).json({ fehler: `Der Agent konnte nicht erinnert werden. ${zustellung?.fehler || ''}`.trim() });
+
   res.json({ erfolg: true });
 });
 

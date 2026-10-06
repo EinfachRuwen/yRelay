@@ -172,11 +172,17 @@ function spielzugMachen(state, zug, spieler) {
   return { erfolg: false, fehler: 'Ungültiger Zustand oder Zug.' };
 }
 
-function pokeNachrichtErstellen(state) {
+function pokeNachrichtErstellen(state, websiteMode = false) {
   let msg = `🧞 Wer bin ich? - Dein Zug!\n\n`;
 
   if (state.phase === 'setup') {
     return msg + `Der Nutzer bereitet das Spiel vor. Du musst noch warten.`; // Sollte eigentlich nicht vorkommen
+  }
+
+  if (state.phase === 'wort_auswahl') {
+    return msg + (websiteMode
+      ? 'Lege dein geheimes Wort im Wortfeld auf der Spielseite fest und sende es dort ab.'
+      : 'Lege dein geheimes Wort fest und sende { "zug": { "aktion": "wort_festlegen", "wort": "DeinWort" } }.');
   }
 
   if (state.phase === 'fragen') {
@@ -184,16 +190,22 @@ function pokeNachrichtErstellen(state) {
       msg += `Du musst das Wort erraten! Das geheime Wort kennst du nicht.\nBisherige Antworten:\n`;
       const verlauf = state.fragen.map(f => `${f.absender === 'poke' ? 'Du' : 'Nutzer'}: ${f.text}`).join('\n');
       msg += verlauf ? verlauf : '(Noch keine Fragen gestellt)';
-      msg += `\n\nStelle eine Ja/Nein-Frage. Sende: { "zug": { "frage": "Ist es ein Tier?" } } oder löse auf mit { "zug": { "aktion": "loesen", "wort": "Hund" } }`;
+      msg += websiteMode
+        ? '\n\nStelle eine Ja/Nein-Frage oder rate das Wort. Wähle die passende Aktion und fülle das Frage- oder Lösungswortfeld auf der Spielseite aus.'
+        : `\n\nStelle eine Ja/Nein-Frage. Sende: { "zug": { "frage": "Ist es ein Tier?" } } oder löse auf mit { "zug": { "aktion": "loesen", "wort": "Hund" } }`;
       return msg;
     } else {
       if (state.letzteFrage === 'Tipp anfordern') {
         msg += `Du kennst das geheime Wort: **${state.wort}**\nDer Nutzer kommt nicht weiter und bittet dich um einen Tipp!\n`;
-        msg += `Gib dem Nutzer einen kleinen, subtilen Hinweis, OHNE das Wort direkt zu verraten!\nSende den Tipp als Nachricht über das \`chat\`-Feld deines Webhooks und beantworte den Zug mit { "zug": { "antwort": "Überspringen" }, "chat": "Dein subtiler Tipp..." }`;
+        msg += websiteMode
+          ? 'Gib einen kleinen, subtilen Tipp über das optionale Chat-Feld der Spielseite und wähle im Antwortfeld „Überspringen“.'
+          : `Gib dem Nutzer einen kleinen, subtilen Hinweis, OHNE das Wort direkt zu verraten!\nSende den Tipp als Nachricht über das \`chat\`-Feld deines Webhooks und beantworte den Zug mit { "zug": { "antwort": "Überspringen" }, "chat": "Dein subtiler Tipp..." }`;
         return msg;
       } else {
         msg += `Du kennst das geheime Wort: **${state.wort}**\nDer Nutzer fragt: "${state.letzteFrage}"\n`;
-        msg += `Antworte wahrheitsgemäß! Erlaubt: ${ANTWORTEN.join(', ')}.\nSende: { "zug": { "antwort": "Ja" } }`;
+        msg += websiteMode
+          ? `Antworte wahrheitsgemäß. Wähle eine Antwort im Formular (${ANTWORTEN.join(', ')}).`
+          : `Antworte wahrheitsgemäß! Erlaubt: ${ANTWORTEN.join(', ')}.\nSende: { "zug": { "antwort": "Ja" } }`;
         return msg;
       }
     }
@@ -202,7 +214,9 @@ function pokeNachrichtErstellen(state) {
   if (state.phase === 'voting') {
     const loesung = state.fragen.find(f => f.typ === 'loesung')?.loesungswort || 'Unbekannt';
     msg += `Das geratene Wort war: **${loesung}**.\nDein echtes Wort ist: **${state.wort}**.\n`;
-    msg += `Bewerte, ob der Nutzer recht hatte (auch bei Synonymen oder kleinen Rechtschreibfehlern)!\nSende { "zug": { "aktion": "abstimmen", "zustimmung": true/false } }`;
+    msg += websiteMode
+      ? 'Bewerte, ob der Nutzer recht hatte (auch bei Synonymen oder kleinen Rechtschreibfehlern) und stimme auf der Spielseite ab.'
+      : `Bewerte, ob der Nutzer recht hatte (auch bei Synonymen oder kleinen Rechtschreibfehlern)!\nSende { "zug": { "aktion": "abstimmen", "zustimmung": true/false } }`;
     return msg;
   }
 

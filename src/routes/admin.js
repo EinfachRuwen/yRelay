@@ -374,12 +374,11 @@ router.post('/backups', async (req, res) => {
 });
 
 // POST /api/admin/backups/:filename/restore - Backup wiederherstellen
-router.post('/backups/:filename/restore', (req, res) => {
+router.post('/backups/:filename/restore', async (req, res) => {
   const { filename } = req.params;
   try {
-    restoreBackup(filename);
-    res.json({ nachricht: 'Backup erfolgreich wiederhergestellt. Der Server muss möglicherweise neu gestartet werden.' });
-    // Beende den Prozess kurz nach der Antwort, damit der Prozess-Manager (npm, docker etc.) ihn mit der alten DB neu startet.
+    await restoreBackup(filename);
+    res.json({ nachricht: 'Backup geprüft und Wiederherstellung vorbereitet. Der Server startet jetzt neu und aktiviert das Backup.' });
     setTimeout(() => process.exit(0), 1000);
   } catch (err) {
     res.status(500).json({ fehler: 'Fehler bei der Wiederherstellung: ' + err.message });
@@ -399,6 +398,8 @@ router.get('/einstellungen', (req, res) => {
     smtpUser: getSetting('smtp_user') || '',
     smtpPassGesetzt: !!(getSetting('smtp_pass')),
     smtpFrom: getSetting('smtp_from') || '',
+    pushoverAppToken: getSetting('pushover_app_token') ? '••••••••' : '',
+    pushoverAppTokenGesetzt: !!getSetting('pushover_app_token'),
     appUrl: getSetting('app_url') || '',
     schulDashboardEnabled: getSetting('schul_dashboard_enabled') === 'true',
     schulStartzeit: getSetting('schul_startzeit') || '08:00',
@@ -419,7 +420,7 @@ router.put('/einstellungen', (req, res) => {
   const {
     pokeWebhookUrl, pokeApiKey,
     smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom,
-    appUrl,
+    appUrl, pushoverAppToken,
   } = req.body;
 
   if (pokeWebhookUrl !== undefined) setSetting('poke_webhook_url', pokeWebhookUrl);
@@ -429,6 +430,7 @@ router.put('/einstellungen', (req, res) => {
   if (smtpUser !== undefined) setSetting('smtp_user', smtpUser);
   if (smtpPass && smtpPass !== '••••••••') setSetting('smtp_pass', smtpPass);
   if (smtpFrom !== undefined) setSetting('smtp_from', smtpFrom);
+  if (pushoverAppToken && pushoverAppToken !== '••••••••') setSetting('pushover_app_token', pushoverAppToken.trim());
   if (appUrl !== undefined) setSetting('app_url', appUrl);
   if (req.body.schulDashboardEnabled !== undefined) setSetting('schul_dashboard_enabled', req.body.schulDashboardEnabled ? 'true' : 'false');
   if (req.body.schulStartzeit !== undefined && /^([01]\d|2[0-3]):[0-5]\d$/.test(req.body.schulStartzeit)) setSetting('schul_startzeit', req.body.schulStartzeit);

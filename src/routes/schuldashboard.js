@@ -1,7 +1,7 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
 const { db, getSetting, setSetting, logAudit } = require('../db');
-const { sendeFreieNachricht } = require('../services/poke');
+const { sendeFreieNachricht, sendeAgentenAuftrag } = require('../services/poke');
 const crypto = require('crypto');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB limit
@@ -149,7 +149,25 @@ async function sendeSchulNachricht(user, inhalt, profil) {
     VALUES (?, 'school', ?, '', 'wird_gesendet', ?, ?)
   `).run(user.id, inhalt, replyToken, profil?.id || null);
   const messageId = insert.lastInsertRowid;
-  const ergebnis = await sendeFreieNachricht(user, inhalt, messageId, replyToken, profil);
+  const appUrl = getSetting('app_url') || 'http://localhost:3000';
+  let schulUrl = null;
+  if (profil?.id) {
+    let integration = db.prepare('SELECT id, token FROM schul_integrationen WHERE nutzer_id = ? AND profil_id = ?').get(user.id, profil.id);
+    if (!integration) {
+      db.prepare('INSERT INTO schul_integrationen (nutzer_id, profil_id, token) VALUES (?, ?, ?)')
+        .run(user.id, profil.id, crypto.randomBytes(32).toString('hex'));
+      integration = db.prepare('SELECT id, token FROM schul_integrationen WHERE nutzer_id = ? AND profil_id = ?').get(user.id, profil.id);
+    }
+    schulUrl = profil.interface_mode === 'website'
+      ? `${appUrl}/agent/school/${integration.id}/${integration.token}?messageId=${messageId}&messageToken=${replyToken}`
+      : `${appUrl}/api/webhooks/schul-update/${integration.token}`;
+  }
+  const auftrag = profil?.interface_mode === 'website'
+    ? `${inhalt}\n\nSCHUL-DASHBOARD IM BROWSER: Öffne ${schulUrl}. Wähle dort den Datentyp, trage den daten-Inhalt ein und übermittle ihn. Sende keine HTTP-Anfrage selbst.`
+    : `${inhalt}${schulUrl ? `\n\nSchul-Dashboard Callback-URL für strukturierte Kalender-, Aufgaben-, Chat- und Stundenplandaten: ${schulUrl}` : ''}`;
+  const ergebnis = profil?.interface_mode === 'website'
+    ? await sendeAgentenAuftrag(user, auftrag, profil)
+    : await sendeFreieNachricht(user, auftrag, messageId, replyToken, profil);
   db.prepare('UPDATE messages SET poke_payload = ?, status = ?, error_message = ? WHERE id = ?')
     .run(ergebnis.payload, ergebnis.erfolg ? 'gesendet' : 'fehlgeschlagen', ergebnis.fehler || null, messageId);
   if (!ergebnis.erfolg) throw new Error(ergebnis.fehler || 'Poke konnte die Schulnachricht nicht empfangen.');
@@ -158,8 +176,8 @@ async function sendeSchulNachricht(user, inhalt, profil) {
 
 async function aktualisiereAutomatischeSchulmodi() {
   const integrations = db.prepare(`
-    SELECT si.*, pp.webhook_url, pp.api_key, pp.name AS profil_name,
-           u.id AS user_id, u.username, u.email
+        SELECT si.*, pp.webhook_url, pp.api_key, pp.email AS agent_email, pp.transport, pp.interface_mode, pp.name AS profil_name,
+          u.id AS user_id, u.username, u.email AS user_email
     FROM schul_integrationen si
     JOIN poke_profiles pp ON pp.id = si.profil_id
     JOIN users u ON u.id = si.nutzer_id
@@ -169,26 +187,45 @@ async function aktualisiereAutomatischeSchulmodi() {
   for (const integration of integrations) {
     const aktiv = istSchulmodusAktiv(integration) ? 1 : 0;
     if (integration.letzter_status === aktiv) continue;
-    db.prepare('UPDATE schul_integrationen SET letzter_status = ? WHERE id = ?').run(aktiv, integration.id);
-    const user = { id: integration.user_id, username: integration.username, email: integration.email };
-    const profil = { webhook_url: integration.webhook_url, api_key: integration.api_key };
+    if (integration.versand_retry_at && Date.parse(integration.versand_retry_at) > Date.now()) continue;
+    db.prepare('UPDATE schul_integrationen SET versand_retry_at = ? WHERE id = ?')
+      .run(new Date(Date.now() + 5 * 60 * 1000).toISOString(), integration.id);
+    const user = { id: integration.user_id, username: integration.username, email: integration.user_email };
+    const profil = {
+      id: integration.profil_id,
+      name: integration.profil_name,
+      webhook_url: integration.webhook_url,
+      api_key: integration.api_key,
+      email: integration.agent_email,
+      transport: integration.transport,
+      interface_mode: integration.interface_mode,
+    };
+    const appUrl = getSetting('app_url') || 'http://localhost:3000';
+    const zielUrl = integration.interface_mode === 'website'
+      ? `${appUrl}/agent/school/${integration.id}/${integration.token}`
+      : `${appUrl}/api/webhooks/schul-update/${integration.token}`;
     const nachricht = aktiv
-      ? schulMorgenbriefingAnweisung(`${getSetting('app_url') || 'http://localhost:3000'}/api/webhooks/schul-update/${integration.token}`)
+      ? schulMorgenbriefingAnweisung(zielUrl, integration.interface_mode === 'website')
       : 'Die konfigurierte Schulzeit ist beendet. Stoppe die Schul-Dashboard-Synchronisierung und sende bis zum nächsten Schulzeitbeginn keine unwichtigen Updates.';
     try {
       await sendeSchulNachricht(user, nachricht, { ...profil, id: integration.profil_id });
+      db.prepare('UPDATE schul_integrationen SET letzter_status = ?, versand_retry_at = NULL WHERE id = ?')
+        .run(aktiv, integration.id);
     } catch (e) {
       console.error('[yRelay] Automatische Schulmodus-Mitteilung fehlgeschlagen:', e.message);
     }
   }
 }
 
-function schulMorgenbriefingAnweisung(url) {
+function schulMorgenbriefingAnweisung(url, websiteMode = false) {
+  const datenUebermitteln = websiteMode
+    ? `Öffne für jede Aktualisierung die Schul-Dashboard-Website: ${url}. Wähle dort den passenden Datentyp. Gib in das JSON-Feld ausschließlich den Inhalt ein, der in den Beispielen unten jeweils unter "daten" steht, und übermittle das Formular. Sende keine HTTP-Anfragen selbst.`
+    : `Sende vollständige aktuelle Stände an ${url}:`;
   return `Die Schulzeit hat begonnen. Aktualisiere jetzt das Schul-Dashboard und sende danach ein freundliches, ausführliches Morgenbriefing als feed-Ereignis. Begrüße mich warm und positiv, nenne zuerst die wichtigsten Dinge und fasse meinen heutigen Stundenplan, Kalender, offenen Aufgaben, Erinnerungen und relevante Nachrichten übersichtlich zusammen. Weise auch auf Änderungen, Konflikte oder baldige Termine hin. Das Briefing soll mich gut informiert und mit einem guten Gefühl in den Tag starten lassen.
 
 Das Feld daten.inhalt des Briefings darf und soll mehrere Zeilen enthalten. Verwende gut lesbares Markdown mit kurzen Überschriften (##), Aufzählungen (-), **Fettdruck**, *Kursivschrift* und einzelnen Zeilenumbrüchen. Schreibe keine HTML-Tags. Eine sinnvolle Reihenfolge ist: Begrüßung, „Heute im Stundenplan“, „Kalender und Aufgaben“, „Wichtig für dich“ und ein kurzer freundlicher Abschluss.
 
-Sende ausschließlich Daten für heute in der konfigurierten Zeitzone; niemals gestrige Kalendertermine oder Aufgaben. Verwende für den Stundenplan fach, lehrer, raum, start und ende. Sende vollständige aktuelle Stände an ${url}: Kalender mit {"typ":"kalender","daten":[...]}, Aufgaben mit {"typ":"aufgabe","daten":[...]}, Stundenplan mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","lehrer":"Frau Müller","start":"08:00","ende":"08:45","raum":"204"}]}, Klausuren (lese diese unbedingt aus dem Kalender "Schule: Termine & Arbeiten" aus) mit {"typ":"klausuren","daten":[{"titel":"Mathe", "datum":"2026-09-15"}]}. Eigene Kacheln verwaltest du mit {"typ":"kachel","daten":{"aktion":"upsert","schluessel":"pausen","titel":"Pausen","icon":"☕","farbe":"#f59e0b","inhalt":"## Pause\n- Entspann dich","formular":[{"name":"ort","label":"Wo bist du?","type":"text","required":true}]}}; zum Entfernen verwendest du aktion delete mit demselben schluessel. Kacheln dürfen Markdown und optionale Formularfelder (text, date, time, textarea, select) enthalten. Sende das Morgenbriefing danach als einzelne wichtige Meldung mit {"typ":"feed","daten":{"typ":"briefing","inhalt":"..."}}.
+Sende ausschließlich Daten für heute in der konfigurierten Zeitzone; niemals gestrige Kalendertermine oder Aufgaben. Verwende für den Stundenplan fach, lehrer, raum, start und ende. ${datenUebermitteln} Kalender mit {"typ":"kalender","daten":[...]}, Aufgaben mit {"typ":"aufgabe","daten":[...]}, Stundenplan mit {"typ":"stundenplan","daten":[{"wochentag":1,"fach":"Mathe","lehrer":"Frau Müller","start":"08:00","ende":"08:45","raum":"204"}]}, Klausuren (lese diese unbedingt aus dem Kalender "Schule: Termine & Arbeiten" aus) mit {"typ":"klausuren","daten":[{"titel":"Mathe", "datum":"2026-09-15"}]}. Eigene Kacheln verwaltest du mit {"typ":"kachel","daten":{"aktion":"upsert","schluessel":"pausen","titel":"Pausen","icon":"☕","farbe":"#f59e0b","inhalt":"## Pause\n- Entspann dich","formular":[{"name":"ort","label":"Wo bist du?","type":"text","required":true}]}}; zum Entfernen verwendest du aktion delete mit demselben schluessel. Kacheln dürfen Markdown und optionale Formularfelder (text, date, time, textarea, select) enthalten. Sende das Morgenbriefing danach als einzelne wichtige Meldung mit {"typ":"feed","daten":{"typ":"briefing","inhalt":"..."}}.
 
 WICHTIG: Das Schul-Dashboard hat einen integrierten Chat-Bereich. Wenn ich dir eine Nachricht schreibe, kommt diese direkt aus dem Dashboard-Chat und ich erwarte eine direkte Antwort im Chat. Antworte auf Chat-Nachrichten ausschließlich mit {"typ":"chat","daten":{"inhalt":"..."}}, nicht als Feed. Nutze den Feed nur für wichtige Systemmeldungen, Briefings und Statusupdates. Chat-Antworten sollen kurz, freundlich und hilfreich sein - kein langes Markdown, normaler Gesprächsstil.
 
@@ -199,8 +236,11 @@ Sende später bei Änderungen erneut die vollständigen heutigen Kalender-/Aufga
 
 function schulApiAnleitung(req, integration) {
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
-  const url = `${appUrl}/api/webhooks/schul-update/${integration.integration.token}`;
-  return `Schul-Dashboard-Integration für yRelay. Der echte Kalender bleibt dein normaler Kalender; yRelay zeigt nur eine Schulansicht davon. Callback-URL: ${url}\n\n${schulMorgenbriefingAnweisung(url)}`;
+  const websiteMode = integration.profil.interface_mode === 'website';
+  const url = websiteMode
+    ? `${appUrl}/agent/school/${integration.integration.id}/${integration.integration.token}`
+    : `${appUrl}/api/webhooks/schul-update/${integration.integration.token}`;
+  return `Schul-Dashboard-Integration für yRelay. Der echte Kalender bleibt dein normaler Kalender; yRelay zeigt nur eine Schulansicht davon. ${websiteMode ? 'Bediene' : 'Callback-URL:'} ${url}\n\n${schulMorgenbriefingAnweisung(url, websiteMode)}`;
 }
 
 // GET /api/schuldashboard/daten - Lädt alle Dashboard-Daten
@@ -424,11 +464,15 @@ router.get('/integration', (req, res) => {
   const integration = holeOderErzeugeIntegration(req);
   if (!integration) return res.status(409).json({ fehler: 'Für das Schul-Dashboard ist kein Poke-Profil verfügbar.' });
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
+  const callbackUrl = integration.profil.interface_mode === 'website'
+    ? `${appUrl}/agent/school/${integration.integration.id}/${integration.integration.token}`
+    : `${appUrl}/api/webhooks/schul-update/${integration.integration.token}`;
   res.json({
     profilId: integration.profil.id,
     profilName: integration.profil.name,
     token: integration.integration.token,
-    callbackUrl: `${appUrl}/api/webhooks/schul-update/${integration.integration.token}`,
+    callbackUrl,
+    interactionMode: integration.profil.interface_mode || 'api',
   });
 });
 
@@ -447,7 +491,7 @@ router.post('/modus', async (req, res) => {
   
   // Poke benachrichtigen, dass der Modus geändert wurde
   const inhalt = neuerModus === 'auto'
-    ? schulMorgenbriefingAnweisung(`${getSetting('app_url') || 'http://localhost:3000'}/api/webhooks/schul-update/${integration.integration.token}`)
+    ? schulApiAnleitung(req, integration)
     : aktiv
     ? schulApiAnleitung(req, integration)
     : 'Der Schulmodus ist jetzt deaktiviert. Sende keine Schul-Dashboard-Updates mehr, bis ich ihn wieder aktiviere.';
@@ -580,7 +624,7 @@ router.patch('/aufgaben/:id/erledigt', async (req, res) => {
   try {
     const statusText = erledigt ? 'erledigt' : 'wieder als offen markiert';
     const text = `Der Nutzer hat die Aufgabe "${aufgabe.titel}" auf dem Schul-Dashboard als ${statusText} markiert.`;
-    await sendeFreieNachricht(integration.nutzer, integration.profil, text);
+    await sendeSchulNachricht(req.user, text, integration.profil);
   } catch (e) {
     console.error('[Schul-Dashboard] Fehler beim Benachrichtigen von Poke über Aufgabe:', e.message);
   }
@@ -658,7 +702,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       .run(integration.integration.id, 'nutzer', nachrichtText);
 
     try {
-      await sendeFreieNachricht(integration.nutzer, integration.profil, `Der Nutzer hat über das Schul-Dashboard eine Datei hochgeladen:\n${nachrichtText}`);
+      await sendeSchulNachricht(req.user, `Der Nutzer hat über das Schul-Dashboard eine Datei hochgeladen:\n${nachrichtText}`, integration.profil);
     } catch (e) {
       console.error('[Schul-Dashboard] Fehler beim Senden des Upload-Links an Poke:', e.message);
     }

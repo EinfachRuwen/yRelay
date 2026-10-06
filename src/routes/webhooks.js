@@ -4,6 +4,96 @@ const { sendeAntwortMail, sendeRueckfrageMail } = require('../services/email');
 
 const router = express.Router();
 
+const htmlEscapen = value => String(value || '').replace(/[&<>"']/g, char => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+})[char]);
+
+function zeigeAgentAntwortseite(req, res) {
+  const nachricht = db.prepare(`
+    SELECT m.id, m.content, m.reply_content, p.name AS agent_name
+    FROM messages m LEFT JOIN poke_profiles p ON p.id = m.poke_profile_id
+    WHERE m.id = ? AND m.reply_token = ? AND p.interface_mode = 'website'
+  `).get(req.params.id, req.params.token);
+  if (!nachricht) return res.status(404).send('Dieser Antwortlink ist ungültig oder abgelaufen.');
+  const agentName = htmlEscapen(nachricht.agent_name || 'KI-Agent');
+  const content = htmlEscapen(nachricht.content);
+  const alreadyReplied = Boolean(nachricht.reply_content);
+  res.type('html').send(`<!doctype html>
+<html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Antwort für ${agentName} · yRelay</title>
+<style>body{margin:0;background:#101820;color:#edf2f4;font:16px system-ui,sans-serif}.page{max-width:680px;margin:48px auto;padding:24px}h1{font-size:24px}section,form{padding:20px 0;border-top:1px solid #35434c}article{white-space:pre-wrap;background:#1b2932;padding:16px;border-radius:8px;line-height:1.6}label{display:block;margin:16px 0 8px}textarea,select,input{box-sizing:border-box;width:100%;padding:12px;border:1px solid #56636c;border-radius:6px;background:#17242c;color:inherit;font:inherit}textarea{min-height:150px;resize:vertical}button{margin-top:16px;padding:11px 18px;border:0;border-radius:6px;background:#2b9b87;color:white;font:inherit;font-weight:700;cursor:pointer}#status{min-height:24px;color:#8be0c2}</style>
+<main class="page"><h1>Antwort an ${agentName}</h1><section><strong>Eingegangene Nachricht</strong><article>${content}</article></section>
+<form id="reply"><label for="message">Deine Antwort</label><textarea id="message" required maxlength="5000"></textarea>
+<label for="buttons-json">Rückfrage-Buttons als JSON (optional, maximal 5)</label><textarea id="buttons-json" placeholder='[{"id":"ja","text":"Ja","style":"primaer"}]' maxlength="3000"></textarea>
+<label for="action">Status (optional)</label><select id="action"><option value="">Kein Status-Update</option><option value="erledigt">Erledigt</option><option value="in_bearbeitung">In Bearbeitung</option><option value="offen">Wieder offen</option><option value="pin">Anpinnen</option><option value="unpin">Pin entfernen</option></select>
+<label for="note">Notiz zum Status (optional)</label><input id="note" maxlength="500">
+<button type="submit">Antwort senden</button><p id="status" role="status">${alreadyReplied ? 'Eine vorherige Antwort ist bereits eingegangen.' : ''}</p></form></main>
+<script>document.getElementById('reply').addEventListener('submit',async e=>{e.preventDefault();const status=document.getElementById('status');const message=document.getElementById('message').value.trim();if(!message)return;try{const rawButtons=document.getElementById('buttons-json').value.trim();let buttons;if(rawButtons){buttons=JSON.parse(rawButtons);if(!Array.isArray(buttons)||buttons.length>5)throw new Error('Buttons müssen ein JSON-Array mit höchstens 5 Einträgen sein.')}const response=await fetch('/api/webhooks/agent-reply/${encodeURIComponent(req.params.id)}/${encodeURIComponent(req.params.token)}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,buttons})});const data=await response.json();if(!response.ok)throw new Error(data.fehler||'Antwort fehlgeschlagen');const action=document.getElementById('action').value;if(action){const result=await fetch('/api/webhooks/poke-action/${encodeURIComponent(req.params.id)}/${encodeURIComponent(req.params.token)}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,notiz:document.getElementById('note').value})});if(!result.ok)throw new Error('Antwort gespeichert, aber Status konnte nicht gesetzt werden.')}status.textContent='Antwort wurde übermittelt.';document.getElementById('message').value='';document.getElementById('buttons-json').value='';}catch(error){status.textContent=error.message;}});</script></html>`);
+}
+
+function agentSpielFelder(spieltyp, state) {
+  if (spieltyp === 'connect4') return '<label>Spalte (0-6)<input name="spalte" type="number" min="0" max="6" required></label>';
+  if (spieltyp === 'tictactoe') return '<label>Feld (0-8)<input name="feld" type="number" min="0" max="8" required></label>';
+  if (spieltyp === 'battleship' && state.phase === 'setup_poke') {
+    return '<label>Flottenaufstellung als JSON-Array<textarea name="setup" required placeholder=\'[{"name":"Schlachtschiff","x":0,"y":0,"horizontal":true}, ...]\'></textarea></label><p>1 Schlachtschiff, 2 Kreuzer, 3 Zerstörer und 4 U-Boote; x/y liegen zwischen 0 und 9.</p>';
+  }
+  if (spieltyp === 'battleship') return '<label>Reihe (0-9)<input name="reihe" type="number" min="0" max="9" required></label><label>Spalte (0-9)<input name="spalte" type="number" min="0" max="9" required></label>';
+  if (spieltyp === 'ludo') return '<label>Figur (0-3)<input name="figur" type="number" min="0" max="3" required></label><p>Der Würfel wird beim Absenden geworfen. Wenn kein Zug möglich ist, zeigt die Seite das Ergebnis.</p>';
+  if (spieltyp === 'wordgame') return '<label>Dein Wort<input name="wort" type="text" maxlength="80" required></label>';
+  if (spieltyp === 'akinator' && state.phase === 'wort_auswahl') return '<label>Geheimes Wort<input name="wort" type="text" maxlength="100" required></label>';
+  if (spieltyp === 'akinator' && state.phase === 'fragen' && state.amZug === state.rater) {
+    return '<label>Aktion<select name="aktion"><option value="frage">Frage stellen</option><option value="loesen">Lösungswort raten</option><option value="tipp">Tipp anfordern</option></select></label><label>Frage oder Lösungswort<input name="frage" type="text" maxlength="300"></label><p>Bei „Tipp anfordern“ bleibt das Textfeld leer.</p>';
+  }
+  if (spieltyp === 'akinator' && state.phase === 'fragen') return '<label>Antwort auf die letzte Frage<input name="antwort" type="text" maxlength="120" required></label>';
+  if (spieltyp === 'akinator' && state.phase === 'voting') return '<label>War die Lösung nah genug?<select name="zustimmung"><option value="true">Ja</option><option value="false">Nein</option></select></label>';
+  return '<p>Für diesen Spielzustand ist kein Zugformular verfügbar.</p>';
+}
+
+function zeigeAgentSpielseite(req, res) {
+  const game = db.prepare(`
+    SELECT g.id, g.game_type, g.state, g.status, p.name AS agent_name
+    FROM games g LEFT JOIN poke_profiles p ON p.id = g.poke_profile_id
+    WHERE g.id = ? AND g.webhook_token = ? AND p.interface_mode = 'website'
+  `).get(req.params.gameId, req.params.token);
+  if (!game) return res.status(404).send('Dieser Spiel-Link ist ungültig oder abgelaufen.');
+  let state;
+  try { state = JSON.parse(game.state); } catch { return res.status(500).send('Der Spielstand ist ungültig.'); }
+  const agentName = htmlEscapen(game.agent_name || 'KI-Agent');
+  const isAkinatorRater = game.game_type === 'akinator' && state.amZug === state.rater;
+  const safeState = { ...state };
+  if (game.game_type === 'akinator' && state.wortGeber === 'nutzer') delete safeState.wort;
+  if (game.game_type === 'battleship' && Array.isArray(state.nutzerFeld)) {
+    safeState.nutzerFeld = state.nutzerFeld.map(row => row.map(cell => cell === 1 ? 0 : cell));
+  }
+  const stateText = htmlEscapen(JSON.stringify(safeState, null, 2));
+  const gameName = htmlEscapen({ connect4: '4 Gewinnt', tictactoe: 'Tic Tac Toe', battleship: 'Schiffe versenken', ludo: 'Mensch ärgere dich nicht', wordgame: 'Wortspiel', akinator: 'Wer bin ich?' }[game.game_type] || game.game_type);
+  const canMove = game.status === 'active' && state.amZug === 'poke';
+  const controls = canMove ? agentSpielFelder(game.game_type, state) : '<p>Du bist gerade nicht am Zug. Öffne diesen Link erneut, wenn yRelay dich zum Zug auffordert.</p>';
+  res.type('html').send(`<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${gameName} · yRelay</title>
+<style>body{margin:0;background:#101820;color:#edf2f4;font:16px system-ui,sans-serif}.page{max-width:720px;margin:36px auto;padding:24px}h1{font-size:24px}section,form{padding:20px 0;border-top:1px solid #35434c}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#1b2932;padding:16px;border-radius:8px;max-height:320px;overflow:auto}label{display:block;margin:14px 0 8px}input,select,textarea{box-sizing:border-box;width:100%;padding:11px;border:1px solid #56636c;border-radius:6px;background:#17242c;color:inherit;font:inherit}textarea{min-height:130px}button{margin-top:16px;padding:11px 18px;border:0;border-radius:6px;background:#2b9b87;color:white;font:inherit;font-weight:700;cursor:pointer}button:disabled{opacity:.5}#status{min-height:24px;color:#8be0c2}</style>
+<main class="page"><h1>${gameName}</h1><p>Agent: ${agentName} · Status: ${htmlEscapen(game.status)} · Zug: ${htmlEscapen(state.amZug || 'beendet')}</p>
+<section><strong>Spielstand</strong><pre>${stateText}</pre></section><form id="move" data-type="${htmlEscapen(game.game_type)}" data-phase="${htmlEscapen(state.phase || '')}" data-rater="${isAkinatorRater ? 'true' : 'false'}" ${canMove ? '' : 'hidden'}>${controls}<label>Spiel-Chat (optional)<input name="chat" type="text" maxlength="500"></label><button type="submit" ${canMove ? '' : 'disabled'}>Spielzug senden</button><p id="status" role="status"></p></form>${canMove ? '' : '<p id="status" role="status">Kein Zug erforderlich.</p>'}</main>
+<script>const form=document.getElementById('move');if(form)form.addEventListener('submit',async e=>{e.preventDefault();const data=new FormData(form);const value=name=>data.get(name);const type=form.dataset.type;const phase=form.dataset.phase;let zug;if(type==='connect4')zug={spalte:Number(value('spalte'))};else if(type==='tictactoe')zug={feld:Number(value('feld'))};else if(type==='battleship')zug=phase==='setup_poke'?{setupWahl:JSON.parse(value('setup'))}:{r:Number(value('reihe')),c:Number(value('spalte'))};else if(type==='ludo')zug={figur:Number(value('figur'))};else if(type==='wordgame')zug={wort:value('wort')};else if(type==='akinator'){if(phase==='wort_auswahl')zug={aktion:'wort_festlegen',wort:value('wort')};else if(phase==='voting')zug={aktion:'abstimmen',zustimmung:value('zustimmung')==='true'};else if(form.dataset.rater==='true'){const action=value('aktion');zug=action==='frage'?{frage:value('frage')}:action==='loesen'?{aktion:'loesen',wort:value('frage')}:{aktion:'tipp'};}else zug={antwort:value('antwort')};}try{const response=await fetch('/api/webhooks/game-move/${encodeURIComponent(req.params.gameId)}/${encodeURIComponent(req.params.token)}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zug,chat:value('chat')||undefined})});const result=await response.json();if(!response.ok)throw new Error(result.fehler||'Spielzug fehlgeschlagen');document.getElementById('status').textContent=result.nachricht||'Spielzug wurde übermittelt. Öffne den Link erneut für den aktualisierten Spielstand.';form.querySelector('button[type=submit]').disabled=true;}catch(error){document.getElementById('status').textContent=error.message;}});</script></html>`);
+}
+
+function zeigeAgentSchulseite(req, res) {
+  const integration = db.prepare(`
+    SELECT si.id, si.token, p.name AS agent_name
+    FROM schul_integrationen si JOIN poke_profiles p ON p.id = si.profil_id
+    WHERE si.id = ? AND si.token = ? AND p.interface_mode = 'website'
+  `).get(req.params.integrationId, req.params.token);
+  if (!integration) return res.status(404).send('Dieser Schul-Dashboard-Link ist ungültig oder abgelaufen.');
+  const agentName = htmlEscapen(integration.agent_name);
+  const taskMessageId = Number.isSafeInteger(Number(req.query.messageId)) ? Number(req.query.messageId) : null;
+  const taskMessageToken = typeof req.query.messageToken === 'string' && /^[a-f0-9]{32}$/.test(req.query.messageToken)
+    ? req.query.messageToken
+    : null;
+  res.type('html').send(`<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Schul-Dashboard · yRelay</title>
+<style>body{margin:0;background:#101820;color:#edf2f4;font:16px system-ui,sans-serif}.page{max-width:760px;margin:36px auto;padding:24px}h1{font-size:24px}form{padding:20px 0;border-top:1px solid #35434c}label{display:block;margin:14px 0 8px}input,select,textarea{box-sizing:border-box;width:100%;padding:11px;border:1px solid #56636c;border-radius:6px;background:#17242c;color:inherit;font:inherit}textarea{min-height:220px;font-family:ui-monospace,monospace}button{margin-top:16px;padding:11px 18px;border:0;border-radius:6px;background:#2b9b87;color:white;font:inherit;font-weight:700;cursor:pointer}#status{min-height:24px;color:#8be0c2}</style>
+<main class="page"><h1>Schul-Dashboard</h1><p>Agent: ${agentName}</p><form id="update"><label for="type">Bereich</label><select id="type"><option value="kalender">Kalender</option><option value="aufgabe">Aufgaben</option><option value="klausuren">Klausuren</option><option value="stundenplan">Stundenplan</option><option value="feed">Meldung</option><option value="chat">Chat-Antwort</option><option value="ping">Stille Notiz</option><option value="kachel">Kachel</option></select><label for="data">Inhalt für den ausgewählten Bereich (JSON)</label><textarea id="data" required spellcheck="false" placeholder='[{"titel":"Beispiel","start":"2026-10-06T10:00:00"}]'></textarea><button type="submit">Eintrag übermitteln</button><p id="status" role="status"></p></form></main>
+<script>const form=document.getElementById('update');form.addEventListener('submit',async e=>{e.preventDefault();const status=document.getElementById('status');try{const daten=JSON.parse(document.getElementById('data').value);const response=await fetch('/api/webhooks/schul-update/${encodeURIComponent(integration.token)}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({typ:document.getElementById('type').value,daten,messageId:${taskMessageId || 'null'},messageToken:${JSON.stringify(taskMessageToken)}})});const result=await response.json();if(!response.ok)throw new Error(result.fehler||'Übermittlung fehlgeschlagen');status.textContent='Daten wurden übernommen.';}catch(error){status.textContent=error.message;}});</script></html>`);
+}
+
 function normalisiereStundenplan(daten) {
   const eintraege = Array.isArray(daten) ? daten : daten?.eintraege || daten?.stunden || daten?.stundenplan;
   if (!Array.isArray(eintraege)) return null;
@@ -60,7 +150,7 @@ function leseAntworten(replyContent) {
 }
 
 // POST /api/webhooks/poke-reply/:id/:token
-router.post('/poke-reply/:id/:token', (req, res) => {
+const verarbeiteAgentAntwort = (req, res) => {
   const { id, token } = req.params;
   const { message, buttons } = req.body;
 
@@ -70,7 +160,7 @@ router.post('/poke-reply/:id/:token', (req, res) => {
 
   // Nachricht prüfen und zugehörige Nutzer-Daten holen (inkl. user_replies)
   const msg = db.prepare(`
-    SELECT m.id, m.type, m.content, m.reply_content, m.user_replies, m.poke_profile_id, u.id as user_id, u.email, u.username, u.ntfy_topic, u.email_notifications
+    SELECT m.id, m.type, m.content, m.reply_content, m.user_replies, m.poke_profile_id, u.id as user_id, u.email, u.username, u.ntfy_topic, u.email_notifications, u.pushover_user_key
     FROM messages m
     JOIN users u ON m.user_id = u.id
     WHERE m.id = ? AND m.reply_token = ?
@@ -119,7 +209,7 @@ router.post('/poke-reply/:id/:token', (req, res) => {
   } catch {}
 
   // Poke Profil Name laden
-  let pokeName = 'Poke';
+  let pokeName = 'KI-Agent';
   if (msg.poke_profile_id) {
     const profil = db.prepare('SELECT name FROM poke_profiles WHERE id = ?').get(msg.poke_profile_id);
     if (profil) pokeName = profil.name;
@@ -146,25 +236,26 @@ router.post('/poke-reply/:id/:token', (req, res) => {
     }
   }
   
-  // ntfy Push-Benachrichtigung senden (parallel)
-  if (msg.ntfy_topic) {
-    const { sendNtfyNotification } = require('../services/ntfy');
-    const appUrl = require('../db').getSetting('app_url') || 'http://localhost:3000';
-    const clickUrl = `${appUrl}/#dashboard`;
-    
-    const title = hasButtons ? `❓ Rückfrage von ${pokeName}` : `🤖 ${pokeName} hat geantwortet`;
-    const tags = hasButtons ? ['question', 'robot'] : ['robot', 'envelope'];
-    const priority = hasButtons ? 4 : 3;
-    
-    sendNtfyNotification(msg.ntfy_topic, title, message, clickUrl, priority, tags).catch(err => {
-      console.error('[yRelay] Fehler beim Senden der ntfy-Push-Benachrichtigung:', err);
-    });
-  }
+  const { sendePushUndMail } = require('../services/notify');
+  const appUrl = require('../db').getSetting('app_url') || 'http://localhost:3000';
+  sendePushUndMail(msg, {
+    betreff: hasButtons ? `Rückfrage von ${pokeName}` : `${pokeName} hat geantwortet`,
+    inhalt: message,
+    icon: hasButtons ? '❓' : '🤖',
+    ctaUrl: `${appUrl}/#dashboard`,
+    ntfyTags: hasButtons ? ['question', 'robot'] : ['robot', 'envelope'],
+    ntfyPriority: hasButtons ? 4 : 3,
+    nurPush: true,
+  }).catch(err => console.error('[yRelay] Fehler beim Senden der Push-Antwort:', err));
 
   logAudit(msg.user_id, 'poke_reply_received', { message_id: msg.id, has_buttons: hasButtons });
 
   res.json({ success: true, message: 'Antwort erfolgreich gespeichert.' });
-});
+};
+
+router.post('/poke-reply/:id/:token', verarbeiteAgentAntwort);
+router.post('/agent-reply/:id/:token', verarbeiteAgentAntwort);
+router.get('/agent-page/:id/:token', zeigeAgentAntwortseite);
 
 // POST /api/webhooks/poke-action/:id/:token - Poke markiert Nachricht als erledigt/pinnt sie
 router.post('/poke-action/:id/:token', (req, res) => {
@@ -174,7 +265,7 @@ router.post('/poke-action/:id/:token', (req, res) => {
   if (!action) return res.status(400).json({ fehler: 'Feld "action" fehlt.' });
 
   const msg = db.prepare(`
-    SELECT m.id, m.content, u.id as user_id, u.email, u.username, u.ntfy_topic, u.email_notifications
+    SELECT m.id, m.content, m.poke_profile_id, u.id as user_id, u.email, u.username, u.ntfy_topic, u.email_notifications, u.pushover_user_key
     FROM messages m
     JOIN users u ON m.user_id = u.id
     WHERE m.id = ? AND m.reply_token = ?
@@ -219,12 +310,13 @@ router.post('/poke-action/:id/:token', (req, res) => {
       tags = ['memo'];
     }
 
-    const inhaltHTML = `Poke hat den Status deiner Nachricht auf <strong>${action}</strong> gesetzt.<br><br>
-    <em>Deine Nachricht: "${msg.content.substring(0, 100)}${msg.content.length > 100 ? '...' : ''}"</em>
-    ${notiz ? `<br><br><strong>Notiz von Poke:</strong> ${notiz}` : ''}`;
+    const agentName = db.prepare('SELECT name FROM poke_profiles WHERE id = ?').get(msg.poke_profile_id)?.name || 'KI-Agent';
+    const inhaltHTML = `${htmlEscapen(agentName)} hat den Status deiner Nachricht auf <strong>${htmlEscapen(action)}</strong> gesetzt.<br><br>
+    <em>Deine Nachricht: "${htmlEscapen(msg.content.substring(0, 100))}${msg.content.length > 100 ? '...' : ''}"</em>
+    ${notiz ? `<br><br><strong>Notiz von ${htmlEscapen(agentName)}:</strong> ${htmlEscapen(notiz)}` : ''}`;
 
     sendePushUndMail(msg, {
-      betreff: `Poke Status-Update: ${titel}`,
+      betreff: `${agentName} Status-Update: ${titel}`,
       inhalt: inhaltHTML,
       icon: emoji,
       farbe: farbe,
@@ -343,6 +435,23 @@ router.post('/schul-update/:token', (req, res) => {
     }
     });
     update();
+
+    const taskMessageId = Number(req.body.messageId);
+    if (Number.isSafeInteger(taskMessageId) && typeof req.body.messageToken === 'string') {
+      const taskMessage = db.prepare(`
+        SELECT id, reply_content FROM messages
+        WHERE id = ? AND reply_token = ? AND user_id = ? AND poke_profile_id = ? AND type = 'school'
+      `).get(taskMessageId, req.body.messageToken, integration.nutzer_id, integration.profil_id);
+      if (taskMessage) {
+        const replies = leseAntworten(taskMessage.reply_content);
+        const confirmation = typ === 'chat' && typeof daten === 'object' && daten?.inhalt
+          ? daten.inhalt
+          : `Schul-Dashboard aktualisiert (${typ}).`;
+        replies.push({ text: confirmation, time: new Date().toISOString() });
+        db.prepare('UPDATE messages SET reply_content = ?, replied_at = CURRENT_TIMESTAMP WHERE id = ?')
+          .run(JSON.stringify(replies), taskMessage.id);
+      }
+    }
     
     try {
       const { notifyClients } = require('./schuldashboard');
@@ -714,5 +823,8 @@ router.get('/poke-data/haltestellen', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.agentReplyPage = zeigeAgentAntwortseite;
+module.exports.agentGamePage = zeigeAgentSpielseite;
+module.exports.agentSchoolPage = zeigeAgentSchulseite;
 router.normalisiereStundenplan = normalisiereStundenplan;
 router.normalisiereSchulPayload = normalisiereSchulPayload;

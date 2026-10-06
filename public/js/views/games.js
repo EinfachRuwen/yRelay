@@ -1039,6 +1039,7 @@ const GamesView = {
       
       this._aktivesSpiel = { ...this._aktivesSpiel, state: result.state, status: result.spielStatus };
       this._spielBoardRendern();
+      if (result.warnung) UI.fehler(result.warnung);
 
       if (result.spielStatus === 'finished') {
         clearInterval(this._pollingInterval);

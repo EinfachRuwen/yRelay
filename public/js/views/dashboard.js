@@ -95,14 +95,14 @@ const DashboardView = {
         <!-- Hauptinhalt -->
         <main class="hauptinhalt">
           <div class="sektion-titel">👋 Hallo, ${UI.escapeHtml(nameToDisplay)}!</div>
-          <p class="sektion-untertitel">Sende Nachrichten direkt an den Poke KI-Assistenten.</p>
+          <p class="sektion-untertitel">Sende Nachrichten an deinen KI-Agenten.</p>
 
             <!-- Kombiniertes Nachrichten-Formular -->
             <div class="karte nachrichten-karte" id="kombi-karte">
               <div class="karte-header">
                 <div class="karte-icon karte-icon-primaer" id="kombi-icon" style="transition: all 0.3s;">💬</div>
                 <div>
-                  <div class="karte-titel">Nachricht an Poke</div>
+                  <div class="karte-titel">Nachricht an KI-Agent</div>
                   <div class="karte-untertitel">Wähle die Art deiner Nachricht</div>
                 </div>
               </div>
@@ -110,7 +110,7 @@ const DashboardView = {
                 
                 <div id="kombi-warnung" class="info-box warnung versteckt" style="margin-bottom: 20px;">
                   <span>⚡</span>
-                  <span>Poke leitet diese Nachricht sofort per Pushover an Ruwen weiter.</span>
+                  <span>Dein Agent soll diese Nachricht mit höchster Dringlichkeit weiterleiten.</span>
                 </div>
 
                 <form id="kombi-formular">
@@ -149,7 +149,7 @@ const DashboardView = {
                   </div>
 
                   <div class="formular-gruppe">
-                    <label class="formular-label" for="kombi-inhalt">Deine Nachricht / Befehl an Poke</label>
+                    <label class="formular-label" for="kombi-inhalt">Deine Nachricht an den Agenten</label>
                     
                     <!-- Templates Sektion -->
                     <div class="templates-container">
@@ -175,7 +175,7 @@ const DashboardView = {
                       <textarea
                         class="formular-textarea"
                         id="kombi-inhalt"
-                        placeholder="Was möchtest du Poke mitteilen?"
+                        placeholder="Was möchtest du deinem Agenten mitteilen?"
                         rows="5"
                         maxlength="5000"
                         required
@@ -358,12 +358,24 @@ const DashboardView = {
               <input class="formular-eingabe" type="text" id="profil-anzeigename" value="${nutzer.anzeigename || ''}" placeholder="Dein Name, wie er anderen angezeigt wird">
             </div>
             <div class="formular-gruppe">
-              <label class="formular-label" for="profil-ntfy">ntfy.sh Topic (für Push-Benachrichtigungen)</label>
+              <label class="formular-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="profil-ntfy-enabled" ${nutzer.ntfy_topic ? 'checked' : ''} style="width:18px; height:18px;">
+                Notify (ntfy) aktivieren
+              </label>
+              <label class="formular-label" for="profil-ntfy">ntfy.sh Topic</label>
               <div style="display: flex; gap: 8px;">
                 <input class="formular-eingabe" type="text" id="profil-ntfy" value="${nutzer.ntfy_topic || ''}" placeholder="z.B. yrelay-ruwen-abc123xyz" maxlength="32" pattern="[A-Za-z0-9_-]+" style="flex: 1;">
                 <button type="button" class="btn btn-ghost" id="ntfy-generieren" title="Zufälliges Topic generieren">🎲 Generieren</button>
               </div>
               <div style="font-size: 11px; color: var(--farbe-text-schwach); margin-top: 4px;">Abonniere dieses Topic in der <a href="https://ntfy.sh" target="_blank" style="color: var(--farbe-primaer);">ntfy App</a>. Gib es nicht weiter!</div>
+            </div>
+            <div class="formular-gruppe" style="margin-top:15px;">
+              <label class="formular-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="profil-pushover-enabled" ${nutzer.pushover_configured ? 'checked' : ''} style="width:18px; height:18px;">
+                Pushover aktivieren
+              </label>
+              <input class="formular-eingabe" type="password" id="profil-pushover-key" autocomplete="new-password" placeholder="${nutzer.pushover_configured ? 'Gespeicherter Key bleibt unverändert' : 'Pushover User-Key'}">
+              <div style="font-size:11px; color:var(--farbe-text-schwach); margin-top:4px;">Der User-Key wird nur zum Versand deiner Benachrichtigungen verwendet.</div>
             </div>
             <div class="formular-gruppe" style="margin-top: 15px;">
               <label class="formular-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
@@ -371,7 +383,7 @@ const DashboardView = {
                 ✉️ E-Mail-Benachrichtigungen empfangen
               </label>
               <div style="font-size: 12px; color: var(--farbe-text-schwach); margin-left: 26px; margin-top: 4px;">
-                Deaktivieren, wenn du nur ntfy-Push erhalten möchtest. Passwort-Resets und Einladungen werden weiterhin per E-Mail gesendet.
+                Passwort-Resets und Einladungen werden unabhängig davon weiterhin per E-Mail gesendet.
               </div>
             </div>
             
@@ -393,6 +405,7 @@ const DashboardView = {
         const name = nutzer.benutzername.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10) || 'nutzer';
         const topic = `yrelay-${name}-${generateSafeString().slice(0, 14)}`;
         document.getElementById('profil-ntfy').value = topic;
+        document.getElementById('profil-ntfy-enabled').checked = true;
       });
 
       document.getElementById('profil-formular')?.addEventListener('submit', async (e) => {
@@ -405,8 +418,10 @@ const DashboardView = {
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('yrelay_token') },
             body: JSON.stringify({ 
               anzeigename: document.getElementById('profil-anzeigename').value.trim(),
-              ntfy_topic: document.getElementById('profil-ntfy').value.trim(),
-              email_notifications: document.getElementById('profil-email-notifications').checked
+              ntfy_topic: document.getElementById('profil-ntfy-enabled').checked ? document.getElementById('profil-ntfy').value.trim() : '',
+              email_notifications: document.getElementById('profil-email-notifications').checked,
+              pushover_enabled: document.getElementById('profil-pushover-enabled').checked,
+              pushover_user_key: document.getElementById('profil-pushover-key').value.trim()
             })
           });
           const daten = await antwort.json();
@@ -692,7 +707,7 @@ const DashboardView = {
           await API.notfallSenden(inhalt, typ, originalTranskript, pokeProfilId);
         }
         
-        UI.erfolg('Nachricht erfolgreich an Poke gesendet! ✅');
+        UI.erfolg('Nachricht erfolgreich an den Agenten gesendet! ✅');
         kombiTextarea.value = '';
         originalTranskript = null;
         kombiTextarea.dispatchEvent(new Event('input')); // Zeichenzähler zurücksetzen
@@ -704,7 +719,7 @@ const DashboardView = {
       }
     });
 
-    // Poke-Profile laden & Auswahl-UI rendern
+    // KI-Agenten laden und Auswahl anzeigen
     try {
       const profile = await API.meinePokeProfile();
       if (profile && profile.length >= 2) {
@@ -812,7 +827,7 @@ const DashboardView = {
 
     this.spieleSpecialEffekt(specialType);
 
-    const inhalt = `[SPECIAL:${specialType}] ${fallBackText}\n\nHinweis für Poke: ${hint}`;
+    const inhalt = `[SPECIAL:${specialType}] ${fallBackText}\n\nHinweis für den Agenten: ${hint}`;
     
     UI.btnLaden(document.getElementById('kombi-btn'), true);
     try {
@@ -950,18 +965,18 @@ const DashboardView = {
             </div>
             <div style="min-width: 0; flex: 1;">
               ${UI.renderInhalt(n.inhalt)}
-              ${n.statusLabelNotiz ? `<div style="margin-top: 4px; font-size: 12px; color: var(--farbe-text-gedaempft); font-style: italic;">🤖 Poke: ${UI.escapeHtml(n.statusLabelNotiz)}</div>` : ''}
+              ${n.statusLabelNotiz ? `<div style="margin-top: 4px; font-size: 12px; color: var(--farbe-text-gedaempft); font-style: italic;">🤖 ${UI.escapeHtml(n.agentName || 'KI-Agent')}: ${UI.escapeHtml(n.statusLabelNotiz)}</div>` : ''}
               ${n.fehler ? `<div style="font-size: 12px; color: var(--farbe-notfall); margin-top: 4px;">⚠️ ${UI.escapeHtml(n.fehler)}</div>` : ''}
               ${geplanterStatus(n)}
-              ${UI.renderAntworten(n.id, n.antwortText, n.nutzerAntworten)}
+              ${UI.renderAntworten(n.id, n.antwortText, n.nutzerAntworten, n.agentName)}
               ${n.antwortText ? `
                 <div style="margin-top: 8px;">
                   <button class="textarea-aktion-btn" onclick="DashboardView.antwortfeldToggle(${n.id})" id="antwort-toggle-${n.id}">
-                    ↩️ Auf Pokes Antwort reagieren
+                    ↩️ Auf Antwort reagieren
                   </button>
                   <div id="antwortfeld-${n.id}" class="versteckt" style="margin-top: 8px;">
                     <div class="textarea-wrapper">
-                      <textarea class="formular-textarea" id="antworttext-${n.id}" placeholder="Deine Reaktion an Poke..." rows="3" maxlength="2000" style="font-size: 13px;"></textarea>
+                      <textarea class="formular-textarea" id="antworttext-${n.id}" placeholder="Deine Reaktion an den Agenten..." rows="3" maxlength="2000" style="font-size: 13px;"></textarea>
                     </div>
                     <div style="display: flex; gap: 8px; margin-top: 6px; justify-content: flex-end;">
                       <button class="textarea-aktion-btn" onclick="DashboardView.antwortfeldToggle(${n.id})">Abbrechen</button>
@@ -969,7 +984,7 @@ const DashboardView = {
                     </div>
                   </div>
                 </div>
-              ` : (n.status === 'gesendet' ? '<div style="margin-top: 8px; font-size: 12px; color: var(--farbe-text-schwach); font-style: italic;">⏳ Warte auf Pokes Antwort...</div>' : '')}
+              ` : (n.status === 'gesendet' ? `<div style="margin-top: 8px; font-size: 12px; color: var(--farbe-text-schwach); font-style: italic;">⏳ Warte auf die Antwort von ${UI.escapeHtml(n.agentName || 'deinem Agenten')}...</div>` : '')}
             </div>
             <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
               <div class="verlauf-datum">${UI.datumFormatieren(n.gesendetAm)}</div>
@@ -1040,7 +1055,7 @@ const DashboardView = {
     UI.btnLaden(btn, true);
     try {
       await API.nachrichtAntworten(id, inhalt);
-      UI.erfolg('Deine Antwort wurde an Poke gesendet! ↩️');
+      UI.erfolg('Deine Antwort wurde an den Agenten gesendet! ↩️');
       await this.verlaufLaden();
     } catch (err) {
       UI.fehler(err.message);

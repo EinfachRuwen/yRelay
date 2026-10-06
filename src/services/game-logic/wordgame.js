@@ -51,10 +51,13 @@ function aufgebenVerarbeiten(state, spieler) {
 
 // Poke kann kein echtes Wörterbuch nutzen, daher sendet er einfach ein Wort via Texteingabe
 // Die Buttons sind hier "Buchstaben"-Hints oder eine freie Texteingabe-Aufforderung
-function pokeNachrichtErstellen(state) {
+function pokeNachrichtErstellen(state, websiteMode = false) {
   const letztes = state.woerter[state.woerter.length - 1];
   const anfangsBuchstabe = state.letzterBuchstabe?.toUpperCase();
-  return `🔤 Wortspiel - Du bist dran!\n\nLetztes Wort: **${letztes || '(noch keins)'}**\nDein Wort muss mit **${anfangsBuchstabe || 'einem beliebigen Buchstaben'}** beginnen.\n\nAlle bisherigen Wörter: ${state.woerter.join(', ') || 'Noch keine.'}\n\n**WICHTIG:** Antworte nicht mit normalem Text! Sende eine HTTP POST Anfrage an deine Spielzug-URL mit diesem exakten Body (ersetze "deinwort" mit deinem gewählten Wort):\n\`\`\`json\n{ "zug": { "wort": "deinwort" } }\n\`\`\``;
+  const anweisung = websiteMode
+    ? 'Gib dein Wort in das Wortfeld auf der Spielseite ein und sende den Spielzug dort ab.'
+    : '**WICHTIG:** Antworte nicht mit normalem Text! Sende eine HTTP POST Anfrage an deine Spielzug-URL mit diesem exakten Body (ersetze "deinwort" mit deinem gewählten Wort):\n```json\n{ "zug": { "wort": "deinwort" } }\n```';
+  return `🔤 Wortspiel - Du bist dran!\n\nLetztes Wort: **${letztes || '(noch keins)'}**\nDein Wort muss mit **${anfangsBuchstabe || 'einem beliebigen Buchstaben'}** beginnen.\n\nAlle bisherigen Wörter: ${state.woerter.join(', ') || 'Noch keine.'}\n\n${anweisung}`;
 }
 
 module.exports = { erstelleSpielstand, wortEingeben, aufgebenVerarbeiten, pokeNachrichtErstellen };

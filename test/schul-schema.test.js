@@ -16,6 +16,7 @@ test('Schul-Integration und isolierte Cache-Spalten existieren', () => {
 
   assert.ok(integrationColumns.includes('token'));
   assert.ok(integrationColumns.includes('modus'));
+  assert.ok(integrationColumns.includes('versand_retry_at'));
   assert.ok(cacheColumns.includes('integration_id'));
   assert.ok(tileColumns.includes('formular'));
 });

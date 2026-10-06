@@ -4,7 +4,7 @@
 
 ![yRelay Logo](https://img.shields.io/badge/yRelay-Messaging%20Portal-6366f1?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0iIzYzNjZmMSIvPjx0ZXh0IHk9Ii45ZW0iIGZvbnQtc2l6ZT0iNjAiIHg9IjUwJSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC13ZWlnaHQ9ImJvbGQiPnk8L3RleHQ+PC9zdmc+)
 
-**Sicheres Messaging-Portal für den Poke KI-Assistenten**
+**Sicheres Messaging-Portal für KI-Agenten**
 
 [![Docker](https://img.shields.io/badge/Docker-GHCR-2496ED?style=flat-square&logo=docker)](https://ghcr.io/einfachruwen/yrelay)
 [![GitHub Actions](https://img.shields.io/github/actions/workflow/status/EinfachRuwen/yRelay/docker-publish.yml?style=flat-square&label=CI%2FCD)](https://github.com/EinfachRuwen/yRelay/actions)
@@ -16,16 +16,18 @@
 
 ## Was ist yRelay?
 
-**yRelay** ist ein selbst gehostetes Web-Portal, über das eingeladene Nutzer Nachrichten direkt an den [Poke](https://poke.com) KI-Assistenten senden können. Poke empfängt die Nachricht und leitet sie entsprechend weiter.
+**yRelay** ist ein selbst gehostetes Web-Portal, über das eingeladene Nutzer Nachrichten an einen oder mehrere KI-Agenten senden können. Poke wird weiterhin unterstützt; weitere Agenten lassen sich im Admin-Panel konfigurieren.
 
 ### Features
 
 - 🔐 **Login-System** - JWT-basierte Authentifizierung
 - 👥 **Nutzer-Verwaltung** - Admin kann Nutzer erstellen oder per E-Mail einladen
-- 💬 **Freie Nachrichten** - Beliebige Textnachrichten an Poke senden
-- 🚨 **Notfallbenachrichtigung** - Vorgefertigte Vorlage mit Prioritätsauswahl (Hohe Priorität / Notfall), wird über Pushover weitergeleitet
+- 💬 **Freie Nachrichten** - Beliebige Textnachrichten an zugewiesene KI-Agenten senden
+- 🤖 **Agentenprofile** - Zustellung per Webhook oder SMTP-E-Mail, Antworten per API oder geschützter Webseite
+- 🔔 **Benachrichtigungskanäle** - Nutzer kombinieren E-Mail, ntfy und Pushover individuell
+- 🚨 **Notfallbenachrichtigung** - Vorgefertigte Vorlage mit Prioritätsauswahl (Hohe Priorität / Notfall)
 - 📋 **Nachrichten-Übersicht** - Admin sieht alle gesendeten Nachrichten
-- ⚙️ **Einstellungen** - Webhook-URL, API-Key und SMTP im Admin-Panel konfigurierbar
+- ⚙️ **Einstellungen** - Webhook, SMTP und Pushover im Admin-Panel konfigurierbar
 - 🐳 **Docker-ready** - Fertig für Cosmos Cloud und andere Docker-Hosts
 
 ---
@@ -50,6 +52,7 @@ environment:
   ADMIN_PASSWORD: "sicheres-passwort"
   POKE_WEBHOOK_URL: "https://poke.com/api/v1/inbound/api-message"
   POKE_API_KEY: "dein-poke-v2-api-key"
+  PUSHOVER_APP_TOKEN: "dein-pushover-application-token" # Optional; alternativ im Admin-Panel eintragen
   APP_URL: "https://yrelay.deinedomain.de"
 ```
 
@@ -81,6 +84,7 @@ Cosmos Cloud routet den Traffic automatisch über sein internes Proxy-System.
 | `ADMIN_PASSWORD` | Passwort des initialen Admins | `Admin1234!` |
 | `POKE_WEBHOOK_URL` | Poke API-Endpunkt | `https://poke.com/api/v1/inbound/api-message` |
 | `POKE_API_KEY` | Poke V2 API Key | - |
+| `PUSHOVER_APP_TOKEN` | Pushover Application API Token (optional) | - |
 | `SMTP_HOST` | SMTP-Server (optional) | - |
 | `SMTP_PORT` | SMTP-Port | `587` |
 | `SMTP_USER` | SMTP-Benutzername | - |
@@ -91,9 +95,11 @@ Cosmos Cloud routet den Traffic automatisch über sein internes Proxy-System.
 
 ---
 
+Im Admin-Panel unter **KI-Agenten** lassen sich Agenten per Webhook oder E-Mail anlegen. Bei Webhooks bleibt die Poke-API mit `Authorization: Bearer …` und dem JSON-Feld `message` kompatibel. Für E-Mail-Agenten muss SMTP eingerichtet sein. Nutzer tragen ihren persönlichen Pushover User-Key im Profil ein und wählen dort ihre Benachrichtigungskanäle.
+
 ## Poke Payload-Format
 
-Alle Nachrichten werden im offiziellen Poke API-Format gesendet:
+Nachrichten an Poke werden weiterhin im offiziellen Poke API-Format gesendet:
 
 ```json
 {

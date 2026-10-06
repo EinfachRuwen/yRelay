@@ -1,5 +1,4 @@
-// yRelay - Poke-Profile Routes
-// Verwaltet mehrere Poke-KI-Instanzen mit eigenen API-Keys
+// yRelay - KI-Agenten-Profile
 const express = require('express');
 const { db, logAudit } = require('../db');
 const { requireAdmin, requireAuth } = require('../middleware/auth');
@@ -41,9 +40,19 @@ router.get('/', requireAdmin, (req, res) => {
 
 // POST /api/poke-profile - Neues Profil erstellen
 router.post('/', requireAdmin, (req, res) => {
-  const { name, icon, farbe, webhook_url, api_key, beschreibung, ist_standard } = req.body;
-  if (!name || !webhook_url || !api_key) {
-    return res.status(400).json({ fehler: 'Name, Webhook-URL und API-Key sind Pflichtfelder.' });
+  const { name, icon, farbe, webhook_url, api_key, email, transport = 'webhook', interface_mode = 'api', beschreibung, ist_standard } = req.body;
+  const agentName = typeof name === 'string' ? name.trim() : '';
+  if (!agentName || agentName.length > 80 || /[\u0000-\u001f\u007f]/.test(agentName) || !['webhook', 'email'].includes(transport) || !['api', 'website'].includes(interface_mode)) {
+    return res.status(400).json({ fehler: 'Name, gültiger Transport und gültiger Antwortmodus sind erforderlich.' });
+  }
+  if (transport === 'webhook' && (!webhook_url || !api_key)) {
+    return res.status(400).json({ fehler: 'Für Webhook-Agenten sind Webhook-URL und API-Key erforderlich.' });
+  }
+  if (transport === 'email' && (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))) {
+    return res.status(400).json({ fehler: 'Für E-Mail-Agenten ist eine gültige E-Mail-Adresse erforderlich.' });
+  }
+  if (transport === 'webhook' && !/^https?:\/\//i.test(webhook_url.trim())) {
+    return res.status(400).json({ fehler: 'Die Webhook-URL muss mit http:// oder https:// beginnen.' });
   }
 
   if (ist_standard) {
@@ -51,11 +60,13 @@ router.post('/', requireAdmin, (req, res) => {
   }
 
   const ergebnis = db.prepare(`
-    INSERT INTO poke_profiles (name, icon, farbe, webhook_url, api_key, beschreibung, ist_standard)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO poke_profiles (name, icon, farbe, webhook_url, api_key, transport, email, interface_mode, beschreibung, ist_standard)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    name.trim(), icon || '🤖', farbe || '#6366f1',
-    webhook_url.trim(), api_key.trim(), beschreibung?.trim() || null, ist_standard ? 1 : 0
+    agentName, icon || '🤖', farbe || '#6366f1',
+    webhook_url?.trim() || '', api_key?.trim() || '', transport,
+    transport === 'email' ? email.trim() : null, interface_mode,
+    beschreibung?.trim() || null, ist_standard ? 1 : 0
   );
 
   logAudit(req.user.id, 'admin_create_poke_profile', { profil_id: ergebnis.lastInsertRowid, name });
@@ -65,13 +76,21 @@ router.post('/', requireAdmin, (req, res) => {
 // PUT /api/poke-profile/:id - Profil bearbeiten
 router.put('/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
-  const { name, icon, farbe, webhook_url, api_key, beschreibung, ist_standard } = req.body;
-
   const profil = db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(id);
   if (!profil) return res.status(404).json({ fehler: 'Poke-Profil nicht gefunden.' });
+  const { name, icon, farbe, webhook_url, api_key, email, beschreibung, ist_standard } = req.body;
+  const agentName = typeof name === 'string' ? name.trim() : '';
+  const transport = req.body.transport || profil.transport || 'webhook';
+  const interfaceMode = req.body.interface_mode || profil.interface_mode || 'api';
 
-  if (!name || !webhook_url || (!api_key && !profil.api_key)) {
-    return res.status(400).json({ fehler: 'Name, Webhook-URL und API-Key sind Pflichtfelder.' });
+  if (!agentName || agentName.length > 80 || /[\u0000-\u001f\u007f]/.test(agentName) || !['webhook', 'email'].includes(transport) || !['api', 'website'].includes(interfaceMode)) {
+    return res.status(400).json({ fehler: 'Name, gültiger Transport und gültiger Antwortmodus sind erforderlich.' });
+  }
+  if (transport === 'webhook' && (!webhook_url || !/^https?:\/\//i.test(webhook_url.trim()) || (!api_key && !profil.api_key))) {
+    return res.status(400).json({ fehler: 'Für Webhook-Agenten sind eine gültige Webhook-URL und ein API-Key erforderlich.' });
+  }
+  if (transport === 'email' && (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))) {
+    return res.status(400).json({ fehler: 'Für E-Mail-Agenten ist eine gültige E-Mail-Adresse erforderlich.' });
   }
 
   if (ist_standard) {
@@ -79,9 +98,14 @@ router.put('/:id', requireAdmin, (req, res) => {
   }
 
   db.prepare(`
-    UPDATE poke_profiles SET name = ?, icon = ?, farbe = ?, webhook_url = ?, api_key = ?, beschreibung = ?, ist_standard = ?
+    UPDATE poke_profiles SET name = ?, icon = ?, farbe = ?, webhook_url = ?, api_key = ?, transport = ?, email = ?, interface_mode = ?, beschreibung = ?, ist_standard = ?
     WHERE id = ?
-  `).run(name.trim(), icon || '🤖', farbe || '#6366f1', webhook_url.trim(), api_key ? api_key.trim() : profil.api_key, beschreibung?.trim() || null, ist_standard ? 1 : 0, id);
+  `).run(
+    agentName, icon || '🤖', farbe || '#6366f1', webhook_url?.trim() || '',
+    api_key ? api_key.trim() : profil.api_key || '', transport,
+    transport === 'email' ? email.trim() : null, interfaceMode,
+    beschreibung?.trim() || null, ist_standard ? 1 : 0, id
+  );
 
   logAudit(req.user.id, 'admin_edit_poke_profile', { profil_id: id, name });
   res.json({ nachricht: `Poke-Profil "${name}" erfolgreich gespeichert.` });

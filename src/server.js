@@ -75,7 +75,11 @@ app.use(express.static(path.join(__dirname, '../public'), { index: false }));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/nachrichten', require('./routes/messages'));
-app.use('/api/webhooks', require('./routes/webhooks'));
+const webhooksRouter = require('./routes/webhooks');
+app.use('/api/webhooks', webhooksRouter);
+app.get('/agent/:id/:token', webhooksRouter.agentReplyPage);
+app.get('/agent/game/:gameId/:token', webhooksRouter.agentGamePage);
+app.get('/agent/school/:integrationId/:token', webhooksRouter.agentSchoolPage);
 app.use('/api/poke-profile', require('./routes/poke-profiles'));
 app.use('/api/games', require('./routes/games'));
 const schulDashboardRouter = require('./routes/schuldashboard');
@@ -162,9 +166,6 @@ backupDatabase('startup')
   .catch(err => console.error(`[yRelay] Fehler beim Startup-Backup:`, err));
 
 const webhookUrl = require('./db').getSetting('poke_webhook_url');
-
-// Reminder Service starten
-starteReminderService();
 
 // Server starten
 app.listen(PORT, '0.0.0.0', () => {
