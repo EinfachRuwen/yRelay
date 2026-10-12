@@ -182,6 +182,10 @@ async function aktualisiereAutomatischeSchulmodi() {
     JOIN poke_profiles pp ON pp.id = si.profil_id
     JOIN users u ON u.id = si.nutzer_id
     WHERE si.modus = 'auto' AND u.is_active = 1
+      AND si.profil_id = COALESCE(
+        u.schul_poke_profile_id,
+        (SELECT id FROM poke_profiles WHERE ist_standard = 1 LIMIT 1)
+      )
   `).all();
 
   for (const integration of integrations) {
