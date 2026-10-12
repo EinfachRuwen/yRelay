@@ -811,7 +811,7 @@ const AdminView = {
           <div class="formular-gruppe" id="schul-poke-auswahl-container" style="${has_schul_access ? '' : 'display:none;'}">
             <label class="formular-label" for="bearbeiten-schul-poke">Poke für Schul-Dashboard (optional)</label>
             <select class="formular-select" id="bearbeiten-schul-poke">
-              <option value="">-- Standard Poke --</option>
+              <option value="">-- Standard-Agent --</option>
               ${profileOptions}
             </select>
           </div>

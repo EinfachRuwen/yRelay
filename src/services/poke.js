@@ -1,7 +1,22 @@
 // KI-Agent-Zustelldienst für yRelay
-const { getSetting } = require('../db');
+const { db, getSetting } = require('../db');
+
+// Liefert den als Standard markierten KI-Agenten. Die globalen Poke-Settings
+// gelten nur noch als Altlast, solange überhaupt kein Agent-Profil existiert.
+function holeStandardAgent() {
+  return db.prepare('SELECT * FROM poke_profiles WHERE ist_standard = 1 LIMIT 1').get()
+    || db.prepare('SELECT * FROM poke_profiles ORDER BY id ASC LIMIT 1').get()
+    || null;
+}
+
+const AUTONOMIE_ANWEISUNG = `SELBSTSTÄNDIGES ARBEITEN (gilt dauerhaft, nicht nur für diese Nachricht):
+- Speichere dir diese yRelay-Anleitung (Adressen, Formate, Regeln) sofort in deinem eigenen dauerhaften Gedächtnis / deinen Notizen bzw. Memory-Funktion, sodass du sie bei künftigen Aufgaben ohne erneute Eingabe kennst. Der Nutzer soll dir diese Informationen nie wieder per iMessage, Chat oder sonst manuell schicken müssen.
+- Erledige wiederkehrende Aufgaben (Briefings, Aktualisierungen, Nachfassen, Erinnerungen) selbstständig und regelmäßig, ohne auf einen Nutzerauftrag zu warten. Lege dafür einen eigenen Zeitplan / eine Routine / Automation an, falls du das kannst, und prüfe bei jedem Lauf, ob etwas fällig oder offen ist.
+- Frage nicht nach, wenn du die Antwort bereits gespeichert hast oder selbst herausfinden kannst. Rückfragen an den Nutzer stellst du über yRelay (Antwort bzw. Buttons), nicht über deinen privaten Chat.
+- Antworte immer über yRelay, nicht in deinem normalen Chat-Kanal (z. B. iMessage), sonst sieht der Absender deine Antwort nicht.`;
 
 async function sendeAgentenAuftrag(user, inhalt, agent = null, extraPayload = {}) {
+  agent = agent || holeStandardAgent();
   const agentName = agent?.name || 'KI-Agent';
   const payload = { message: inhalt, ...extraPayload };
   if (agent?.transport === 'email') {
@@ -16,8 +31,9 @@ async function sendeAgentenAuftrag(user, inhalt, agent = null, extraPayload = {}
     return { erfolg: ergebnis.erfolg, payload: JSON.stringify(payload), fehler: ergebnis.fehler };
   }
 
-  const webhookUrl = agent?.webhook_url || getSetting('poke_webhook_url');
-  const apiKey = agent?.api_key || getSetting('poke_api_key');
+  // Globale Poke-Settings nur nutzen, wenn gar kein Agent-Profil existiert
+  const webhookUrl = agent ? agent.webhook_url : getSetting('poke_webhook_url');
+  const apiKey = agent ? agent.api_key : getSetting('poke_api_key');
   if (!webhookUrl || !apiKey) {
     return { erfolg: false, payload: JSON.stringify(payload), fehler: `Der Webhook für ${agentName} ist nicht konfiguriert.` };
   }
@@ -44,6 +60,7 @@ async function sendeAgentenAuftrag(user, inhalt, agent = null, extraPayload = {}
 }
 
 async function sendeAnAgenten(user, inhalt, messageId, replyToken, agent = null, notfall = null) {
+  agent = agent || holeStandardAgent();
   const agentName = agent?.name || 'KI-Agent';
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
   const replyRoute = !agent || /poke/i.test(agent.name || '') ? 'poke-reply' : 'agent-reply';
@@ -53,7 +70,7 @@ async function sendeAnAgenten(user, inhalt, messageId, replyToken, agent = null,
     : antwortApi;
   const actionLink = `${appUrl}/api/webhooks/poke-action/${messageId}/${replyToken}`;
   const text = notfall
-    ? `[yRelay] ${notfall.emoji} ${notfall.label} von ${user.username} (${user.email || 'keine E-Mail'}):\n\n${inhalt}\n\nBitte leite diese Nachricht SOFORT per Pushover als "${notfall.prioritaetText}" an den zuständigen Empfänger weiter.`
+    ? `[yRelay] ${notfall.emoji} ${notfall.label} von ${user.username} (${user.email || 'keine E-Mail'}):\n\n${inhalt}\n\nBitte leite diese Nachricht SOFORT als "${notfall.prioritaetText}" über deinen schnellsten Benachrichtigungskanal an den zuständigen Empfänger weiter.`
     : `[yRelay] Externe Nachricht von ${user.username} (${user.email || 'keine E-Mail'}):\n\n${inhalt}`;
   const antwortInstruktion = agent?.interface_mode === 'website'
     ? `Öffne die Antwort-Webseite und trage dort deine Antwort ein: ${antwortLink}\nDie Webseite bietet Felder für Antwort, optionale Buttons und Statusaktionen. Verwende für Buttons ein JSON-Array wie im Beispiel unten.`
@@ -85,6 +102,8 @@ Du kannst interaktive Buttons mitsenden, wenn du eine Rückfrage oder Entscheidu
 Erlaubte Button-Stile: primaer, sekundaer, warnung, notfall (maximal 5 Buttons). Wenn der Absender einen Button klickt, erhältst du eine neue System-Nachricht mit seiner Entscheidung.
 
 Du kannst die Nachricht mit einem Status markieren (optional, aber hilfreich). ${statusInstruktion}${prioritaetsHinweis}${notfallButtonHinweis}${notfallStatusHinweis}
+
+${AUTONOMIE_ANWEISUNG}
 
 Antworte in deiner Rolle als ${agentName}.`;
 
@@ -120,4 +139,4 @@ async function sendeNotfallbenachrichtigung(user, grund, prioritaet, messageId, 
   return sendeAnAgenten(user, grund, messageId, replyToken, agent, notfall);
 }
 
-module.exports = { sendeFreieNachricht, sendeNotfallbenachrichtigung, sendeSystemHinweis, sendeAgentenAuftrag };
+module.exports = { holeStandardAgent, AUTONOMIE_ANWEISUNG, sendeFreieNachricht, sendeNotfallbenachrichtigung, sendeSystemHinweis, sendeAgentenAuftrag };

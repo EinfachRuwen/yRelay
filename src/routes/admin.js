@@ -521,7 +521,9 @@ router.get('/statistiken', (req, res) => {
   const aktiveNutzer = db.prepare('SELECT COUNT(*) as count FROM users WHERE role = ? AND is_active = 1').get('user').count;
   const gesamtNachrichten = db.prepare('SELECT COUNT(*) as count FROM messages').get().count;
   const heuteNachrichten = db.prepare(`SELECT COUNT(*) as count FROM messages WHERE date(created_at) = date('now')`).get().count;
-  const webhookKonfiguriert = !!(getSetting('poke_webhook_url') && getSetting('poke_api_key'));
+  const webhookKonfiguriert = !!db.prepare(`SELECT 1 FROM poke_profiles WHERE transport = 'email' AND email IS NOT NULL AND email != ''
+    OR (webhook_url IS NOT NULL AND webhook_url != '' AND api_key IS NOT NULL AND api_key != '') LIMIT 1`).get()
+    || !!(getSetting('poke_webhook_url') && getSetting('poke_api_key'));
 
   // Neue Statistiken für Charts
   // Nachrichten pro Tag (letzte 30 Tage)

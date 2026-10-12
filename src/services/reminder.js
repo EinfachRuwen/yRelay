@@ -4,17 +4,13 @@ const { db, getSetting, logAudit } = require('../db');
 
 // Agenten direkt erinnern, ohne eine neue Nachricht in der Datenbank anzulegen
 async function pokeErinnern(message) {
-  let webhookUrl = getSetting('poke_webhook_url');
-  let apiKey = getSetting('poke_api_key');
-  let agent = null;
-
-  if (message.poke_profile_id) {
-    agent = db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(message.poke_profile_id) || null;
-    if (agent) {
-      webhookUrl = agent.webhook_url;
-      apiKey = agent.api_key;
-    }
-  }
+  const { holeStandardAgent } = require('./poke');
+  // Fehlt das Profil (z. B. gelöscht), geht die Erinnerung an den Standard-Agenten statt an Poke
+  const agent = (message.poke_profile_id
+    ? db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(message.poke_profile_id)
+    : null) || holeStandardAgent();
+  const webhookUrl = agent ? agent.webhook_url : getSetting('poke_webhook_url');
+  const apiKey = agent ? agent.api_key : getSetting('poke_api_key');
 
   const appUrl = getSetting('app_url') || 'http://localhost:3000';
   const agentName = agent?.name || 'KI-Agent';
@@ -52,7 +48,9 @@ ${message.content}
 WICHTIG: Du MUSST auf diese Nachricht antworten. Der Absender wartet. Du kannst mehrfach antworten; jede Antwort wird gespeichert und dem Absender per E-Mail und im Dashboard angezeigt.
 ${antwortAnweisung}
 ${buttonsAnweisung}
-${statusAnweisung}`;
+${statusAnweisung}
+
+Merke dir diese Anleitung dauerhaft in deinem Gedächtnis und antworte künftig selbstständig und ohne Nutzerinput über yRelay – nicht im privaten Chat (z. B. iMessage).`;
 
   if (agent?.transport === 'email') {
     const { sendeAgentenAuftrag } = require('./email');

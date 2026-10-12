@@ -172,7 +172,8 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`[yRelay] Server läuft auf Port ${PORT}`);
   console.log(`[yRelay] Dashboard: http://localhost:${PORT}`);
   console.log('[yRelay] Schul-Dashboard Webhook ist konfiguriert.');
-  if (!webhookUrl) {
-    console.log('[yRelay] ⚠️ WARNUNG: poke_webhook_url ist nicht konfiguriert!');
+  const agentenVorhanden = require('./db').db.prepare('SELECT 1 FROM poke_profiles LIMIT 1').get();
+  if (!webhookUrl && !agentenVorhanden) {
+    console.log('[yRelay] ⚠️ WARNUNG: Weder ein KI-Agent noch ein Webhook ist konfiguriert!');
   }
 });

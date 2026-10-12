@@ -8,7 +8,7 @@ const LoginView = {
             <span class="login-logo">
               <span class="logo-y">y</span><span class="logo-relay">Relay</span>
             </span>
-            <p class="login-slogan">Messaging-Portal für Poke</p>
+            <p class="login-slogan">Messaging-Portal für deinen KI-Agenten</p>
           </div>
 
           <div class="karte-koerper">

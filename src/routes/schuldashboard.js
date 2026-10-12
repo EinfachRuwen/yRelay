@@ -231,7 +231,9 @@ WICHTIG: Das Schul-Dashboard hat einen integrierten Chat-Bereich. Wenn ich dir e
 
 Für unwichtige, aber interessante Infos, die ich später in Ruhe lesen kann (z.B. Witze, Fun Facts, Erinnerungen für später, Tipps), nutze {"typ":"ping","daten":{"inhalt":"..."}}. Das erzeugt KEINEN Alert und KEINE Push-Benachrichtigung - nur eine stille Notiz im Dashboard, die ich mir in der Pause anschauen kann.
 
-Sende später bei Änderungen erneut die vollständigen heutigen Kalender-/Aufgabenstände und wichtige neue Meldungen, aber keine unwichtigen Benachrichtigungen.`;
+Sende später bei Änderungen erneut die vollständigen heutigen Kalender-/Aufgabenstände und wichtige neue Meldungen, aber keine unwichtigen Benachrichtigungen.
+
+SELBSTSTÄNDIGES ARBEITEN: Speichere dir diese Anleitung (Adresse/Formate/Regeln) dauerhaft in deinem eigenen Gedächtnis bzw. deinen Notizen, damit ich sie dir nie wieder per iMessage oder Chat schicken muss. Führe die Aktualisierung des Schul-Dashboards während der Schulzeit regelmäßig selbstständig aus (lege dafür eine eigene Routine/Automation an, falls möglich), ohne auf eine Nachricht von mir zu warten. Antworte nie im normalen Chat-Kanal, sondern immer über das Schul-Dashboard.`;
 }
 
 function schulApiAnleitung(req, integration) {
