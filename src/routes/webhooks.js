@@ -253,6 +253,7 @@ const verarbeiteAgentAntwort = (req, res) => {
   res.json({ success: true, message: 'Antwort erfolgreich gespeichert.' });
 };
 
+router.verarbeiteAgentAntwort = verarbeiteAgentAntwort;
 router.post('/poke-reply/:id/:token', verarbeiteAgentAntwort);
 router.post('/agent-reply/:id/:token', verarbeiteAgentAntwort);
 router.get('/agent-page/:id/:token', zeigeAgentAntwortseite);

@@ -42,7 +42,7 @@ router.get('/', requireAdmin, (req, res) => {
 router.post('/', requireAdmin, (req, res) => {
   const { name, icon, farbe, webhook_url, api_key, email, transport = 'webhook', interface_mode = 'api', beschreibung, ist_standard } = req.body;
   const agentName = typeof name === 'string' ? name.trim() : '';
-  if (!agentName || agentName.length > 80 || /[\u0000-\u001f\u007f]/.test(agentName) || !['webhook', 'email'].includes(transport) || !['api', 'website'].includes(interface_mode)) {
+  if (!agentName || agentName.length > 80 || /[\u0000-\u001f\u007f]/.test(agentName) || !['webhook', 'email', 'fo_mcp'].includes(transport) || !['api', 'website'].includes(interface_mode)) {
     return res.status(400).json({ fehler: 'Name, gültiger Transport und gültiger Antwortmodus sind erforderlich.' });
   }
   if (transport === 'webhook' && (!webhook_url || !api_key)) {
@@ -50,6 +50,9 @@ router.post('/', requireAdmin, (req, res) => {
   }
   if (transport === 'email' && (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))) {
     return res.status(400).json({ fehler: 'Für E-Mail-Agenten ist eine gültige E-Mail-Adresse erforderlich.' });
+  }
+  if (transport === 'fo_mcp' && !/^https?:\/\//i.test((webhook_url || '').trim())) {
+    return res.status(400).json({ fehler: 'Für FO-MCP-Agenten ist die MCP-URL (http:// oder https://) erforderlich.' });
   }
   if (transport === 'webhook' && !/^https?:\/\//i.test(webhook_url.trim())) {
     return res.status(400).json({ fehler: 'Die Webhook-URL muss mit http:// oder https:// beginnen.' });
@@ -83,7 +86,7 @@ router.put('/:id', requireAdmin, (req, res) => {
   const transport = req.body.transport || profil.transport || 'webhook';
   const interfaceMode = req.body.interface_mode || profil.interface_mode || 'api';
 
-  if (!agentName || agentName.length > 80 || /[\u0000-\u001f\u007f]/.test(agentName) || !['webhook', 'email'].includes(transport) || !['api', 'website'].includes(interfaceMode)) {
+  if (!agentName || agentName.length > 80 || /[\u0000-\u001f\u007f]/.test(agentName) || !['webhook', 'email', 'fo_mcp'].includes(transport) || !['api', 'website'].includes(interfaceMode)) {
     return res.status(400).json({ fehler: 'Name, gültiger Transport und gültiger Antwortmodus sind erforderlich.' });
   }
   if (transport === 'webhook' && (!webhook_url || !/^https?:\/\//i.test(webhook_url.trim()) || (!api_key && !profil.api_key))) {
@@ -91,6 +94,9 @@ router.put('/:id', requireAdmin, (req, res) => {
   }
   if (transport === 'email' && (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))) {
     return res.status(400).json({ fehler: 'Für E-Mail-Agenten ist eine gültige E-Mail-Adresse erforderlich.' });
+  }
+  if (transport === 'fo_mcp' && !/^https?:\/\//i.test((webhook_url || '').trim())) {
+    return res.status(400).json({ fehler: 'Für FO-MCP-Agenten ist die MCP-URL (http:// oder https://) erforderlich.' });
   }
 
   if (ist_standard) {

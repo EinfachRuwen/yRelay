@@ -97,6 +97,10 @@ Cosmos Cloud routet den Traffic automatisch über sein internes Proxy-System.
 
 Im Admin-Panel unter **KI-Agenten** lassen sich Agenten per Webhook oder E-Mail anlegen. Bei Webhooks bleibt die Poke-API mit `Authorization: Bearer …` und dem JSON-Feld `message` kompatibel. Für E-Mail-Agenten muss SMTP eingerichtet sein. Nutzer tragen ihren persönlichen Pushover User-Key im Profil ein und wählen dort ihre Benachrichtigungskanäle.
 
+### FO über MCP
+
+Im Admin-Panel kann ein Agent mit der Zustellung **FO über MCP** angelegt werden (MCP-URL und optional ein Bearer-Token). yRelay arbeitet dann als MCP-Client: Die Nachricht geht per `ask_fo` an FO, die Antwort wird per `get_fo_reply` abgeholt und automatisch wie eine normale Agenten-Antwort gespeichert (Dashboard, Mail, Push). Weil der MCP-Zugang als dein eigener FO-Account gilt, behandelt FO solche Anfragen als vertrauenswürdig. yRelay kennzeichnet den Nachrichtentext deshalb ausdrücklich als Text eines Dritten, damit externe Absender FO keine Aktionen in deinem Namen auslösen können. Einschränkung: Strukturierte Callbacks (Spielzüge, Schul-Dashboard-Daten) benötigen weiterhin Webhook- oder Webseiten-Zugriff.
+
 ## Poke Payload-Format
 
 Nachrichten an Poke werden weiterhin im offiziellen Poke API-Format gesendet:

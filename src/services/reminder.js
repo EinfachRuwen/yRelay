@@ -52,6 +52,8 @@ ${statusAnweisung}
 
 Merke dir diese Anleitung dauerhaft in deinem Gedächtnis und antworte künftig selbstständig und ohne Nutzerinput über yRelay – nicht im privaten Chat (z. B. iMessage).`;
 
+  // FO-MCP: Die Antwort wird bereits aktiv abgeholt, ein erneutes Anstoßen würde FO doppelt beauftragen
+  if (agent?.transport === 'fo_mcp') return true;
   if (agent?.transport === 'email') {
     const { sendeAgentenAuftrag } = require('./email');
     const ergebnis = await sendeAgentenAuftrag(agent.email, agentName, `Erinnerung: Aufgabe für ${agentName}`, erinnerungstext);

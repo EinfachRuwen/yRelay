@@ -1449,7 +1449,7 @@ const AdminView = {
                 ${p.ist_standard ? '<span class="status-badge aktiv" style="padding: 2px 8px; font-size: 11px;">Standard</span>' : ''}
               </div>
               <p style="margin:0 0 16px 0; font-size:12px; color:var(--farbe-text-gedaempft); word-break: break-all;">
-                <strong>${p.transport === 'email' ? 'E-Mail' : 'Webhook'}:</strong><br> ${UI.escapeHtml(p.transport === 'email' ? p.email : (p.webhook_url || '').substring(0, 40))}${p.transport !== 'email' && p.webhook_url?.length > 40 ? '...' : ''}<br>
+                <strong>${p.transport === 'email' ? 'E-Mail' : p.transport === 'fo_mcp' ? 'FO-MCP' : 'Webhook'}:</strong><br> ${UI.escapeHtml(p.transport === 'email' ? p.email : (p.webhook_url || '').substring(0, 40))}${p.transport !== 'email' && p.webhook_url?.length > 40 ? '...' : ''}<br>
                 <strong>Antwort:</strong> ${p.interface_mode === 'website' ? 'Webseite' : 'API'}
               </p>
             </div>
@@ -1514,7 +1514,8 @@ const AdminView = {
         <div class="formular-gruppe">
           <label class="formular-label" for="prof-transport">Nachrichtenzustellung</label>
           <select id="prof-transport" class="formular-select">
-            <option value="webhook" ${!isEdit || profil.transport !== 'email' ? 'selected' : ''}>Webhook</option>
+            <option value="webhook" ${!isEdit || !['email', 'fo_mcp'].includes(profil.transport) ? 'selected' : ''}>Webhook</option>
+            <option value="fo_mcp" ${isEdit && profil.transport === 'fo_mcp' ? 'selected' : ''}>FO über MCP (vertrauenswürdig)</option>
             <option value="email" ${isEdit && profil.transport === 'email' ? 'selected' : ''}>E-Mail über SMTP</option>
           </select>
         </div>
@@ -1556,12 +1557,16 @@ const AdminView = {
     `);
 
     const updateTransportFields = () => {
-      const emailTransport = document.getElementById('prof-transport').value === 'email';
+      const transportWert = document.getElementById('prof-transport').value;
+      const emailTransport = transportWert === 'email';
+      const foMcp = transportWert === 'fo_mcp';
       document.getElementById('prof-webhook-group').style.display = emailTransport ? 'none' : '';
       document.getElementById('prof-apikey-group').style.display = emailTransport ? 'none' : '';
       document.getElementById('prof-email-group').style.display = emailTransport ? '' : 'none';
+      document.getElementById('prof-webhook-group').querySelector('label').textContent = foMcp ? 'FO-MCP-URL' : 'Webhook-URL';
+      document.getElementById('prof-apikey-group').querySelector('label').textContent = foMcp ? 'MCP-Token (optional, Bearer)' : 'API Key (Token)';
       document.getElementById('prof-webhook').required = !emailTransport;
-      document.getElementById('prof-apikey').required = !emailTransport && !isEdit;
+      document.getElementById('prof-apikey').required = !emailTransport && !foMcp && !isEdit;
       document.getElementById('prof-email').required = emailTransport;
     };
     document.getElementById('prof-transport').addEventListener('change', updateTransportFields);
