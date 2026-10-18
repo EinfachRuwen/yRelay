@@ -40,7 +40,11 @@ class FoMcpClient {
     if (sid) this.sessionId = sid;
     if (istNotification) return null;
     const text = await res.text();
-    if (!res.ok) throw new Error(`FO-MCP antwortete mit Status ${res.status}: ${text.slice(0, 300)}`);
+    if (!res.ok) {
+      const fehler = new Error(`FO-MCP antwortete mit Status ${res.status}: ${text.slice(0, 300)}`);
+      fehler.status = res.status;
+      throw fehler;
+    }
     const antwort = parseRpcAntwort(text, res.headers.get('content-type'));
     if (!antwort) throw new Error('FO-MCP lieferte keine gültige JSON-RPC-Antwort.');
     if (antwort.error) throw new Error(`FO-MCP-Fehler: ${antwort.error.message || JSON.stringify(antwort.error)}`);
@@ -83,8 +87,21 @@ function lese(ergebnis) {
  * Übergibt eine Aufgabe an FO und wartet auf die Antwort.
  * @returns {{erfolg:boolean, antwort?:string, fehler?:string}}
  */
-async function frageFo(agent, nachricht, { maxWartezeitMs = MAX_WARTEZEIT_MS, pollSekunden = POLL_WARTEZEIT_S } = {}) {
-  const client = new FoMcpClient(agent.webhook_url, agent.api_key);
+async function frageFo(agent, nachricht, optionen = {}) {
+  const { holeZugangstoken } = require('./fo-oauth');
+  try {
+    return await frageFoMitToken(agent, nachricht, (await holeZugangstoken(agent)) || agent.api_key, optionen);
+  } catch (err) {
+    // Abgelehntes Token (401): einmal erneuern und wiederholen
+    if (err.status !== 401) throw err;
+    const neu = await holeZugangstoken(agent, true);
+    if (!neu) throw new Error('FO lehnt den Zugang ab (401). Bitte im Admin-Panel unter KI-Agenten mit FO verbinden.');
+    return frageFoMitToken(agent, nachricht, neu, optionen);
+  }
+}
+
+async function frageFoMitToken(agent, nachricht, token, { maxWartezeitMs = MAX_WARTEZEIT_MS, pollSekunden = POLL_WARTEZEIT_S } = {}) {
+  const client = new FoMcpClient(agent.webhook_url, token);
   await client.verbinden();
   let stand = lese(await client.tool('ask_fo', { message: nachricht }));
   const start = Date.now();

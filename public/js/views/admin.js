@@ -1431,7 +1431,7 @@ const AdminView = {
         <div class="karte-koerper">
           <div class="info-box info" style="margin-bottom: 20px;">
             <span>ℹ️</span>
-            <span>Lege Agenten mit Webhook- oder E-Mail-Zustellung an und wähle, ob Antworten per API oder über eine geschützte Webseite eingehen.</span>
+            <span>Lege Agenten mit Webhook-, E-Mail- oder FO-MCP-Zustellung (mit OAuth-Anmeldung) an und wähle, ob Antworten per API oder über eine geschützte Webseite eingehen.</span>
           </div>
           
           <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
@@ -1453,6 +1453,11 @@ const AdminView = {
                 <strong>Antwort:</strong> ${p.interface_mode === 'website' ? 'Webseite' : 'API'}
               </p>
             </div>
+            ${p.transport === 'fo_mcp' ? `
+              <div style="margin-bottom:10px; font-size:12px;">
+                ${p.fo_verbunden ? '<span class="status-badge aktiv" style="padding:2px 8px;">✅ Mit FO verbunden</span>' : '<span class="status-badge" style="padding:2px 8px;">⚠️ Noch nicht verbunden</span>'}
+                <button class="btn btn-primaer btn-klein btn-fo-verbinden" style="margin-top:8px; width:100%;" data-id="${p.id}">🔗 ${p.fo_verbunden ? 'Neu mit FO verbinden' : 'Mit FO verbinden'}</button>
+              </div>` : ''}
             <div style="display:flex; gap:8px;">
               <button class="btn btn-sekundaer btn-klein btn-profil-bearbeiten" style="flex: 1;" data-id="${p.id}">✏️ Bearbeiten</button>
               ${!p.ist_standard ? `<button class="btn btn-gefahr btn-klein btn-profil-loeschen" data-id="${p.id}" title="Löschen">🗑️</button>` : ''}
@@ -1478,6 +1483,26 @@ const AdminView = {
         if (p) this.profilModalOeffnen(p);
       });
     });
+
+    document.querySelectorAll('.btn-fo-verbinden').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        UI.btnLaden(btn, true);
+        try {
+          const { url } = await API.adminFoVerbinden(btn.dataset.id);
+          window.location.href = url; // FO-Anmeldung; danach Rücksprung ins Admin-Panel
+        } catch (err) {
+          UI.btnLaden(btn, false);
+          UI.fehler(err.message);
+        }
+      });
+    });
+
+    const foStatus = new URLSearchParams(window.location.search).get('fo');
+    if (foStatus) {
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+      if (foStatus === 'verbunden') UI.erfolg('Mit FO verbunden.');
+      else UI.fehler('Die Verbindung mit FO ist fehlgeschlagen. Bitte erneut versuchen.');
+    }
 
     document.querySelectorAll('.btn-profil-loeschen').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -1564,7 +1589,7 @@ const AdminView = {
       document.getElementById('prof-apikey-group').style.display = emailTransport ? 'none' : '';
       document.getElementById('prof-email-group').style.display = emailTransport ? '' : 'none';
       document.getElementById('prof-webhook-group').querySelector('label').textContent = foMcp ? 'FO-MCP-URL' : 'Webhook-URL';
-      document.getElementById('prof-apikey-group').querySelector('label').textContent = foMcp ? 'MCP-Token (optional, Bearer)' : 'API Key (Token)';
+      document.getElementById('prof-apikey-group').querySelector('label').textContent = foMcp ? 'Statisches Bearer-Token (optional – normalerweise per „Mit FO verbinden“)' : 'API Key (Token)';
       document.getElementById('prof-webhook').required = !emailTransport;
       document.getElementById('prof-apikey').required = !emailTransport && !foMcp && !isEdit;
       document.getElementById('prof-email').required = emailTransport;

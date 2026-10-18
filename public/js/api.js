@@ -327,6 +327,10 @@ const API = {
     return this.anfrage('PUT', `/poke-profile/${id}`, daten);
   },
 
+  async adminFoVerbinden(id) {
+    return this.anfrage('POST', `/poke-profile/${id}/fo-verbinden`);
+  },
+
   async adminPokeProfilLoeschen(id) {
     return this.anfrage('DELETE', `/poke-profile/${id}`);
   },

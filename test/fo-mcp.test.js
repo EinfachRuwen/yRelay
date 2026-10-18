@@ -70,3 +70,69 @@ test('FO-MCP: Nachricht wird per ask_fo gesendet und die Antwort automatisch ges
     mock.server.close();
   }
 });
+
+test('FO-MCP OAuth: Discovery, Registrierung, PKCE, Token-Abruf und Refresh', async () => {
+  const { starteAutorisierung, schliesseAutorisierungAb, istVerbunden } = require('../src/services/fo-oauth');
+  const { frageFo } = require('../src/services/fo-mcp');
+  const crypto = require('node:crypto');
+  const log = { registriert: 0, tokenAnfragen: [], challenge: null };
+  let basis;
+  const server = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      const json = (obj, status = 200, h = {}) => { res.writeHead(status, { 'Content-Type': 'application/json', ...h }); res.end(JSON.stringify(obj)); };
+      if (req.url.startsWith('/.well-known/oauth-protected-resource')) return json({ resource: basis + '/mcp', authorization_servers: [basis] });
+      if (req.url.startsWith('/.well-known/oauth-authorization-server')) return json({ authorization_endpoint: basis + '/authorize', token_endpoint: basis + '/token', registration_endpoint: basis + '/register' });
+      if (req.url === '/register') { log.registriert++; return json({ client_id: 'client-1' }, 201); }
+      if (req.url === '/token') {
+        const p = new URLSearchParams(body);
+        log.tokenAnfragen.push(Object.fromEntries(p));
+        if (p.get('grant_type') === 'authorization_code') {
+          const ok = crypto.createHash('sha256').update(p.get('code_verifier')).digest('base64url') === log.challenge;
+          return ok ? json({ access_token: 'at-1', refresh_token: 'rt-1', expires_in: 3600 }) : json({ error: 'invalid_grant' }, 400);
+        }
+        return json({ access_token: 'at-2', refresh_token: 'rt-2', expires_in: 3600 });
+      }
+      if (req.url === '/mcp') {
+        const auth = req.headers.authorization;
+        if (auth !== 'Bearer at-1' && auth !== 'Bearer at-2') return json({ error: 'unauthorized' }, 401, { 'WWW-Authenticate': `Bearer resource_metadata="${basis}/.well-known/oauth-protected-resource"` });
+        const rpc = JSON.parse(body);
+        if (rpc.id === undefined) { res.writeHead(202); return res.end(); }
+        const antwort = result => json({ jsonrpc: '2.0', id: rpc.id, result });
+        if (rpc.method === 'initialize') return antwort({ protocolVersion: '2025-03-26', capabilities: {} });
+        return antwort({ content: [{ type: 'text', text: JSON.stringify({ status: 'complete', reply: `ok mit ${auth}` }) }] });
+      }
+      res.writeHead(404); res.end();
+    });
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  basis = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const profil = db.prepare(`INSERT INTO poke_profiles (name, webhook_url, api_key, transport) VALUES ('FO-OAuth', ?, '', 'fo_mcp')`).run(basis + '/mcp');
+    const zeile = () => db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(profil.lastInsertRowid);
+
+    const authUrl = new URL(await starteAutorisierung(zeile(), 'https://yrelay.example'));
+    assert.equal(authUrl.origin + authUrl.pathname, basis + '/authorize');
+    assert.equal(authUrl.searchParams.get('client_id'), 'client-1');
+    assert.equal(authUrl.searchParams.get('code_challenge_method'), 'S256');
+    assert.equal(authUrl.searchParams.get('redirect_uri'), 'https://yrelay.example/api/webhooks/fo-oauth/callback');
+    log.challenge = authUrl.searchParams.get('code_challenge');
+
+    await assert.rejects(() => schliesseAutorisierungAb('falscher-state', 'x'), /abgelaufen|ungültig/);
+    await schliesseAutorisierungAb(authUrl.searchParams.get('state'), 'code-1');
+    assert.equal(istVerbunden(zeile()), true);
+    assert.equal(log.registriert, 1);
+
+    assert.equal((await frageFo(zeile(), 'Hallo')).antwort, 'ok mit Bearer at-1');
+
+    // Token abgelaufen -> Refresh
+    const oauth = JSON.parse(zeile().oauth_json);
+    db.prepare('UPDATE poke_profiles SET oauth_json = ? WHERE id = ?').run(JSON.stringify({ ...oauth, expires_at: Date.now() - 1000 }), profil.lastInsertRowid);
+    assert.equal((await frageFo(zeile(), 'Hallo')).antwort, 'ok mit Bearer at-2');
+    assert.equal(log.tokenAnfragen.at(-1).grant_type, 'refresh_token');
+    assert.equal(JSON.parse(zeile().oauth_json).refresh_token, 'rt-2');
+  } finally {
+    server.close();
+  }
+});

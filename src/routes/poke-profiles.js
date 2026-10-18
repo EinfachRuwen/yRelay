@@ -1,6 +1,7 @@
 // yRelay - KI-Agenten-Profile
 const express = require('express');
-const { db, logAudit } = require('../db');
+const { db, logAudit, getSetting } = require('../db');
+const { starteAutorisierung } = require('../services/fo-oauth');
 const { requireAdmin, requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -32,10 +33,26 @@ router.get('/', requireAdmin, (req, res) => {
     FROM poke_profiles pp
     ORDER BY pp.ist_standard DESC, pp.name ASC
   `).all();
-  res.json(profile.map(({ api_key, ...profil }) => ({
+  const { istVerbunden } = require('../services/fo-oauth');
+  res.json(profile.map(({ api_key, oauth_json, ...profil }) => ({
     ...profil,
     api_key_gesetzt: !!api_key,
+    fo_verbunden: profil.transport === 'fo_mcp' && istVerbunden({ oauth_json }),
   })));
+});
+
+// POST /api/poke-profile/:id/fo-verbinden - OAuth-Autorisierung für FO-MCP starten (Admin)
+router.post('/:id/fo-verbinden', requireAdmin, async (req, res) => {
+  const profil = db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(req.params.id);
+  if (!profil || profil.transport !== 'fo_mcp') return res.status(404).json({ fehler: 'FO-MCP-Profil nicht gefunden.' });
+  const appUrl = (getSetting('app_url') || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+  try {
+    const url = await starteAutorisierung(profil, appUrl);
+    logAudit(req.user.id, 'admin_fo_oauth_start', { profil_id: profil.id });
+    res.json({ url });
+  } catch (err) {
+    res.status(502).json({ fehler: err.message });
+  }
 });
 
 // POST /api/poke-profile - Neues Profil erstellen
@@ -101,6 +118,10 @@ router.put('/:id', requireAdmin, (req, res) => {
 
   if (ist_standard) {
     db.prepare('UPDATE poke_profiles SET ist_standard = 0').run();
+  }
+
+  if (transport !== 'fo_mcp' || (webhook_url || '').trim() !== profil.webhook_url) {
+    db.prepare('UPDATE poke_profiles SET oauth_json = NULL WHERE id = ?').run(id);
   }
 
   db.prepare(`

@@ -253,6 +253,22 @@ const verarbeiteAgentAntwort = (req, res) => {
   res.json({ success: true, message: 'Antwort erfolgreich gespeichert.' });
 };
 
+// GET /api/webhooks/fo-oauth/callback - Redirect-Ziel der FO-OAuth-Autorisierung
+router.get('/fo-oauth/callback', async (req, res) => {
+  const { code, state, error } = req.query;
+  if (error || typeof code !== 'string' || typeof state !== 'string') {
+    return res.redirect('/?fo=fehler#admin');
+  }
+  try {
+    const profil = await require('../services/fo-oauth').schliesseAutorisierungAb(state, code);
+    logAudit(null, 'admin_fo_oauth_connected', { profil_id: profil.id });
+    res.redirect('/?fo=verbunden#admin');
+  } catch (err) {
+    console.error('[yRelay] FO-OAuth fehlgeschlagen:', err.message);
+    res.redirect('/?fo=fehler#admin');
+  }
+});
+
 router.verarbeiteAgentAntwort = verarbeiteAgentAntwort;
 router.post('/poke-reply/:id/:token', verarbeiteAgentAntwort);
 router.post('/agent-reply/:id/:token', verarbeiteAgentAntwort);

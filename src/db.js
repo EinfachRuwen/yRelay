@@ -347,6 +347,7 @@ db.exec(`
 
 ensureColumn('poke_profiles', 'transport', "transport TEXT NOT NULL DEFAULT 'webhook'");
 ensureColumn('poke_profiles', 'email', 'email TEXT');
+ensureColumn('poke_profiles', 'oauth_json', 'oauth_json TEXT');
 ensureColumn('poke_profiles', 'interface_mode', "interface_mode TEXT NOT NULL DEFAULT 'api'");
 
 // Die Schul-Cache-Tabellen wurden vor den Integrationen angelegt. Bestehende
