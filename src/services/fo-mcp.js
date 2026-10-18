@@ -64,30 +64,50 @@ class FoMcpClient {
     const result = await this.rpc('tools/call', { name, arguments: args });
     const text = (result?.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
     if (result?.isError) throw new Error(text || `FO-Tool ${name} meldete einen Fehler.`);
-    let daten = null;
-    try { daten = JSON.parse(text); } catch {}
+    let daten = result?.structuredContent && typeof result.structuredContent === 'object' ? result.structuredContent : null;
+    if (!daten) { try { daten = JSON.parse(text); } catch {} }
     return { text, daten: daten && typeof daten === 'object' ? daten : null };
   }
 }
 
+// FO meldet laufende Arbeit teils nur als Fließtext ("Working for 40s … Call get_fo_reply now …")
+const ARBEITET_NOCH = /call get_fo_reply|still working on this|folded this message into the task|^\s*working for \d+/i;
+const WARTET_AUF_NUTZER = /waiting for the user'?s answer|waiting for your answer/i;
+
 // Normalisiert die Tool-Antwort von ask_fo / get_fo_reply
 function lese(ergebnis) {
   const d = ergebnis.daten || {};
-  const status = String(d.status || (ergebnis.daten ? 'complete' : 'complete')).toLowerCase();
-  const antwort = d.reply ?? d.message ?? d.text ?? d.response ?? (ergebnis.daten ? '' : ergebnis.text);
-  return {
-    status,
-    antwort: typeof antwort === 'string' ? antwort.trim() : JSON.stringify(antwort),
-    progress: typeof d.progress === 'string' ? d.progress : '',
-    conversationId: d.conversationId || null,
-  };
+  const roh = d.reply ?? d.message ?? d.text ?? d.response ?? (ergebnis.daten ? '' : ergebnis.text);
+  const antwort = typeof roh === 'string' ? roh.trim() : JSON.stringify(roh);
+  const progress = typeof d.progress === 'string' ? d.progress : '';
+  let status = typeof d.status === 'string' ? d.status.toLowerCase() : null;
+  if (!status) {
+    status = ARBEITET_NOCH.test(ergebnis.text) ? 'working'
+      : WARTET_AUF_NUTZER.test(ergebnis.text) ? 'waiting'
+      : /^\s*(failed|error)\b/i.test(ergebnis.text) ? 'failed'
+      : 'complete';
+  }
+  return { status, antwort, progress, conversationId: d.conversationId || null };
 }
 
 /**
  * Übergibt eine Aufgabe an FO und wartet auf die Antwort.
  * @returns {{erfolg:boolean, antwort?:string, fehler?:string}}
  */
-async function frageFo(agent, nachricht, optionen = {}) {
+const warteschlangen = new Map(); // agent.id -> Promise der zuletzt eingereihten Anfrage
+
+// Anfragen pro Agent nacheinander abarbeiten: Eine zweite ask_fo-Anfrage während FO noch
+// arbeitet würde von FO in die laufende Aufgabe "gefaltet" und nicht separat beantwortet.
+function frageFo(agent, nachricht, optionen = {}) {
+  const schluessel = agent.id ?? agent.webhook_url;
+  const vorher = warteschlangen.get(schluessel) || Promise.resolve();
+  const lauf = vorher.catch(() => {}).then(() => frageFoDirekt(agent, nachricht, optionen));
+  warteschlangen.set(schluessel, lauf);
+  lauf.finally(() => { if (warteschlangen.get(schluessel) === lauf) warteschlangen.delete(schluessel); }).catch(() => {});
+  return lauf;
+}
+
+async function frageFoDirekt(agent, nachricht, optionen = {}) {
   const { holeZugangstoken } = require('./fo-oauth');
   try {
     return await frageFoMitToken(agent, nachricht, (await holeZugangstoken(agent)) || agent.api_key, optionen);

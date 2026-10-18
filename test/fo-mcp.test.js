@@ -136,3 +136,41 @@ test('FO-MCP OAuth: Discovery, Registrierung, PKCE, Token-Abruf und Refresh', as
     server.close();
   }
 });
+
+test('FO-MCP: Fließtext-Zwischenstände sind keine Antwort und Anfragen laufen nacheinander', async () => {
+  const { frageFo } = require('../src/services/fo-mcp');
+  const ereignisse = [];
+  let offen = 0, polls = 0;
+  const server = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      const rpc = JSON.parse(body);
+      if (rpc.id === undefined) { res.writeHead(202); return res.end(); }
+      const text = t => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ jsonrpc: '2.0', id: rpc.id, result: { content: [{ type: 'text', text: t }] } })); };
+      if (rpc.method === 'initialize') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ jsonrpc: '2.0', id: rpc.id, result: {} })); }
+      if (rpc.params.name === 'ask_fo') {
+        offen++;
+        ereignisse.push(`ask:${rpc.params.arguments.message}:offen=${offen}`);
+        return text('Working for 40s: reviewing a relayed message, 5 steps so far. Fo is still working on this. Call get_fo_reply now; it waits up to 40 seconds.');
+      }
+      polls++;
+      if (polls % 3 !== 0) return text('Fo folded this message into the task it is already working on in this conversation. Call get_fo_reply now; it waits up to 40 seconds for Fo to finish.');
+      offen--;
+      return text(`Fertig (${polls}).`);
+    });
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  const agent = { id: 9001, name: 'FO', webhook_url: `http://127.0.0.1:${server.address().port}/mcp`, api_key: '' };
+  try {
+    const [a, b] = await Promise.all([
+      frageFo(agent, 'eins', { pollSekunden: 0 }),
+      frageFo(agent, 'zwei', { pollSekunden: 0 }),
+    ]);
+    assert.equal(a.antwort, 'Fertig (3).');
+    assert.equal(b.antwort, 'Fertig (6).');
+    assert.deepEqual(ereignisse, ['ask:eins:offen=1', 'ask:zwei:offen=1']);
+  } finally {
+    server.close();
+  }
+});

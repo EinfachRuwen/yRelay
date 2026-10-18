@@ -439,6 +439,18 @@ ${inhalt.trim()}`,
     ? `${appUrl}/agent/${nachricht.id}/${nachricht.reply_token}`
     : `${appUrl}/api/webhooks/${route}/${nachricht.id}/${nachricht.reply_token}`;
 
+  const letzteAgentenAntwort = pokeAntworten[pokeAntworten.length - 1]?.text || '';
+  const foNachricht = `${req.user.username} hat auf deine Antwort geantwortet.
+
+Ursprüngliche Nachricht:
+${nachricht.content}
+
+Deine letzte Antwort:
+${letzteAgentenAntwort}
+
+Neue Antwort von ${req.user.username}:
+${inhalt.trim()}`;
+
   const agentNachricht = `[yRelay] ${req.user.username} hat auf deine Antwort geantwortet:
 
 ${verlaufText}
@@ -447,7 +459,7 @@ ${verlaufText}
 Du kannst weiterhin antworten (auch mehrfach). ${agent?.interface_mode === 'website' ? `Öffne ${antwortLink}` : `Sende POST-JSON {"message":"Deine Antwort"} an ${antwortLink}`}`;
 
   const { sendeSystemHinweis } = require('../services/poke');
-  const zustellung = await sendeSystemHinweis(req.user, agentNachricht, nachricht.id, nachricht.reply_token, agent);
+  const zustellung = await sendeSystemHinweis(req.user, agent?.transport === 'fo_mcp' ? foNachricht : agentNachricht, nachricht.id, nachricht.reply_token, agent);
   if (!zustellung.erfolg) console.error('[yRelay] Fehler beim Senden der Nutzer-Antwort an den Agenten:', zustellung.fehler);
 
   res.json({ nachricht: 'Antwort erfolgreich gesendet.' });
