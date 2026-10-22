@@ -45,6 +45,13 @@ const router = express.Router();
 router.use(requireAuth);
 
 function ladeNutzerPokeProfil(nutzerId, profilId = null) {
+  // Admins dürfen alle KI-Agenten nutzen
+  const istAdmin = db.prepare('SELECT role FROM users WHERE id = ?').get(nutzerId)?.role === 'admin';
+  if (istAdmin) {
+    return (profilId && db.prepare('SELECT * FROM poke_profiles WHERE id = ?').get(profilId))
+      || (!profilId && db.prepare('SELECT * FROM poke_profiles ORDER BY ist_standard DESC, id ASC LIMIT 1').get())
+      || undefined;
+  }
   if (profilId) {
     return db.prepare(`
       SELECT pp.*

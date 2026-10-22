@@ -565,6 +565,7 @@ const AdminView = {
 
       let html = `<form id="profil-zuweisen-form" style="display:flex; flex-direction:column; gap:15px;">
         <p>Wähle aus, welche KI-Agenten <strong>${UI.escapeHtml(name)}</strong> nutzen darf:</p>
+        ${n.rolle === 'admin' ? '<p class="text-gedaempft" style="margin:0;">Admins können immer alle KI-Agenten nutzen. Diese Auswahl wirkt sich bei Admins nicht aus.</p>' : ''}
         <div style="display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto; padding-right:10px;">
       `;
 

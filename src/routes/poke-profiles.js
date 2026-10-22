@@ -8,6 +8,13 @@ const router = express.Router();
 
 // GET /api/poke-profile/meine - Eigene zugewiesene Profile (für Dashboard)
 router.get('/meine', requireAuth, (req, res) => {
+  if (req.user.role === 'admin') {
+    // Admins dürfen alle KI-Agenten nutzen
+    return res.json(db.prepare(`
+      SELECT id, name, icon, farbe, beschreibung, ist_standard FROM poke_profiles
+      ORDER BY ist_standard DESC, name ASC
+    `).all());
+  }
   const nutzerProfile = db.prepare(`
     SELECT pp.id, pp.name, pp.icon, pp.farbe, pp.beschreibung, pp.ist_standard
     FROM poke_profiles pp
