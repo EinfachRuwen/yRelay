@@ -77,7 +77,7 @@ const API = {
     queue.push({ methode, pfad, daten, timestamp: Date.now() });
     localStorage.setItem('yrelay_offline_queue', JSON.stringify(queue));
     if (window.UI && UI.info) {
-      UI.info('📴 Offline: Aktion wurde geparkt und wird gesendet, sobald du wieder Netz hast.');
+      UI.info('Offline: Aktion wurde geparkt und wird gesendet, sobald du wieder Netz hast.');
     }
   },
 
@@ -101,7 +101,7 @@ const API = {
 
     localStorage.setItem('yrelay_offline_queue', JSON.stringify(failedQueue));
     if (successCount > 0 && window.UI && UI.erfolg) {
-      UI.erfolg(`📶 Wieder online! ${successCount} geparkte Aktion(en) gesendet.`);
+      UI.erfolg(`Wieder online: ${successCount} geparkte Aktion(en) gesendet.`);
     }
   },
 

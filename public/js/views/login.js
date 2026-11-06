@@ -2,80 +2,74 @@
 const LoginView = {
   rendern() {
     return `
-      <div class="seite login-seite">
-        <div class="karte login-karte">
-          <div class="login-logo-bereich">
-            <span class="login-logo">
-              <span class="logo-y">y</span><span class="logo-relay">Relay</span>
-            </span>
-            <p class="login-slogan">Messaging-Portal für deinen KI-Agenten</p>
+      <div class="anmeldung">
+        <section class="anmeldung-band" aria-hidden="false">
+          <span class="wegweiser wegweiser-gross" aria-label="yRelay">yRelay</span>
+          <div class="anmeldung-mitte">
+            <div>
+              <h1>Der direkte Draht zu Ruwen.</h1>
+              <p>Nachrichten, Wichtiges und Notfälle – zugestellt über seinen Agenten. Du siehst jede Station, bis die Antwort da ist.</p>
+            </div>
+            <figure class="anmeldung-beispiel" aria-label="Beispiel einer Nachricht und ihres Verlaufs">
+              <figcaption>Beispiel</figcaption>
+              <p class="fahrt-text">Hast du Freitag ab 19 Uhr Zeit?</p>
+              <ol class="linie">
+                <li class="halt"><span class="halt-punkt"></span><span class="halt-zeit">14:46</span><div class="halt-inhalt"><div class="halt-name">An den Agenten übergeben</div></div></li>
+                <li class="halt antwort"><span class="halt-punkt"></span><span class="halt-zeit">14:47</span><div class="halt-inhalt"><div class="halt-name">Agent</div><div class="halt-text">Freitag ist frei. Ich trage es als Vorschlag ein.</div></div></li>
+                <li class="halt ziel erledigt"><span class="halt-punkt">${UI.icon('haken')}</span><span class="halt-zeit"></span><div class="halt-inhalt"><div class="halt-name">Erledigt</div></div></li>
+              </ol>
+            </figure>
           </div>
+          <div class="anmeldung-stufen">
+            <span style="background:#fff;color:var(--blau)">${UI.icon('nachricht')}Normal</span>
+            <span style="background:var(--orange);color:#1c1e1f">${UI.icon('wichtig')}Wichtig</span>
+            <span style="background:var(--rot);color:#fff">${UI.icon('notfall')}Notfall</span>
+          </div>
+        </section>
 
-          <div class="karte-koerper">
+        <section class="anmeldung-formular">
+          <div class="innen">
+            <h2>Anmelden</h2>
+            <p class="unterzeile">Mit dem Zugang aus deiner Einladung.</p>
             <form id="login-formular">
               <div class="formular-gruppe">
                 <label class="formular-label" for="login-benutzername">Benutzername oder E-Mail</label>
-                <input
-                  class="formular-eingabe"
-                  type="text"
-                  id="login-benutzername"
-                  name="benutzername"
-                  placeholder="Benutzername oder E-Mail"
-                  autocomplete="username"
-                  required
-                >
+                <input class="formular-eingabe" type="text" id="login-benutzername" name="benutzername" autocomplete="username" required>
               </div>
-
               <div class="formular-gruppe">
                 <label class="formular-label" for="login-passwort">Passwort</label>
-                <input
-                  class="formular-eingabe"
-                  type="password"
-                  id="login-passwort"
-                  name="passwort"
-                  placeholder="Dein Passwort"
-                  autocomplete="current-password"
-                  required
-                >
+                <input class="formular-eingabe" type="password" id="login-passwort" name="passwort" autocomplete="current-password" required>
               </div>
-
-              <div id="login-fehler" class="info-box fehler versteckt" style="margin-bottom: 16px;">
-                <span>⚠️</span>
-                <span id="login-fehler-text"></span>
+              <div class="zeile">
+                <span></span>
+                <a href="#" id="passwort-vergessen-link" class="text-link" style="font-size:15px;">Passwort vergessen?</a>
               </div>
-
-              <div style="display:flex; justify-content:flex-end; margin-bottom: 16px;">
-                <a href="#" id="passwort-vergessen-link" class="text-link" style="font-size: 13px;">Passwort vergessen?</a>
+              <div id="login-fehler" class="info-box fehler versteckt" role="alert">
+                ${UI.icon('fehler')}<span id="login-fehler-text"></span>
               </div>
-
-              <button type="submit" class="btn btn-primaer btn-vollbreite btn-gross" id="login-btn">
-                Anmelden
-              </button>
+              <button type="submit" class="btn btn-primaer btn-vollbreite btn-gross" id="login-btn">Anmelden</button>
             </form>
-
-            <p class="text-gedaempft text-zentriert" style="margin-top: 20px;">
-              Noch kein Konto? Wende dich an den Administrator.
-            </p>
+            <p class="fusszeile">Noch kein Zugang? Den bekommst du nur per Einladung von Ruwen.</p>
           </div>
-        </div>
+        </section>
       </div>
 
-      <!-- Passwort Vergessen Modal -->
       <div id="reset-modal" class="modal-overlay versteckt">
-        <div class="modal-box" style="max-width: 400px;">
+        <div class="modal-box" style="max-width: 440px;" role="dialog" aria-modal="true" aria-labelledby="reset-titel">
           <div class="modal-header">
-            <h2 class="modal-titel">Passwort zurücksetzen</h2>
-            <button class="modal-schliessen" id="reset-schliessen"><i class="ph ph-x"></i></button>
+            <h2 class="modal-titel" id="reset-titel">Passwort zurücksetzen</h2>
+            <button class="modal-schliessen" id="reset-schliessen" aria-label="Schließen">${UI.icon('x')}</button>
           </div>
           <div class="modal-koerper">
-            <p class="text-gedaempft" style="margin-bottom: 16px; font-size: 14px;">Bitte gib deine E-Mail-Adresse ein. Wir senden dir einen Link, mit dem du dein Passwort sicher zurücksetzen kannst.</p>
+            <p class="text-gedaempft" style="margin-bottom: 16px;">Gib deine E-Mail-Adresse ein. Du bekommst einen Link, mit dem du ein neues Passwort festlegst.</p>
             <form id="reset-formular">
               <div class="formular-gruppe">
-                <input class="formular-eingabe" type="email" id="reset-email" placeholder="deine@email.de" required>
+                <label class="formular-label" for="reset-email">E-Mail</label>
+                <input class="formular-eingabe" type="email" id="reset-email" autocomplete="email" required>
               </div>
-              <div style="display:flex; justify-content:flex-end; gap: 12px; margin-top: 24px;">
-                <button type="button" class="btn btn-sekundaer" id="reset-abbrechen">Abbrechen</button>
-                <button type="submit" class="btn btn-primaer" id="reset-senden-btn">Senden</button>
+              <div class="modal-fuss">
+                <button type="button" class="btn btn-ghost" id="reset-abbrechen">Abbrechen</button>
+                <button type="submit" class="btn btn-primaer" id="reset-senden-btn">Link senden</button>
               </div>
             </form>
           </div>

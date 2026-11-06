@@ -1,11 +1,11 @@
 {
-  "name": "yRelay Notfall-Zentrale",
+  "name": "yRelay",
   "short_name": "yRelay",
-  "description": "Die direkte Notfall- und Kommunikationsschnittstelle.",
+  "description": "Der direkte Draht zu Ruwen – Nachrichten, Wichtiges und Notfälle.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#080c14",
-  "theme_color": "#080c14",
+  "background_color": "#eceeed",
+  "theme_color": "#0e518d",
   "icons": [
     {
       "src": "/img/logo.png",

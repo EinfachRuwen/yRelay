@@ -7,30 +7,22 @@ const ResetView = {
     }
 
     return `
-      <div class="auth-container">
-        <div class="karte auth-karte" style="max-width: 450px; margin: 60px auto; padding: 40px; text-align: center;">
-          <div class="auth-header">
-            <h1 class="gradient-text">Neues Passwort</h1>
-            <p class="auth-untertitel" style="margin-top: 10px; color: #94a3b8;">Vergebe ein neues Passwort für dein Konto.</p>
-          </div>
-
-          <form id="reset-formular" class="auth-form" style="margin-top: 30px; text-align: left;">
-            <div class="formular-gruppe" style="margin-bottom: 20px;">
-              <label class="formular-label" for="reset-passwort">Neues Passwort</label>
-              <div class="eingabe-wrapper">
-                <i class="ph ph-lock eingabe-icon"></i>
-                <input class="formular-eingabe mit-icon" type="password" id="reset-passwort" placeholder="Mindestens 8 Zeichen" required minlength="8">
+      <div class="solo">
+        <div class="solo-tafel">
+          <span class="wegweiser wegweiser-blau">yRelay</span>
+          <h1>Neues Passwort</h1>
+          <p class="unterzeile">Lege ein neues Passwort für deinen Zugang fest.</p>
+          <div class="tafel">
+            <form id="reset-formular">
+              <div class="formular-gruppe">
+                <label class="formular-label" for="reset-passwort">Neues Passwort</label>
+                <input class="formular-eingabe" type="password" id="reset-passwort" autocomplete="new-password" required minlength="8">
+                <div class="formular-hilfe">Mindestens 8 Zeichen.</div>
               </div>
-            </div>
-
-            <button type="submit" class="btn btn-primaer btn-vollbreite btn-gross" id="reset-btn">
-              <span>Passwort speichern</span>
-            </button>
-          </form>
-
-          <div class="auth-footer" style="margin-top: 20px;">
-            <a href="#login" class="text-link">Zurück zum Login</a>
+              <button type="submit" class="btn btn-primaer btn-vollbreite btn-gross" id="reset-btn">Passwort speichern</button>
+            </form>
           </div>
+          <p style="margin-top:18px"><a href="#login" class="text-link">Zurück zur Anmeldung</a></p>
         </div>
       </div>
     `;

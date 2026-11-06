@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![yRelay Logo](https://img.shields.io/badge/yRelay-Messaging%20Portal-6366f1?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0iIzYzNjZmMSIvPjx0ZXh0IHk9Ii45ZW0iIGZvbnQtc2l6ZT0iNjAiIHg9IjUwJSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC13ZWlnaHQ9ImJvbGQiPnk8L3RleHQ+PC9zdmc+)
+![yRelay](https://img.shields.io/badge/yRelay-Messaging%20Portal-0e518d?style=for-the-badge)
 
 **Sicheres Messaging-Portal für KI-Agenten**
 

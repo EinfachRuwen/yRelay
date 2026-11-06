@@ -3,49 +3,27 @@ const AdminView = {
   aktiverTab: 'uebersicht',
 
   rendern(nutzer) {
-    const avatarBuchstabe = (nutzer.benutzername || 'A')[0].toUpperCase();
-
+    const tab = (id, icon, name, aktiv = false) => `<button class="admin-tab ${aktiv ? 'aktiv' : ''}" data-tab="${id}" role="tab" aria-selected="${aktiv}">${UI.icon(icon)}<span class="tab-text">${name}</span></button>`;
     return `
-      <div class="seite haupt-seite">
-        <!-- Navigation -->
-        <nav class="navbar">
-          <span class="navbar-logo">
-            <span class="logo-y">y</span><span class="logo-relay">Relay</span>
-            <span style="font-size: 12px; color: var(--farbe-warnung); margin-left: 8px; font-weight: 600;">ADMIN</span>
-          </span>
-          <div class="navbar-nav">
-            <div class="nav-nutzer">
-              <div class="nav-avatar" style="background: var(--verlauf-warnung);">${UI.escapeHtml(avatarBuchstabe)}</div>
-              <div class="nav-info">
-                <span class="nav-name">${UI.escapeHtml(nutzer.benutzername)}</span>
-                <span class="nav-rolle">Administrator</span>
-              </div>
+      <div class="seite">
+        ${UI.kopf(nutzer, 'admin')}
+        <main class="inhalt">
+          <div class="seitenkopf"><div><h1>Verwaltung</h1></div></div>
+          <div class="verwaltung">
+            <nav class="admin-tabs" role="tablist" aria-label="Bereiche der Verwaltung">
+              ${tab('uebersicht', 'statistik', 'Übersicht', true)}
+              ${tab('nutzer', 'gruppe', 'Nutzer')}
+              ${tab('nachrichten', 'nachricht', 'Nachrichten')}
+              ${tab('poke-profile', 'agent', 'KI-Agenten')}
+              ${tab('labels', 'label', 'Labels')}
+              ${tab('spiele', 'spiele', 'Spiele')}
+              ${tab('email-tool', 'mail', 'E-Mail')}
+              ${tab('einstellungen', 'zahnrad', 'Einstellungen')}
+              ${tab('audit', 'protokoll', 'Protokoll')}
+            </nav>
+            <div id="admin-tab-inhalt" class="admin-panel">
+              <div class="lade-spinner"></div>
             </div>
-            <button class="btn btn-ghost btn-klein" id="nutzer-panel-btn" title="Benutzerpanel">👤 Benutzer</button>
-            <button class="btn btn-ghost btn-klein" id="admin-abmelden-btn">Abmelden</button>
-          </div>
-        </nav>
-
-        <!-- Hauptinhalt -->
-        <main class="hauptinhalt">
-          <div class="sektion-titel">⚙️ Admin-Panel</div>
-
-          <!-- Tabs -->
-          <div class="admin-tabs" role="tablist">
-            <button class="admin-tab aktiv" data-tab="uebersicht" role="tab">📊 <span class="tab-text">Übersicht</span></button>
-            <button class="admin-tab" data-tab="nutzer" role="tab">👥 <span class="tab-text">Nutzer</span></button>
-            <button class="admin-tab" data-tab="nachrichten" role="tab">📨 <span class="tab-text">Nachrichten</span></button>
-            <button class="admin-tab" data-tab="labels" role="tab">🏷️ <span class="tab-text">Labels</span></button>
-            <button class="admin-tab" data-tab="audit" role="tab">📜 <span class="tab-text">Audit Log</span></button>
-            <button class="admin-tab" data-tab="einstellungen" role="tab">🔧 <span class="tab-text">Einstellungen</span></button>
-            <button class="admin-tab" data-tab="poke-profile" role="tab">🤖 <span class="tab-text">KI-Agenten</span></button>
-            <button class="admin-tab" data-tab="spiele" role="tab">🎮 <span class="tab-text">Spiele</span></button>
-            <button class="admin-tab" data-tab="email-tool" role="tab">📧 <span class="tab-text">E-Mail Tool</span></button>
-          </div>
-
-          <!-- Tab-Inhalt -->
-          <div id="admin-tab-inhalt">
-            <div class="lade-spinner" style="margin: 40px auto;"></div>
           </div>
         </main>
       </div>
@@ -53,23 +31,15 @@ const AdminView = {
   },
 
   async initialisieren(nutzer) {
-    document.getElementById('admin-abmelden-btn')?.addEventListener('click', () => App.abmelden());
-
-    document.getElementById('nutzer-panel-btn')?.addEventListener('click', () => {
-      window.location.hash = '#dashboard';
-    });
-
-    // Tab-Navigation
     document.querySelectorAll('.admin-tab').forEach(tab => {
       tab.addEventListener('click', async () => {
-        document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('aktiv'));
+        document.querySelectorAll('.admin-tab').forEach(t => { t.classList.remove('aktiv'); t.setAttribute('aria-selected', 'false'); });
         tab.classList.add('aktiv');
+        tab.setAttribute('aria-selected', 'true');
         this.aktiverTab = tab.dataset.tab;
         await this.tabLaden(tab.dataset.tab);
       });
     });
-
-    // Ersten Tab laden
     await this.tabLaden('uebersicht');
   },
 
@@ -77,7 +47,7 @@ const AdminView = {
     const container = document.getElementById('admin-tab-inhalt');
     if (!container) return;
 
-    container.innerHTML = '<div class="lade-spinner" style="margin: 40px auto;"></div>';
+    container.innerHTML = '<div class="lade-spinner"></div>';
 
     try {
       switch (tab) {
@@ -92,7 +62,7 @@ const AdminView = {
         case 'email-tool': await this.emailToolRendern(container); break;
       }
     } catch (err) {
-      container.innerHTML = `<div class="info-box fehler"><span>⚠️</span><span>Fehler: ${UI.escapeHtml(err.message)}</span></div>`;
+      container.innerHTML = `<div class="info-box fehler">${UI.icon('fehler')}<span>${UI.escapeHtml(err.message)}</span></div>`;
     }
   },
 
@@ -103,109 +73,79 @@ const AdminView = {
     const notiz = await API.adminNotizLaden();
     const labels = await API.adminLabelsLaden();
 
+    // 30 Tage lückenlos, damit leere Tage als Null sichtbar bleiben
+    const proTagRoh = Object.fromEntries((stats.nachrichtenProTag || []).map(d => [d.tag, d.anzahl]));
+    const proTag = (stats.nachrichtenProTag || []).length ? Array.from({ length: 30 }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - 29 + i);
+      const tag = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return { tag, anzahl: proTagRoh[tag] || 0 };
+    }) : [];
+    const maxTag = Math.max(1, ...proTag.map(d => d.anzahl));
+    const beantwortet = stats.antwortrate?.beantwortet || 0;
+    const offen = stats.antwortrate?.offen || 0;
+    const quote = beantwortet + offen ? Math.round(beantwortet / (beantwortet + offen) * 100) : 0;
+    const top = stats.topNutzer || [];
+    const maxTop = Math.max(1, ...top.map(n => n.anzahl));
+    const datum = (tag) => { const [, m, d] = tag.split('-'); return `${d}.${m}.`; };
+
     container.innerHTML = `
       <div class="statistik-grid">
-        <div class="statistik-kachel">
-          <div class="statistik-wert">${stats.gesamtNutzer}</div>
-          <div class="statistik-label">Registrierte Nutzer</div>
-        </div>
-        <div class="statistik-kachel">
-          <div class="statistik-wert">${stats.aktiveNutzer}</div>
-          <div class="statistik-label">Aktive Nutzer</div>
-        </div>
-        <div class="statistik-kachel">
-          <div class="statistik-wert">${stats.gesamtNachrichten}</div>
-          <div class="statistik-label">Nachrichten gesamt</div>
-        </div>
-        <div class="statistik-kachel">
-          <div class="statistik-wert">${stats.heuteNachrichten}</div>
-          <div class="statistik-label">Nachrichten heute</div>
-        </div>
+        <div class="statistik-kachel"><div class="statistik-wert">${stats.gesamtNutzer}</div><div class="statistik-label">Nutzer</div></div>
+        <div class="statistik-kachel"><div class="statistik-wert">${stats.aktiveNutzer}</div><div class="statistik-label">davon aktiv</div></div>
+        <div class="statistik-kachel"><div class="statistik-wert">${stats.gesamtNachrichten}</div><div class="statistik-label">Nachrichten</div></div>
+        <div class="statistik-kachel"><div class="statistik-wert">${stats.heuteNachrichten}</div><div class="statistik-label">heute</div></div>
       </div>
 
-      <div class="karte">
-        <div class="karte-header">
-          <div class="karte-icon karte-icon-info">🔗</div>
-          <div>
-            <div class="karte-titel">Poke-Webhook-Status</div>
-            <div class="karte-untertitel">Verbindung zu Poke</div>
+      ${stats.webhookKonfiguriert
+        ? `<div class="info-box erfolg">${UI.icon('verbunden')}<span>Zustellung an den Agenten ist eingerichtet.</span></div>`
+        : `<div class="info-box warnung">${UI.icon('getrennt')}<span>Die Zustellung an den Agenten ist noch nicht eingerichtet. Trage die Daten unter <strong>Einstellungen</strong> oder <strong>KI-Agenten</strong> ein.</span></div>`}
+
+      <section class="karte">
+        <div class="tafel-kopf"><h2>Nachrichten pro Tag</h2><span class="leise" style="margin-left:auto">letzte 30 Tage</span></div>
+        <div class="tafel-koerper">
+          ${proTag.length ? `
+            <div class="saeulen" role="img" aria-label="Nachrichten pro Tag, höchstens ${maxTag}">
+              ${proTag.map(d => `<div class="saeule" tabindex="0" aria-label="${datum(d.tag)}: ${d.anzahl}"><span style="height:${d.anzahl ? Math.max(3, d.anzahl / maxTag * 100) : 0}%"></span><em>${datum(d.tag)} · ${d.anzahl}</em></div>`).join('')}
+            </div>
+            <div class="saeulen-achse"><span>${datum(proTag[0].tag)}</span><span>höchstens ${maxTag} am Tag</span><span>${datum(proTag[proTag.length - 1].tag)}</span></div>
+          ` : '<p class="leise">Noch keine Nachrichten.</p>'}
+        </div>
+      </section>
+
+      <div class="uebersicht-zweier">
+        <section class="karte">
+          <div class="tafel-kopf"><h2>Antwortquote</h2></div>
+          <div class="tafel-koerper">
+            <div class="quote"><span class="zahl">${quote} %</span><span class="leise">${beantwortet} beantwortet, ${offen} offen</span></div>
+            <div class="anteil" aria-hidden="true"><span style="width:${quote}%"></span></div>
           </div>
-        </div>
-        <div class="karte-koerper">
-          ${stats.webhookKonfiguriert
-            ? '<div class="info-box erfolg"><span>✅</span><span>Poke-Webhook ist konfiguriert und aktiv.</span></div>'
-            : '<div class="info-box warnung"><span>⚠️</span><span>Poke-Webhook ist noch nicht konfiguriert. Gehe zu den <strong>Einstellungen</strong> und trage die Webhook-Daten ein.</span></div>'
-          }
-        </div>
+        </section>
+        <section class="karte">
+          <div class="tafel-kopf"><h2>Wer schreibt am meisten</h2></div>
+          <div class="tafel-koerper">
+            ${top.length ? `<ol class="rangliste">${top.map(n => `<li><span class="name">${UI.escapeHtml(n.username)}</span><span class="balken"><span style="width:${n.anzahl / maxTop * 100}%"></span></span><span class="zahl">${n.anzahl}</span></li>`).join('')}</ol>` : '<p class="leise">Noch keine Daten.</p>'}
+          </div>
+        </section>
       </div>
 
-      <div class="karte" style="margin-top: 20px;">
-        <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-          <div class="karte-icon karte-icon-primaer">📝</div>
-          <div style="flex: 1; min-width: 200px;">
-            <div class="karte-titel">Admin-Notiz</div>
-            <div class="karte-untertitel">Ein persönliches Notizfeld für dich</div>
-          </div>
-          <div>
-            <button class="btn btn-sekundaer btn-klein" id="admin-notiz-speichern">Speichern</button>
-          </div>
+      <section class="karte">
+        <div class="tafel-kopf"><h2>Notiz</h2><div class="tafel-aktionen"><button class="btn btn-sekundaer btn-klein" id="admin-notiz-speichern">Speichern</button></div></div>
+        <div class="tafel-koerper">
+          <label class="sr-only" for="admin-notiz-feld">Notiz</label>
+          <textarea id="admin-notiz-feld" class="formular-textarea" rows="5" placeholder="Nur für dich sichtbar">${UI.escapeHtml(notiz.text)}</textarea>
         </div>
-        <div class="karte-koerper">
-          <div class="textarea-wrapper">
-            <textarea id="admin-notiz-feld" class="formular-textarea" rows="6" placeholder="Hier kannst du eine Notiz hinterlegen...">${UI.escapeHtml(notiz.text)}</textarea>
-          </div>
-        </div>
-      </div>
+      </section>
 
-      <!-- Charts Section -->
-      <div class="karte" style="margin-top: 20px;">
-        <div class="karte-header">
-          <div class="karte-icon karte-icon-primaer">📈</div>
-          <div><div class="karte-titel">Nachrichten (30 Tage)</div></div>
-        </div>
-        <div class="karte-koerper">
-          <canvas id="chart-verlauf" height="100"></canvas>
-        </div>
-      </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
-        <div class="karte">
-          <div class="karte-header">
-            <div class="karte-icon karte-icon-erfolg">🎯</div>
-            <div><div class="karte-titel">Antwortrate</div></div>
-          </div>
-          <div class="karte-koerper" style="display: flex; justify-content: center;">
-            <div style="max-width: 200px;"><canvas id="chart-antwortrate"></canvas></div>
-          </div>
-        </div>
-        <div class="karte">
-          <div class="karte-header">
-            <div class="karte-icon karte-icon-primaer">🏆</div>
-            <div><div class="karte-titel">Top Nutzer</div></div>
-          </div>
-          <div class="karte-koerper">
-            <canvas id="chart-top-nutzer" height="140"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- Broadcast-Karte -->
-      <div class="karte" style="margin-top: 20px;">
-        <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-          <div class="karte-icon karte-icon-warnung">📢</div>
-          <div style="flex: 1; min-width: 200px;">
-            <div class="karte-titel">Broadcast-Mail</div>
-            <div class="karte-untertitel">E-Mail an alle aktiven Nutzer senden</div>
-          </div>
-        </div>
-        <div class="karte-koerper">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+      <section class="karte">
+        <div class="tafel-kopf"><h2>Rundmail</h2><span class="leise" style="margin-left:auto">an alle aktiven Nutzer oder ein Label</span></div>
+        <div class="tafel-koerper">
+          <div class="einstellungen-grid">
             <div class="formular-gruppe">
               <label class="formular-label" for="broadcast-betreff">Betreff</label>
-              <input class="formular-eingabe" type="text" id="broadcast-betreff" placeholder="Wichtige Mitteilung">
+              <input class="formular-eingabe" type="text" id="broadcast-betreff">
             </div>
             <div class="formular-gruppe">
-              <label class="formular-label" for="broadcast-label">Empfänger-Label (optional)</label>
+              <label class="formular-label" for="broadcast-label">Empfänger</label>
               <select class="formular-select" id="broadcast-label">
                 <option value="">Alle aktiven Nutzer</option>
                 ${labels.map(l => `<option value="${l.id}">${UI.escapeHtml(l.name)}</option>`).join('')}
@@ -214,47 +154,36 @@ const AdminView = {
           </div>
           <div class="formular-gruppe">
             <label class="formular-label" for="broadcast-nachricht">Nachricht</label>
-            <textarea class="formular-textarea" id="broadcast-nachricht" rows="4" placeholder="Deine Nachricht an alle Nutzer..."></textarea>
+            <textarea class="formular-textarea" id="broadcast-nachricht" rows="4"></textarea>
           </div>
-          <div style="display: flex; justify-content: flex-end;">
-            <button class="btn btn-warnung btn-klein" id="broadcast-senden-btn">📢 An alle senden</button>
+          <div style="display:flex; justify-content:flex-end;">
+            <button class="btn btn-primaer" id="broadcast-senden-btn">${UI.icon('rundruf')}Rundmail senden</button>
           </div>
         </div>
-      </div>
+      </section>
     `;
 
     document.getElementById('admin-notiz-speichern')?.addEventListener('click', async (e) => {
-      const btn = e.target;
+      const btn = e.currentTarget;
       const text = document.getElementById('admin-notiz-feld').value;
       UI.btnLaden(btn, true);
       try {
         await API.adminNotizSpeichern(text);
-        UI.erfolg('Notiz erfolgreich gespeichert.');
+        UI.erfolg('Notiz gespeichert.');
       } catch (err) {
-        UI.fehler('Fehler beim Speichern der Notiz: ' + err.message);
+        UI.fehler('Notiz konnte nicht gespeichert werden: ' + err.message);
       } finally {
         UI.btnLaden(btn, false);
       }
     });
 
-    // Chart.js laden und Charts rendern
-    if (!window.Chart) {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js';
-      document.head.appendChild(s);
-      await new Promise(r => s.onload = r);
-    }
-    this._renderCharts(stats);
-
-    // Broadcast-Karte Event
     document.getElementById('broadcast-senden-btn')?.addEventListener('click', async (e) => {
-      const btn = e.target;
+      const btn = e.currentTarget;
       const betreff = document.getElementById('broadcast-betreff').value.trim();
       const nachricht = document.getElementById('broadcast-nachricht').value.trim();
       const labelId = document.getElementById('broadcast-label').value;
-      
       if (!betreff || !nachricht) { UI.fehler('Betreff und Nachricht bitte ausfüllen.'); return; }
-      if (!confirm(`Broadcast wirklich senden?`)) return;
+      if (!confirm('Rundmail jetzt senden?')) return;
       UI.btnLaden(btn, true);
       try {
         const result = await API.adminBroadcastSenden(betreff, nachricht, labelId || null);
@@ -269,65 +198,20 @@ const AdminView = {
     });
   },
 
-  _renderCharts(stats) {
-    // Nachrichten-Verlauf Chart
-    const verlaufCtx = document.getElementById('chart-verlauf')?.getContext('2d');
-    if (verlaufCtx && stats.nachrichtenProTag?.length > 0) {
-      new Chart(verlaufCtx, {
-        type: 'line',
-        data: {
-          labels: stats.nachrichtenProTag.map(d => {
-            const [y, m, day] = d.tag.split('-');
-            return `${day}.${m}.`;
-          }),
-          datasets: [{ label: 'Nachrichten', data: stats.nachrichtenProTag.map(d => d.anzahl), borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4, pointBackgroundColor: '#6366f1' }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 } } }
-      });
-    }
-
-    // Antwortrate Donut
-    const antwortrateCtx = document.getElementById('chart-antwortrate')?.getContext('2d');
-    if (antwortrateCtx) {
-      new Chart(antwortrateCtx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Beantwortet', 'Offen'],
-          datasets: [{ data: [stats.antwortrate?.beantwortet || 0, stats.antwortrate?.offen || 0], backgroundColor: ['#10b981', '#1e293b'], borderColor: ['#059669', '#334155'], borderWidth: 2 }]
-        },
-        options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, cutout: '65%' }
-      });
-    }
-
-    // Top Nutzer Bar Chart
-    const topNutzerCtx = document.getElementById('chart-top-nutzer')?.getContext('2d');
-    if (topNutzerCtx && stats.topNutzer?.length > 0) {
-      new Chart(topNutzerCtx, {
-        type: 'bar',
-        data: {
-          labels: stats.topNutzer.map(n => n.username),
-          datasets: [{ label: 'Nachrichten', data: stats.topNutzer.map(n => n.anzahl), backgroundColor: 'rgba(99,102,241,0.6)', borderColor: '#6366f1', borderWidth: 1, borderRadius: 6 }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8' }, grid: { display: false } }, y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 } } }
-      });
-    }
-  },
-
   // ─── Labels-Verwaltung ──────────────────────────────────────────────────
 
   async labelsRendern(container) {
     const labels = await API.adminLabelsLaden();
     const farbOptionen = [
-      { hex: '#6366f1', name: 'Indigo' }, { hex: '#8b5cf6', name: 'Violett' },
-      { hex: '#10b981', name: 'Grün' }, { hex: '#f59e0b', name: 'Gelb' },
-      { hex: '#ef4444', name: 'Rot' }, { hex: '#06b6d4', name: 'Cyan' },
-      { hex: '#ec4899', name: 'Pink' }, { hex: '#64748b', name: 'Grau' },
+      { hex: '#0e518d', name: 'Verkehrsblau' }, { hex: '#e5531f', name: 'Verkehrsorange' },
+      { hex: '#c4120f', name: 'Verkehrsrot' }, { hex: '#f2c500', name: 'Signalgelb' },
+      { hex: '#00774a', name: 'Verkehrsgrün' }, { hex: '#5b3a76', name: 'Signalviolett' },
+      { hex: '#7a5435', name: 'Braun' }, { hex: '#646b6a', name: 'Verkehrsgrau' },
     ];
 
     container.innerHTML = `
       <div class="karte">
         <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-          <div class="karte-icon karte-icon-primaer">🏷️</div>
           <div style="flex: 1; min-width: 200px;">
             <div class="karte-titel">Labels verwalten</div>
             <div class="karte-untertitel">${labels.length} Labels erstellt</div>
@@ -354,7 +238,7 @@ const AdminView = {
             ${labels.length === 0 ? UI.leereListeHtml('🏷️', 'Noch keine Labels erstellt.') : `
               <div style="display: flex; flex-wrap: wrap; gap: 10px;">
                 ${labels.map(l => `
-                  <div style="display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px;">
+                  <div style="display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--flaeche-2); border: 1px solid var(--flaeche-2); border-radius: 20px;">
                     <span style="width: 10px; height: 10px; border-radius: 50%; background: ${l.farbe}; display: inline-block;"></span>
                     <span style="font-size: 13px; font-weight: 600; color: var(--farbe-text);">${UI.escapeHtml(l.name)}</span>
                     <span style="font-size: 11px; color: var(--farbe-text-gedaempft);">(${l.nutzerAnzahl})</span>
@@ -369,7 +253,7 @@ const AdminView = {
     `;
 
     document.getElementById('label-erstellen-btn')?.addEventListener('click', async (e) => {
-      const btn = e.target;
+      const btn = e.currentTarget;
       const name = document.getElementById('label-name').value.trim();
       const farbe = document.getElementById('label-farbe').value;
       if (!name) { UI.fehler('Bitte einen Label-Namen eingeben.'); return; }
@@ -407,7 +291,6 @@ const AdminView = {
     container.innerHTML = `
       <div class="karte">
         <div class="karte-header" style="padding-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-          <div class="karte-icon karte-icon-primaer">👥</div>
           <div style="flex: 1; min-width: 200px;">
             <div class="karte-titel">Nutzer-Verwaltung</div>
             <div class="karte-untertitel">${nutzer.length} Nutzer insgesamt</div>
@@ -417,7 +300,7 @@ const AdminView = {
               <option value="all">Alle Labels</option>
               ${labels.map(l => `<option value="${l.id}">${UI.escapeHtml(l.name)}</option>`).join('')}
             </select>
-            <button class="btn btn-sekundaer btn-klein" id="nutzer-einladen-btn">✉️ Einladen</button>
+            <button class="btn btn-sekundaer btn-klein" id="nutzer-einladen-btn">${UI.icon('mail')}Einladen</button>
             <button class="btn btn-primaer btn-klein" id="nutzer-erstellen-btn">+ Erstellen</button>
           </div>
         </div>
@@ -457,54 +340,54 @@ const AdminView = {
                         <td>
                           <div class="tabellen-aktionen">
                             ${n.rolle !== 'admin' ? `
-                              <button class="btn btn-ghost btn-klein"
+                              <button class="btn btn-icon btn-ghost btn-klein"
                                 onclick="AdminView.nutzerStatusToggle(${n.id}, ${!n.aktiv})"
-                                title="${n.aktiv ? 'Deaktivieren' : 'Aktivieren'}">
-                                ${n.aktiv ? '⏸' : '▶️'}
-                              </button>
+                                title="${n.aktiv ? 'Deaktivieren' : 'Aktivieren'}" aria-label="${n.aktiv ? 'Deaktivieren' : 'Aktivieren'}">
+                                  ${UI.icon(n.aktiv ? 'pause' : 'start')}
+                                </button>
                               ${n.hatEinladungAusstehend ? `
-                                <button class="btn btn-sekundaer btn-klein"
+                                <button class="btn btn-icon btn-sekundaer btn-klein"
                                   onclick="AdminView.einladungNeu(${n.id})"
-                                  title="Neue Einladung senden">
-                                  ↩️
+                                  title="Neue Einladung senden" aria-label="Neue Einladung senden">
+                                  ${UI.icon('mail')}
                                 </button>
                               ` : ''}
-                              <button class="btn btn-sekundaer btn-klein"
+                              <button class="btn btn-icon btn-sekundaer btn-klein"
                                 onclick="AdminView.nutzerBearbeitenModal(${n.id})"
-                                title="Nutzer bearbeiten">
-                                ✏️
-                              </button>
-                              <button class="btn btn-sekundaer btn-klein"
+                                title="Nutzer bearbeiten" aria-label="Nutzer bearbeiten">
+                                  ${UI.icon('bearbeiten')}
+                                </button>
+                              <button class="btn btn-icon btn-sekundaer btn-klein"
                                 onclick="AdminView.nutzerLabelsBearbeiten(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
-                                title="Labels zuweisen">
-                                🏷️
-                              </button>
-                              <button class="btn btn-sekundaer btn-klein"
+                                title="Labels zuweisen" aria-label="Labels zuweisen">
+                                  ${UI.icon('label')}
+                                </button>
+                              <button class="btn btn-icon btn-sekundaer btn-klein"
                                 onclick="AdminView.nutzerPokeProfileBearbeiten(${n.id})"
-                                title="KI-Agenten zuweisen">
-                                🤖
-                              </button>
-                              <button class="btn btn-sekundaer btn-klein"
+                                title="KI-Agenten zuweisen" aria-label="KI-Agenten zuweisen">
+                                  ${UI.icon('agent')}
+                                </button>
+                              <button class="btn btn-icon btn-sekundaer btn-klein"
                                 onclick="AdminView.passwortReset(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
-                                title="Passwort zurücksetzen (E-Mail senden)">
-                                🔑
-                              </button>
-                              <button class="btn btn-gefahr btn-klein"
+                                title="Passwort zurücksetzen (E-Mail senden)" aria-label="Passwort zurücksetzen (E-Mail senden)">
+                                  ${UI.icon('schluessel')}
+                                </button>
+                              <button class="btn btn-icon btn-gefahr btn-klein"
                                 onclick="AdminView.nutzerLoeschen(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
-                                title="Nutzer löschen">
-                                🗑️
-                              </button>
+                                title="Nutzer löschen" aria-label="Nutzer löschen">
+                                  ${UI.icon('loeschen')}
+                                </button>
                             ` : `
-                              <button class="btn btn-sekundaer btn-klein"
+                              <button class="btn btn-icon btn-sekundaer btn-klein"
                                 onclick="AdminView.nutzerBearbeitenModal(${n.id})"
-                                title="Profil bearbeiten">
-                                ✏️
-                              </button>
-                              <button class="btn btn-sekundaer btn-klein"
+                                title="Profil bearbeiten" aria-label="Profil bearbeiten">
+                                  ${UI.icon('bearbeiten')}
+                                </button>
+                              <button class="btn btn-icon btn-sekundaer btn-klein"
                                 onclick="AdminView.passwortReset(${n.id}, '${UI.escapeHtml(n.benutzername)}')"
-                                title="Eigenes Passwort zurücksetzen">
-                                🔑
-                              </button>
+                                title="Eigenes Passwort zurücksetzen" aria-label="Eigenes Passwort zurücksetzen">
+                                  ${UI.icon('schluessel')}
+                                </button>
                             `}
                           </div>
                         </td>
@@ -586,13 +469,13 @@ const AdminView = {
 
       html += `
         </div>
-        <button type="submit" class="btn btn-primaer" style="margin-top:10px;">💾 Speichern</button>
+        <button type="submit" class="btn btn-primaer" style="margin-top:10px;">Speichern</button>
       </form>`;
 
       UI.modalZeigen(`
         <div class="modal-header">
-          <span class="modal-titel">🤖 KI-Agenten für ${UI.escapeHtml(name)}</span>
-          <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+          <span class="modal-titel">KI-Agenten für ${UI.escapeHtml(name)}</span>
+          <button class="modal-schliessen" onclick="UI.modalSchliessen()" aria-label="Schließen">${UI.icon('x')}</button>
         </div>
         <div class="modal-koerper">
           ${html}
@@ -629,14 +512,14 @@ const AdminView = {
 
       UI.modalZeigen(`
         <div class="modal-header">
-          <span class="modal-titel">🏷️ Labels für ${UI.escapeHtml(name)}</span>
-          <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+          <span class="modal-titel">Labels für ${UI.escapeHtml(name)}</span>
+          <button class="modal-schliessen" onclick="UI.modalSchliessen()" aria-label="Schließen">${UI.icon('x')}</button>
         </div>
         <div class="modal-koerper">
           <form id="nutzer-labels-formular">
             <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
               ${allLabels.length === 0 ? '<p>Noch keine Labels erstellt.</p>' : allLabels.map(l => `
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; background: var(--flaeche-2); border-radius: 8px;">
                   <input type="checkbox" name="nutzer-label-checkbox" value="${l.id}" id="label-${l.id}" ${nutzerLabelIds.includes(l.id) ? 'checked' : ''} style="width: 18px; height: 18px;">
                   <label for="label-${l.id}" style="display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1;">
                     <span style="width: 12px; height: 12px; border-radius: 50%; background: ${l.farbe}; display: inline-block;"></span>
@@ -705,18 +588,18 @@ const AdminView = {
         UI.modalZeigen(`
           <div class="modal-header">
             <span class="modal-titel">Einladungslink</span>
-            <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+            <button class="modal-schliessen" onclick="UI.modalSchliessen()" aria-label="Schließen">${UI.icon('x')}</button>
           </div>
           <div class="modal-koerper">
             <div class="info-box warnung" style="margin-bottom: 16px;">
-              <span>⚠️</span>
+              ${UI.icon('wichtig')}
               <span>E-Mail konnte nicht gesendet werden. Teile diesen Link manuell:</span>
             </div>
             <div class="formular-gruppe">
               <input class="formular-eingabe" type="text" value="${appUrl}/#einladung/${ergebnis.einladungsToken}" readonly onclick="this.select()">
             </div>
             <button class="btn btn-primaer btn-vollbreite" onclick="navigator.clipboard.writeText('${appUrl}/#einladung/${ergebnis.einladungsToken}'); UI.erfolg('Link kopiert!'); UI.modalSchliessen();">
-              📋 Link kopieren
+              ${UI.icon('kopieren')}Link kopieren
             </button>
           </div>
         `);
@@ -727,7 +610,7 @@ const AdminView = {
         UI.modalZeigen(`
           <div class="modal-header">
             <span class="modal-titel">Einladungslink</span>
-            <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+            <button class="modal-schliessen" onclick="UI.modalSchliessen()" aria-label="Schließen">${UI.icon('x')}</button>
           </div>
           <div class="modal-koerper">
             <div class="info-box info" style="margin-bottom: 16px;">
@@ -738,7 +621,7 @@ const AdminView = {
               <input class="formular-eingabe" type="text" value="${url}" readonly onclick="this.select()">
             </div>
             <button class="btn btn-primaer btn-vollbreite" onclick="navigator.clipboard.writeText('${url}'); UI.erfolg('Link kopiert!'); UI.modalSchliessen();">
-              📋 Link kopieren
+              ${UI.icon('kopieren')}Link kopieren
             </button>
           </div>
         `);
@@ -773,8 +656,8 @@ const AdminView = {
 
     UI.modalZeigen(`
       <div class="modal-header">
-        <span class="modal-titel">✏️ Nutzer bearbeiten</span>
-        <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+        <span class="modal-titel">Nutzer bearbeiten</span>
+        <button class="modal-schliessen" onclick="UI.modalSchliessen()" aria-label="Schließen">${UI.icon('x')}</button>
       </div>
       <div class="modal-koerper">
         <form id="bearbeiten-formular">
@@ -794,19 +677,19 @@ const AdminView = {
             <label class="formular-label" for="bearbeiten-ntfy">ntfy.sh Topic (optional)</label>
             <div style="display: flex; gap: 8px;">
               <input class="formular-eingabe" type="text" id="bearbeiten-ntfy" value="${ntfy_topic}" placeholder="z.B. yrelay-ruwen-abc123xyz" maxlength="32" pattern="[A-Za-z0-9_-]+" style="flex: 1;">
-              <button type="button" class="btn btn-ghost" id="admin-ntfy-generieren" title="Zufälliges Topic generieren">🎲 Generieren</button>
+              <button type="button" class="btn btn-ghost" id="admin-ntfy-generieren" title="Zufälliges Topic generieren">${UI.icon('wuerfel')}Generieren</button>
             </div>
           </div>
           <div class="formular-gruppe" style="margin-top: 15px;">
             <label class="formular-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
               <input type="checkbox" id="bearbeiten-email-notifications" ${email_notifications ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
-              ✉️ E-Mail-Benachrichtigungen senden
+              ${UI.icon('mail')}E-Mail-Benachrichtigungen senden
             </label>
           </div>
           <div class="formular-gruppe" style="margin-top: 5px;">
             <label class="formular-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
               <input type="checkbox" id="bearbeiten-schul-access" ${has_schul_access ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
-              🎒 Zugriff auf Schul-Dashboard erlauben
+              Zugriff auf Schul-Dashboard erlauben
             </label>
           </div>
           <div class="formular-gruppe" id="schul-poke-auswahl-container" style="${has_schul_access ? '' : 'display:none;'}">
@@ -817,7 +700,7 @@ const AdminView = {
             </select>
           </div>
           <div id="bearbeiten-fehler" class="info-box fehler versteckt" style="margin-bottom: 12px;">
-            <span>⚠️</span><span id="bearbeiten-fehler-text"></span>
+            ${UI.icon('wichtig')}<span id="bearbeiten-fehler-text"></span>
           </div>
           <div style="display: flex; gap: 10px;">
             <button type="button" class="btn btn-ghost" onclick="UI.modalSchliessen()">Abbrechen</button>
@@ -877,8 +760,8 @@ const AdminView = {
   nutzerErstellenModal() {
     UI.modalZeigen(`
       <div class="modal-header">
-        <span class="modal-titel">➕ Nutzer erstellen</span>
-        <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+        <span class="modal-titel">Nutzer erstellen</span>
+        <button class="modal-schliessen" onclick="UI.modalSchliessen()" aria-label="Schließen">${UI.icon('x')}</button>
       </div>
       <div class="modal-koerper">
         <form id="erstellen-formular">
@@ -899,7 +782,7 @@ const AdminView = {
             <input class="formular-eingabe" type="password" id="erstellen-passwort" required minlength="8" placeholder="Mindestens 8 Zeichen">
           </div>
           <div id="erstellen-fehler" class="info-box fehler versteckt" style="margin-bottom: 12px;">
-            <span>⚠️</span><span id="erstellen-fehler-text"></span>
+            ${UI.icon('wichtig')}<span id="erstellen-fehler-text"></span>
           </div>
           <div style="display: flex; gap: 10px;">
             <button type="button" class="btn btn-ghost" onclick="UI.modalSchliessen()">Abbrechen</button>
@@ -938,8 +821,8 @@ const AdminView = {
   nutzerEinladenModal() {
     UI.modalZeigen(`
       <div class="modal-header">
-        <span class="modal-titel">✉️ Nutzer einladen</span>
-        <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+        <span class="modal-titel">Nutzer einladen</span>
+        <button class="modal-schliessen" onclick="UI.modalSchliessen()" aria-label="Schließen">${UI.icon('x')}</button>
       </div>
       <div class="modal-koerper">
         <div class="info-box info" style="margin-bottom: 20px;">
@@ -960,7 +843,7 @@ const AdminView = {
             <input class="formular-eingabe" type="email" id="einladen-email" autocomplete="off">
           </div>
           <div id="einladen-fehler" class="info-box fehler versteckt" style="margin-bottom: 12px;">
-            <span>⚠️</span><span id="einladen-fehler-text"></span>
+            ${UI.icon('wichtig')}<span id="einladen-fehler-text"></span>
           </div>
           <div style="display: flex; gap: 10px;">
             <button type="button" class="btn btn-ghost" onclick="UI.modalSchliessen()">Abbrechen</button>
@@ -991,7 +874,7 @@ const AdminView = {
           UI.modalZeigen(`
             <div class="modal-header">
               <span class="modal-titel">Einladungslink</span>
-              <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+              <button class="modal-schliessen" onclick="UI.modalSchliessen()" aria-label="Schließen">${UI.icon('x')}</button>
             </div>
             <div class="modal-koerper">
               <div class="info-box info" style="margin-bottom: 16px;">
@@ -1003,7 +886,7 @@ const AdminView = {
               </div>
               <button class="btn btn-primaer btn-vollbreite"
                 onclick="navigator.clipboard.writeText('${url}'); UI.erfolg('Link kopiert!'); UI.modalSchliessen();">
-                📋 Link kopieren
+                ${UI.icon('kopieren')}Link kopieren
               </button>
             </div>
           `);
@@ -1028,7 +911,6 @@ const AdminView = {
     container.innerHTML = `
       <div class="karte">
         <div class="karte-header" style="padding-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-          <div class="karte-icon karte-icon-info">📨</div>
           <div style="flex: 1; min-width: 200px;">
             <div class="karte-titel">Alle gesendeten Nachrichten</div>
             <div class="karte-untertitel">${nachrichten.length} Nachrichten</div>
@@ -1038,26 +920,17 @@ const AdminView = {
           ${nachrichten.length === 0
             ? UI.leereListeHtml('📭', 'Noch keine Nachrichten gesendet.')
             : `
-              <div class="verlauf-liste">
+              <div class="fahrten">
                 ${nachrichten.map(n => `
-                  <div class="verlauf-eintrag">
-                    <div>
+                  <article class="fahrt stufe-${UI.stufeVon(n.typ, n.prioritaet)}">
+                    <div class="fahrt-kopf" style="padding-right:0">
+                      <span class="plakette">${UI.icon('nutzer')}${UI.escapeHtml(n.von.benutzername)}</span>
                       ${UI.typBadge(n.typ, n.prioritaet)}
-                      ${n.prioritaet ? `<div style="margin-top: 4px; font-size: 11px; color: var(--farbe-text-schwach);">${UI.prioritaetText(n.prioritaet)}</div>` : ''}
+                      <span class="leise" style="margin-left:auto">${UI.datumFormatieren(n.gesendetAm)}</span>
                     </div>
-                    <div>
-                      <div class="verlauf-nutzer">👤 ${UI.escapeHtml(n.von.benutzername)} &lt;${UI.escapeHtml(n.von.email)}&gt;</div>
-                      <div style="margin-top: 6px;">${UI.renderInhalt(n.inhalt)}</div>
-                      ${n.fehler ? `<div style="font-size: 12px; color: var(--farbe-notfall); margin-top: 4px;">⚠️ ${UI.escapeHtml(n.fehler)}</div>` : ''}
-                      ${UI.renderAntworten(n.id, n.antwortText, n.nutzerAntworten)}
-                    </div>
-                    <div style="text-align: right;">
-                      <div class="verlauf-datum">${UI.datumFormatieren(n.gesendetAm)}</div>
-                      <div class="verlauf-status ${n.status === 'gesendet' ? 'gesendet' : 'fehlgeschlagen'}" style="margin-top: 4px;">
-                        ${n.status === 'gesendet' ? '✓ Gesendet' : '✗ Fehlgeschlagen'}
-                      </div>
-                    </div>
-                  </div>
+                    ${UI.renderInhalt(n.inhalt)}
+                    ${UI.linieHtml(n, { admin: true })}
+                  </article>
                 `).join('')}
               </div>
             `
@@ -1077,7 +950,6 @@ const AdminView = {
     container.innerHTML = `
       <div class="karte">
         <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-          <div class="karte-icon karte-icon-primaer">🔗</div>
           <div style="flex: 1; min-width: 200px;">
             <div class="karte-titel">Poke-Webhook</div>
             <div class="karte-untertitel">Verbindung zu deinem Poke KI-Assistenten</div>
@@ -1087,7 +959,7 @@ const AdminView = {
           <form id="einstellungen-formular">
             <!-- Poke-Webhook -->
             <div class="einstellungen-sektion">
-              <div class="einstellungen-sektion-titel">🤖 Poke API</div>
+              <div class="einstellungen-sektion-titel">Poke API</div>
               <div class="formular-gruppe">
                 <label class="formular-label" for="poke-url">Webhook-URL</label>
                 <input class="formular-eingabe" type="url" id="poke-url" value="${UI.escapeHtml(einstellungen.pokeWebhookUrl)}" placeholder="https://poke.com/api/v1/inbound/api-message">
@@ -1102,7 +974,7 @@ const AdminView = {
 
             <!-- SMTP -->
             <div class="einstellungen-sektion">
-              <div class="einstellungen-sektion-titel">📧 SMTP (für E-Mails)</div>
+              <div class="einstellungen-sektion-titel">SMTP (für E-Mails)</div>
               <div class="einstellungen-grid">
                 <div class="formular-gruppe">
                   <label class="formular-label" for="smtp-host">SMTP-Server</label>
@@ -1125,13 +997,13 @@ const AdminView = {
                 <label class="formular-label" for="smtp-from">Absender-Adresse</label>
                 <input class="formular-eingabe" type="email" id="smtp-from" value="${UI.escapeHtml(einstellungen.smtpFrom)}" placeholder="yrelay@example.com">
               </div>
-              <button type="button" class="btn btn-sekundaer btn-klein" id="smtp-test-btn">🔌 SMTP-Verbindung testen</button>
+              <button type="button" class="btn btn-sekundaer btn-klein" id="smtp-test-btn">${UI.icon('verbunden')}SMTP-Verbindung testen</button>
             </div>
 
             <hr class="trennlinie">
 
             <div class="einstellungen-sektion">
-              <div class="einstellungen-sektion-titel">📲 Pushover (optional)</div>
+              <div class="einstellungen-sektion-titel">Pushover (optional)</div>
               <div class="formular-gruppe">
                 <label class="formular-label" for="pushover-app-token">Anwendungs-Token</label>
                 <input class="formular-eingabe" type="password" id="pushover-app-token" autocomplete="new-password" placeholder="${einstellungen.pushoverAppTokenGesetzt ? '•••••••• (unverändert)' : 'Pushover Application API Token'}">
@@ -1143,7 +1015,7 @@ const AdminView = {
 
             <!-- App-URL -->
             <div class="einstellungen-sektion">
-              <div class="einstellungen-sektion-titel">🌐 App-Einstellungen</div>
+              <div class="einstellungen-sektion-titel">App-Einstellungen</div>
               <div class="formular-gruppe">
                 <label class="formular-label" for="app-url">Öffentliche App-URL</label>
                 <input class="formular-eingabe" type="url" id="app-url" value="${UI.escapeHtml(einstellungen.appUrl)}" placeholder="https://yrelay.deinedomain.de">
@@ -1155,7 +1027,7 @@ const AdminView = {
 
             <!-- Schul-Dashboard -->
             <div class="einstellungen-sektion">
-              <div class="einstellungen-sektion-titel">🎒 Schul-Dashboard (Modus)</div>
+              <div class="einstellungen-sektion-titel">Schul-Dashboard (Modus)</div>
               <div class="formular-gruppe">
                 <label class="formular-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                   <input type="checkbox" id="schul-dashboard-global" ${einstellungen.schulDashboardEnabled ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
@@ -1196,7 +1068,7 @@ const AdminView = {
                 <textarea class="formular-textarea" id="schul-ferien" rows="3">${UI.escapeHtml(einstellungen.schulFerien)}</textarea>
               </div>
 
-              <div class="einstellungen-sektion-titel" style="margin-top:20px;">🐧 Pingvin Share Integration (Schul-Dashboard)</div>
+              <div class="einstellungen-sektion-titel" style="margin-top:20px;">Pingvin Share Integration (Schul-Dashboard)</div>
               <p class="text-gedaempft" style="margin-bottom: 15px;">Ermöglicht Dateiuploads aus dem Dashboard-Chat direkt zu Pingvin Share und sendet den Link an Poke.</p>
               <div class="formular-gruppe">
                 <label class="formular-label" for="pingvin-url">Pingvin Share URL</label>
@@ -1216,7 +1088,7 @@ const AdminView = {
 
             <div style="display: flex; justify-content: flex-end;">
               <button type="submit" class="btn btn-primaer" id="einstellungen-speichern-btn">
-                💾 Einstellungen speichern
+                Einstellungen speichern
               </button>
             </div>
           </form>
@@ -1226,7 +1098,6 @@ const AdminView = {
       <!-- Backup Verwaltung -->
       <div class="karte" style="margin-top: 20px;">
         <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-          <div class="karte-icon karte-icon-warnung">🛡️</div>
           <div style="flex: 1; min-width: 200px;">
             <div class="karte-titel">Backups (Sicherungen)</div>
             <div class="karte-untertitel">Datenbank-Backups verwalten und wiederherstellen</div>
@@ -1280,7 +1151,7 @@ const AdminView = {
           smtpPass: document.getElementById('smtp-pass').value || '••••••••',
           smtpFrom: document.getElementById('smtp-from').value.trim(),
         });
-        UI.erfolg('SMTP-Verbindung erfolgreich! ✅');
+        UI.erfolg('SMTP-Verbindung erfolgreich!');
       } catch (err) {
         UI.fehler(`SMTP-Test fehlgeschlagen: ${err.message}`);
       } finally {
@@ -1314,7 +1185,7 @@ const AdminView = {
           schulNachlaufMinuten: document.getElementById('schul-nachlauf').value,
           schulFerien: document.getElementById('schul-ferien').value.trim()
         });
-        UI.erfolg('Einstellungen gespeichert! ✅');
+        UI.erfolg('Einstellungen gespeichert!');
       } catch (err) {
         UI.fehler(err.message);
       } finally {
@@ -1324,7 +1195,7 @@ const AdminView = {
 
     // Backup erstellen
     document.getElementById('backup-erstellen-btn')?.addEventListener('click', async (e) => {
-      const btn = e.target;
+      const btn = e.currentTarget;
       UI.btnLaden(btn, true);
       try {
         await API.adminBackupErstellen();
@@ -1348,7 +1219,7 @@ const AdminView = {
           await API.adminBackupWiederherstellen(file);
           UI.modalZeigen(`
             <div class="modal-header">
-              <span class="modal-titel">✅ Wiederherstellung erfolgreich</span>
+              <span class="modal-titel">Wiederherstellung erfolgreich</span>
             </div>
             <div class="modal-koerper">
               <p>Das Backup wurde erfolgreich eingespielt. Der Server startet jetzt neu.</p>
@@ -1381,7 +1252,7 @@ const AdminView = {
 
       container.innerHTML = `
         <div class="admin-panel-karte">
-          <h3>📜 Audit Log</h3>
+          <h3>Audit Log</h3>
           <p style="color: var(--farbe-text-schwach); margin-bottom: 20px;">Die neuesten Aktivitäten im System.</p>
           <div class="tabelle-container" style="max-height: 600px; overflow-y: auto;">
             <table class="tabelle">
@@ -1397,7 +1268,7 @@ const AdminView = {
                 ${logs.length === 0 ? '<tr><td colspan="4" style="text-align: center;">Noch keine Einträge.</td></tr>' : logs.map(l => `
                   <tr>
                     <td style="white-space: nowrap; font-size: 12px;">${UI.datumFormatieren(l.created_at)}</td>
-                    <td><span class="label" style="background: rgba(255,255,255,0.1); border-radius: 4px; padding: 2px 6px;">${UI.escapeHtml(l.action)}</span></td>
+                    <td><span class="label" style="background: var(--linie); border-radius: 4px; padding: 2px 6px;">${UI.escapeHtml(l.action)}</span></td>
                     <td>${l.user_name ? UI.escapeHtml(l.user_name) : '<em>System</em>'}</td>
                     <td style="font-size: 13px; color: var(--farbe-text-schwach); line-height: 1.4;">${renderDetails(l.details)}</td>
                   </tr>
@@ -1408,7 +1279,7 @@ const AdminView = {
         </div>
       `;
     } catch (err) {
-      container.innerHTML = `<div class="info-box fehler">⚠️ Fehler beim Laden des Audit Logs: ${err.message}</div>`;
+      container.innerHTML = `<div class="info-box fehler">${UI.icon('fehler')} Fehler beim Laden des Audit Logs: ${err.message}</div>`;
     }
   },
 
@@ -1420,7 +1291,6 @@ const AdminView = {
     let html = `
       <div class="karte">
         <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-          <div class="karte-icon karte-icon-primaer">🤖</div>
           <div style="flex: 1; min-width: 200px;">
             <div class="karte-titel">KI-Agenten verwalten</div>
             <div class="karte-untertitel">${profile.length} Agenten aktiv</div>
@@ -1443,10 +1313,10 @@ const AdminView = {
     } else {
       profile.forEach(p => {
         html += `
-          <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-left: 4px solid ${p.farbe}; border-radius: var(--radius-mittel); padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="background: var(--flaeche-2); border: 1px solid var(--linie); border-radius: var(--r-2); padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div style="display:flex; justify-content:space-between; align-items: flex-start; margin-bottom:12px;">
-                <h4 style="margin:0; font-size:16px; color: var(--farbe-text);">${UI.escapeHtml(p.icon)} ${UI.escapeHtml(p.name)}</h4>
+                <h4 style="margin:0; font-size:19px; display:flex; align-items:center; gap:8px;"><span aria-hidden="true" style="width:12px; height:12px; border-radius:3px; background:${UI.escapeHtml(p.farbe)}"></span>${UI.escapeHtml(p.name)}</h4>
                 ${p.ist_standard ? '<span class="status-badge aktiv" style="padding: 2px 8px; font-size: 11px;">Standard</span>' : ''}
               </div>
               <p style="margin:0 0 16px 0; font-size:12px; color:var(--farbe-text-gedaempft); word-break: break-all;">
@@ -1456,12 +1326,12 @@ const AdminView = {
             </div>
             ${p.transport === 'fo_mcp' ? `
               <div style="margin-bottom:10px; font-size:12px;">
-                ${p.fo_verbunden ? '<span class="status-badge aktiv" style="padding:2px 8px;">✅ Mit FO verbunden</span>' : '<span class="status-badge" style="padding:2px 8px;">⚠️ Noch nicht verbunden</span>'}
-                <button class="btn btn-primaer btn-klein btn-fo-verbinden" style="margin-top:8px; width:100%;" data-id="${p.id}">🔗 ${p.fo_verbunden ? 'Neu mit FO verbinden' : 'Mit FO verbinden'}</button>
+                ${p.fo_verbunden ? '<span class="status-badge aktiv" style="padding:2px 8px;">Mit FO verbunden</span>' : '<span class="status-badge" style="padding:2px 8px;">Noch nicht verbunden</span>'}
+                <button class="btn btn-primaer btn-klein btn-fo-verbinden" style="margin-top:8px; width:100%;" data-id="${p.id}">${UI.icon('link')}${p.fo_verbunden ? 'Neu mit FO verbinden' : 'Mit FO verbinden'}</button>
               </div>` : ''}
             <div style="display:flex; gap:8px;">
-              <button class="btn btn-sekundaer btn-klein btn-profil-bearbeiten" style="flex: 1;" data-id="${p.id}">✏️ Bearbeiten</button>
-              ${!p.ist_standard ? `<button class="btn btn-gefahr btn-klein btn-profil-loeschen" data-id="${p.id}" title="Löschen">🗑️</button>` : ''}
+              <button class="btn btn-sekundaer btn-klein btn-profil-bearbeiten" style="flex: 1;" data-id="${p.id}">Bearbeiten</button>
+              ${!p.ist_standard ? `<button class="btn btn-gefahr btn-klein btn-profil-loeschen" data-id="${p.id}" title="Löschen" aria-label="Löschen">${UI.icon('loeschen')}</button>` : ''}
             </div>
           </div>
         `;
@@ -1534,7 +1404,7 @@ const AdminView = {
           </div>
           <div class="formular-gruppe" style="flex:1;">
             <label class="formular-label">Farbe (HEX)</label>
-            <input type="color" id="prof-farbe" style="height:46px; padding: 4px; width:100%; cursor:pointer; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-mittel);" value="${isEdit ? UI.escapeHtml(profil.farbe) : '#3b82f6'}" required>
+            <input type="color" id="prof-farbe" style="height:46px; padding: 4px; width:100%; cursor:pointer; background: transparent; border: 1px solid var(--linie); border-radius: var(--radius-mittel);" value="${isEdit ? UI.escapeHtml(profil.farbe) : '#3b82f6'}" required>
           </div>
         </div>
         <div class="formular-gruppe">
@@ -1568,14 +1438,14 @@ const AdminView = {
           <input type="checkbox" id="prof-standard" style="width: 18px; height: 18px;" ${isEdit && profil.ist_standard ? 'checked' : ''}>
           <label for="prof-standard" class="formular-label" style="margin: 0; cursor: pointer;">Als Standard-Profil festlegen</label>
         </div>
-        <button type="submit" class="btn btn-primaer btn-vollbreite" style="margin-top: 10px;">💾 Speichern</button>
+        <button type="submit" class="btn btn-primaer btn-vollbreite" style="margin-top: 10px;">Speichern</button>
       </form>
     `;
 
     UI.modalZeigen(`
       <div class="modal-header">
-        <span class="modal-titel">${isEdit ? '✏️ Profil bearbeiten' : '➕ Neues Profil'}</span>
-        <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+        <span class="modal-titel">${isEdit ? 'Agent bearbeiten' : 'Neuer Agent'}</span>
+        <button class="modal-schliessen" onclick="UI.modalSchliessen()" aria-label="Schließen">${UI.icon('x')}</button>
       </div>
       <div class="modal-koerper">
         ${formHtml}
@@ -1638,7 +1508,6 @@ const AdminView = {
     container.innerHTML = `
       <div class="admin-panel-karte karte">
         <div class="karte-header">
-          <div class="karte-icon karte-icon-info">📧</div>
           <div>
             <div class="karte-titel">E-Mail Tool</div>
             <div class="karte-untertitel">Manuelle E-Mails über SMTP versenden</div>
@@ -1683,7 +1552,7 @@ const AdminView = {
             </div>
             
             <button type="submit" class="btn btn-primaer btn-vollbreite" id="email-send-btn">
-              <span>📤</span> E-Mail Senden
+              ${UI.icon('senden')} E-Mail senden
             </button>
           </form>
         </div>
@@ -1802,7 +1671,7 @@ const AdminView = {
     try {
       daten = await API.anfrage('GET', '/games/admin/configs');
     } catch (e) {
-      container.innerHTML = `<div class="info-box fehler"><span>⚠️</span><span>Fehler: ${UI.escapeHtml(e.message)}</span></div>`;
+      container.innerHTML = `<div class="info-box fehler">${UI.icon('wichtig')}<span>Fehler: ${UI.escapeHtml(e.message)}</span></div>`;
       return;
     }
 
@@ -1825,7 +1694,6 @@ const AdminView = {
       return `
         <div class="karte">
           <div class="karte-header" style="padding-bottom:12px;">
-            <div class="karte-icon karte-icon-primaer">${c.meta?.icon || '🎮'}</div>
             <div>
               <div class="karte-titel">${UI.escapeHtml(c.meta?.name || c.game_type)}</div>
               <div class="karte-untertitel" style="font-size:0.8rem;">${UI.escapeHtml(c.meta?.beschreibung || '')}</div>
@@ -1847,7 +1715,7 @@ const AdminView = {
               </select>
             </div>
             
-            <div id="game-labels-container-${c.game_type}" style="display: ${c.access_mode === 'label' ? 'block' : 'none'}; margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.02); border-radius: 6px; border: 1px solid var(--rahmen);">
+            <div id="game-labels-container-${c.game_type}" style="display: ${c.access_mode === 'label' ? 'block' : 'none'}; margin-top: 10px; padding: 10px; background: var(--flaeche-2); border-radius: 6px; border: 1px solid var(--rahmen);">
               <div style="font-size:0.85rem;font-weight:600;margin-bottom:8px;">Erlaubte Gruppen/Labels:</div>
               <div style="display:flex;flex-direction:column;gap:6px;">
                 ${labelOptions || '<div style="font-size:0.8rem;color:var(--text-sekundaer);">Keine Labels vorhanden.</div>'}
@@ -1866,7 +1734,7 @@ const AdminView = {
             Wenn ein Spiel aktiviert ist, erscheint es im Dashboard im Bereich "Spiele".
           </p>
         </div>
-        <button class="btn btn-primaer" id="btn-save-all-games" onclick="AdminView._saveAllGameConfigs()" style="flex-shrink: 0;">💾 Alle Änderungen speichern</button>
+        <button class="btn btn-primaer" id="btn-save-all-games" onclick="AdminView._saveAllGameConfigs()" style="flex-shrink: 0;">Alle Änderungen speichern</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:20px;">
         ${kacheln}
