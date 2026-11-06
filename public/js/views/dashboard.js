@@ -8,19 +8,19 @@ const DashboardView = {
       <div id="onboarding-overlay" class="onboarding-overlay">
         <!-- Slide 1 -->
         <div class="onboarding-slide aktiv" id="obs-1">
-          <div class="onboarding-icon">👋</div>
+          <div class="onboarding-icon">${UI.icon('send')}</div>
           <div class="onboarding-titel">Dein direkter Draht zu Ruwen</div>
           <div class="onboarding-text">
             Willkommen in deiner persönlichen Einsatzzentrale. Das hier ist nicht einfach nur ein weiteres Chat-Programm – es ist eine absolute Garantie, dass du Ruwen erreichst, egal was passiert.
           </div>
           <div class="onboarding-actions">
-            <button class="btn btn-primaer btn-gross obs-next">Weiter geht's ➔</button>
+            <button class="btn btn-primaer btn-gross obs-next">Weiter</button>
           </div>
         </div>
 
         <!-- Slide 2 -->
         <div class="onboarding-slide" id="obs-2">
-          <div class="onboarding-icon">📞</div>
+          <div class="onboarding-icon">${UI.icon('bell-ring')}</div>
           <div class="onboarding-titel">Besser als ein Anruf</div>
           <div class="onboarding-text">
             Wenn das Telefon klingelt, kann man es überhören. Das hier nicht.<br><br>
@@ -28,13 +28,13 @@ const DashboardView = {
           </div>
           <div class="onboarding-actions">
             <button class="btn btn-sekundaer btn-gross obs-prev">Zurück</button>
-            <button class="btn btn-primaer btn-gross obs-next">Verstanden ➔</button>
+            <button class="btn btn-primaer btn-gross obs-next">Verstanden</button>
           </div>
         </div>
 
         <!-- Slide 3 -->
         <div class="onboarding-slide" id="obs-3">
-          <div class="onboarding-icon">📅</div>
+          <div class="onboarding-icon">${UI.icon('calendar')}</div>
           <div class="onboarding-titel">Nicht nur für brennende Häuser!</div>
           <div class="onboarding-text">
             Du musst nicht warten, bis die Welt untergeht. Das System hilft Ruwen auch, seinen Alltag zu organisieren. Du kannst hier jederzeit ganz normale Dinge schreiben, wie zum Beispiel:
@@ -47,20 +47,20 @@ const DashboardView = {
           </div>
           <div class="onboarding-actions">
             <button class="btn btn-sekundaer btn-gross obs-prev">Zurück</button>
-            <button class="btn btn-primaer btn-gross obs-next">Klingt gut ➔</button>
+            <button class="btn btn-primaer btn-gross obs-next">Klingt gut</button>
           </div>
         </div>
 
         <!-- Slide 4 -->
         <div class="onboarding-slide" id="obs-4">
-          <div class="onboarding-icon">🚨</div>
+          <div class="onboarding-icon halt">${UI.icon('siren')}</div>
           <div class="onboarding-titel">Dein erster Test-Alarm</div>
           <div class="onboarding-text">
             Graue Theorie ist langweilig. Lass uns direkt ausprobieren, wie das funktioniert. Drücke auf den roten Knopf unten, um eine "Hallo Welt"-Testnachricht an Ruwen zu schicken.<br><br>
             Keine Sorge, für Testnachrichten geht kein ohrenbetäubender Alarm los – er bekommt nur freundlich Bescheid!
           </div>
           <div class="onboarding-actions" style="flex-direction: column; align-items: center; gap: 16px;">
-            <button class="btn btn-notfall btn-gross" id="obs-test-btn" style="width: 100%; max-width: 300px; font-size: 18px;">Trockenübung starten 🚨</button>
+            <button class="btn btn-notfall btn-gross" id="obs-test-btn" style="width: 100%; max-width: 300px;">Probealarm senden</button>
             <button class="btn btn-ghost" id="obs-skip-btn" style="font-size: 12px;">Überspringen</button>
           </div>
         </div>
@@ -70,107 +70,85 @@ const DashboardView = {
     return `
       ${onboardingHtml}
       <div class="seite haupt-seite" ${!nutzer.has_seen_onboarding ? 'style="filter: blur(5px); pointer-events: none;" id="haupt-wrapper"' : ''}>
-        <!-- Navigation -->
-        <nav class="navbar">
-          <span class="navbar-logo" id="header-logo" style="cursor: pointer; user-select: none;">
-            <span class="logo-y">y</span><span class="logo-relay">Relay</span>
-          </span>
-          <div class="navbar-nav">
-            <div class="nav-nutzer">
-              <div class="nav-avatar">${UI.escapeHtml(avatarBuchstabe)}</div>
-              <div class="nav-info">
-                <span class="nav-name">${UI.escapeHtml(nameToDisplay)}</span>
-                <span class="nav-rolle">Nutzer</span>
-              </div>
-            </div>
-            ${nutzer.schul_dashboard_global_enabled && nutzer.has_schul_access ? '<button class="btn btn-sekundaer btn-klein" id="schule-btn" title="Schul-Dashboard">🎒 Schule</button>' : ''}
-            <button class="btn btn-sekundaer btn-klein versteckt" id="spiele-btn" title="Spielebereich">🎮 Spiele</button>
-            ${nutzer.rolle === 'admin' ? '<button class="btn btn-primaer btn-klein" id="admin-panel-btn" title="Admin Panel">🛠️ Admin</button>' : ''}
-            <button class="btn btn-ghost btn-klein" id="profil-btn" title="Profil bearbeiten">👤</button>
-            <button class="btn btn-ghost btn-klein" id="passwort-btn" title="Passwort ändern">🔒</button>
-            <button class="btn btn-ghost btn-klein" id="abmelden-btn">Abmelden</button>
-          </div>
-        </nav>
+        ${UI.kopfzeile(nutzer, 'dashboard')}
 
         <!-- Hauptinhalt -->
         <main class="hauptinhalt">
-          <div class="sektion-titel">👋 Hallo, ${UI.escapeHtml(nameToDisplay)}!</div>
-          <p class="sektion-untertitel">Sende Nachrichten an deinen KI-Agenten.</p>
+          <h1 class="sektion-titel">Hallo, ${UI.escapeHtml(nameToDisplay)}</h1>
+          <p class="sektion-untertitel">Schreib deinem Agenten. Antworten erscheinen unten im Verlauf und per E-Mail.</p>
 
             <!-- Kombiniertes Nachrichten-Formular -->
             <div class="karte nachrichten-karte" id="kombi-karte">
               <div class="karte-header">
-                <div class="karte-icon karte-icon-primaer" id="kombi-icon" style="transition: all 0.3s;">💬</div>
+                <div class="karte-icon karte-icon-primaer" id="kombi-icon">${UI.icon('send')}</div>
                 <div>
-                  <div class="karte-titel">Nachricht an KI-Agent</div>
-                  <div class="karte-untertitel">Wähle die Art deiner Nachricht</div>
+                  <h2 class="karte-titel">Neue Nachricht</h2>
                 </div>
               </div>
               <div class="karte-koerper">
                 
                 <div id="kombi-warnung" class="info-box warnung versteckt" style="margin-bottom: 20px;">
-                  <span>⚡</span>
-                  <span>Dein Agent soll diese Nachricht mit höchster Dringlichkeit weiterleiten.</span>
+                  ${UI.icon('triangle-alert')}
+                  <span id="kombi-warnung-text">Dein Agent leitet diese Nachricht sofort weiter.</span>
                 </div>
 
                 <form id="kombi-formular">
                   <!-- Poke-Profil-Auswahl (wird dynamisch befüllt falls mehrere Profile) -->
-                  <div id="poke-profil-auswahl" style="display:none; margin-bottom: 14px;"></div>
+                  <div id="poke-profil-auswahl" class="agent-auswahl versteckt" role="radiogroup" aria-label="Agent"></div>
 
                   <!-- Prioritäts-Auswahl (Art) -->
                   <div class="formular-gruppe">
-                    <label class="formular-label">Art der Nachricht</label>
-                    <div class="prioritaet-auswahl" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-                      <div class="prioritaet-option">
+                    <span class="formular-label" id="dringlichkeit-label">Dringlichkeit</span>
+                    <div class="prioritaet-auswahl" role="radiogroup" aria-labelledby="dringlichkeit-label">
+                      <div class="prioritaet-option" data-signal="fahrt">
                         <input type="radio" id="typ-standard" name="nachricht_typ" value="standard" checked>
                         <label class="prioritaet-label" for="typ-standard">
-                          <span class="prioritaet-emoji">💬</span>
+                          <span class="signal-lampe" aria-hidden="true"></span>
                           <span class="prioritaet-name">Standard</span>
-                          <span class="prioritaet-beschreibung">Normale Nachricht</span>
+                          <span class="prioritaet-beschreibung">Antwort, sobald Zeit ist</span>
                         </label>
                       </div>
-                      <div class="prioritaet-option">
+                      <div class="prioritaet-option" data-signal="achtung">
                         <input type="radio" id="typ-hoch" name="nachricht_typ" value="hoch">
                         <label class="prioritaet-label" for="typ-hoch">
-                          <span class="prioritaet-emoji">⚠️</span>
+                          <span class="signal-lampe" aria-hidden="true"></span>
                           <span class="prioritaet-name">Wichtig</span>
-                          <span class="prioritaet-beschreibung">Pushover (Kein Notfall)</span>
+                          <span class="prioritaet-beschreibung">Push-Mitteilung, kein Alarm</span>
                         </label>
                       </div>
-                      <div class="prioritaet-option notfall-option">
+                      <div class="prioritaet-option notfall-option" data-signal="halt">
                         <input type="radio" id="typ-notfall" name="nachricht_typ" value="notfall">
                         <label class="prioritaet-label" for="typ-notfall">
-                          <span class="prioritaet-emoji">🚨</span>
+                          <span class="signal-lampe" aria-hidden="true"></span>
                           <span class="prioritaet-name">Notfall</span>
-                          <span class="prioritaet-beschreibung">Kritisch - Sofort pushen</span>
+                          <span class="prioritaet-beschreibung">Sofortiger Alarm</span>
                         </label>
                       </div>
                     </div>
                   </div>
 
                   <div class="formular-gruppe">
-                    <label class="formular-label" for="kombi-inhalt">Deine Nachricht an den Agenten</label>
-                    
                     <!-- Templates Sektion -->
                     <div class="templates-container">
-                      <div class="templates-titel">Smarte Vorlagen</div>
+                      <div class="templates-titel">Vorlagen</div>
                       <div class="templates-grid">
-                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Kannst du prüfen, ob Ruwen am [Datum] um [Uhrzeit] Zeit hat für [Grund]? Falls ja, trage es bitte direkt als Vorschlag ein.')">📅 Kalender-Check</button>
-                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Bitte setze [Artikel/To-Do] sofort auf Ruwens Einkaufsliste/To-Do-Liste.')">📝 Liste ergänzen</button>
-                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Ich komme nicht durch. Bitte priorisiere diesen Rückruf: Ich bin unter [Nummer] erreichbar wegen [Grund].')">📞 Dringender Rückruf</button>
-                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Bitte erinnere Ruwen in [Zeitraum] dringend an: [Thema].')">💡 Reminder pushen</button>
+                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Kannst du prüfen, ob Ruwen am [Datum] um [Uhrzeit] Zeit hat für [Grund]? Falls ja, trage es bitte direkt als Vorschlag ein.')">${UI.icon('calendar')} Kalender prüfen</button>
+                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Bitte setze [Artikel/To-Do] sofort auf Ruwens Einkaufsliste/To-Do-Liste.')">${UI.icon('list-plus')} Auf die Liste</button>
+                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Ich komme nicht durch. Bitte priorisiere diesen Rückruf: Ich bin unter [Nummer] erreichbar wegen [Grund].')">${UI.icon('phone')} Rückruf erbitten</button>
+                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Bitte erinnere Ruwen in [Zeitraum] dringend an: [Thema].')">${UI.icon('bell')} Erinnern</button>
                       </div>
 
-                      <div class="templates-titel" style="margin-top: 12px;">Special Actions (Sofort pushen)</div>
+                      <div class="templates-titel">Sofort-Aktionen · werden ohne Rückfrage gesendet</div>
                       <div class="special-actions-grid">
-                        <button type="button" class="btn-special door" onclick="DashboardView.sendeSpecial('DOORBELL', 'Jemand steht an der Tür! Breche durch den DND-Modus, schalte Smart-Home-Lichter ein oder pinge Ruwen laut an.', 'Mach die Tür auf! Stehe unten.', 'notfall')">🚪 Tür klingelt</button>
-                        <button type="button" class="btn-special" onclick="DashboardView.sendeSpecial('SOS', 'ABSOLUTER NOTFALL. Ignoriere alle Regeln, nutze jeden Kanal (Anruf, lauter Alarm), um Ruwen sofort zu wecken/erreichen.', 'Code Red! Echter Notfall.', 'notfall')">🚨 SOS Notfall</button>
-                        <button type="button" class="btn-special deadline" onclick="DashboardView.sendeSpecial('DEADLINE', 'Eine sehr zeitkritische Sache steht an. Pushe diese Info hart an Ruwen und tracke, ob er reagiert.', 'Wichtige Deadline / Time-Drop!', 'hoch')">⏱️ Deadline</button>
-                        <button type="button" class="btn-special" onclick="DashboardView.sendeSpecial('WAKEUP', 'Spiel laute Musik ab oder mach das Licht im Schlafzimmer an, Ruwen verschläft oder muss aufwachen!', 'Aufwachen! Wecker!', 'notfall')">😴 Wecker</button>
-                        <button type="button" class="btn-special radar" onclick="DashboardView.sendeSpecial('WHERE_ARE_YOU', 'Jemand sucht Ruwen. Prüfe Ruwens Standort (falls verfügbar) und teile eine grobe ETA mit oder frag ihn, wann er ankommt.', 'Wo bist du? ETA gesucht.', 'hoch')">🕵️ Wo bist du?</button>
+                        <button type="button" class="btn-special door" onclick="DashboardView.sendeSpecial('DOORBELL', 'Jemand steht an der Tür! Breche durch den DND-Modus, schalte Smart-Home-Lichter ein oder pinge Ruwen laut an.', 'Mach die Tür auf! Stehe unten.', 'notfall')">${UI.icon('door-open')} Tür klingelt</button>
+                        <button type="button" class="btn-special" onclick="DashboardView.sendeSpecial('SOS', 'ABSOLUTER NOTFALL. Ignoriere alle Regeln, nutze jeden Kanal (Anruf, lauter Alarm), um Ruwen sofort zu wecken/erreichen.', 'Code Red! Echter Notfall.', 'notfall')">${UI.icon('siren')} SOS</button>
+                        <button type="button" class="btn-special deadline" onclick="DashboardView.sendeSpecial('DEADLINE', 'Eine sehr zeitkritische Sache steht an. Pushe diese Info hart an Ruwen und tracke, ob er reagiert.', 'Wichtige Deadline / Time-Drop!', 'hoch')">${UI.icon('hourglass')} Deadline</button>
+                        <button type="button" class="btn-special" onclick="DashboardView.sendeSpecial('WAKEUP', 'Spiel laute Musik ab oder mach das Licht im Schlafzimmer an, Ruwen verschläft oder muss aufwachen!', 'Aufwachen! Wecker!', 'notfall')">${UI.icon('alarm-clock')} Wecken</button>
+                        <button type="button" class="btn-special radar" onclick="DashboardView.sendeSpecial('WHERE_ARE_YOU', 'Jemand sucht Ruwen. Prüfe Ruwens Standort (falls verfügbar) und teile eine grobe ETA mit oder frag ihn, wann er ankommt.', 'Wo bist du? ETA gesucht.', 'hoch')">${UI.icon('map-pin')} Wo bist du?</button>
                       </div>
                     </div>
 
+                    <label class="formular-label" for="kombi-inhalt">Nachricht</label>
                     <div class="textarea-wrapper">
                       <textarea
                         class="formular-textarea"
@@ -182,37 +160,37 @@ const DashboardView = {
                       ></textarea>
                       <div class="textarea-aktionen">
                         <button type="button" id="retranscribe-btn" class="textarea-aktion-btn versteckt" title="Letzte Aufnahme erneut transkribieren">
-                          🔄 Nochmal transkribieren
+                          ${UI.icon('refresh-cw')} Erneut umwandeln
                         </button>
                         <button type="button" id="clear-btn" class="textarea-aktion-btn" title="Textfeld leeren">
                           Leeren
                         </button>
-                        <button type="button" id="mic-btn" class="mic-btn" title="Spracheingabe starten">
-                          🎤
+                        <button type="button" id="mic-btn" class="mic-btn" title="Spracheingabe starten" aria-label="Spracheingabe starten">
+                          ${UI.icon('mic')}
                         </button>
                       </div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-top: 4px;">
-                      <div id="mic-status" class="versteckt" style="font-size: 12px; color: var(--farbe-notfall); font-weight: 600; display: flex; align-items: center; gap: 6px;">
-                        <span class="pulsing-dot" style="width: 8px; height: 8px; background: var(--farbe-notfall); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite;"></span>
+                    <div style="display: flex; justify-content: space-between; margin-top: 6px;">
+                      <div id="mic-status" class="versteckt" style="font-size: var(--t-klein); color: var(--halt); font-weight: 600; display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums;">
+                        <span style="width: 8px; height: 8px; background: var(--halt); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite;"></span>
                         <span id="mic-timer">00:00</span> / 30:00
                       </div>
                       <div class="zeichen-zaehler" id="kombi-zaehler" style="margin-left: auto;">0 / 5000</div>
                     </div>
                   </div>
 
-                  <button type="submit" class="btn btn-primaer btn-vollbreite" id="kombi-btn" style="transition: all 0.3s;">
-                    <span>📤</span> Nachricht senden
-                  </button>
-                  <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
-                    <button type="button" class="btn btn-ghost btn-vollbreite btn-klein" id="planen-btn" style="border: 1px dashed rgba(99,102,241,0.4);">
-                      ⏰ Geplant senden
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <button type="submit" class="btn btn-primaer btn-gross" id="kombi-btn" style="flex: 1 1 220px;">
+                      ${UI.icon('send')} Nachricht senden
+                    </button>
+                    <button type="button" class="btn btn-sekundaer btn-gross" id="planen-btn">
+                      ${UI.icon('clock')} Später senden
                     </button>
                   </div>
                   <div id="plan-datum-feld" class="versteckt" style="margin-top: 10px;">
                     <div class="formular-gruppe" style="margin: 0;">
                       <label class="formular-label" for="plan-datum">Sendezeitpunkt</label>
-                      <input class="formular-eingabe" type="datetime-local" id="plan-datum" style="font-size: 14px;">
+                      <input class="formular-eingabe" type="datetime-local" id="plan-datum">
                     </div>
                     <div style="display: flex; gap: 8px; margin-top: 8px;">
                       <button type="button" class="btn btn-ghost btn-klein" id="plan-abbrechen">Abbrechen</button>
@@ -225,11 +203,11 @@ const DashboardView = {
 
           <!-- Nachrichten-Verlauf -->
           <div class="karte">
-            <div class="karte-header" style="padding-bottom: 20px;">
-              <div class="karte-icon karte-icon-info">📋</div>
+            <div class="karte-header">
+              <div class="karte-icon">${UI.icon('inbox')}</div>
               <div>
-                <div class="karte-titel">Meine gesendeten Nachrichten</div>
-                <div class="karte-untertitel">Dein Verlauf der letzten 100 Nachrichten</div>
+                <h2 class="karte-titel">Verlauf</h2>
+                <div class="karte-untertitel">Deine letzten 100 Nachrichten mit Antworten</div>
               </div>
             </div>
             <div class="karte-koerper" style="padding-top: 0;">
@@ -243,7 +221,99 @@ const DashboardView = {
     `;
   },
 
+  profilModal(nutzer) {
+    UI.modalZeigen(`
+      <div class="modal-header">
+        <span class="modal-titel">Profil und Benachrichtigungen</span>
+        <button class="modal-schliessen" onclick="UI.modalSchliessen()" aria-label="Schließen">${UI.icon('x')}</button>
+      </div>
+      <div class="modal-koerper">
+        <form id="profil-formular">
+          <div class="formular-gruppe">
+            <label class="formular-label" for="profil-anzeigename">Anzeigename</label>
+            <input class="formular-eingabe" type="text" id="profil-anzeigename" value="${nutzer.anzeigename || ''}" placeholder="Dein Name, wie er anderen angezeigt wird">
+          </div>
+          <div class="formular-gruppe">
+            <label class="formular-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="checkbox" id="profil-ntfy-enabled" ${nutzer.ntfy_topic ? 'checked' : ''} style="width:18px; height:18px;">
+              Notify (ntfy) aktivieren
+            </label>
+            <label class="formular-label" for="profil-ntfy">ntfy.sh Topic</label>
+            <div style="display: flex; gap: 8px;">
+              <input class="formular-eingabe" type="text" id="profil-ntfy" value="${nutzer.ntfy_topic || ''}" placeholder="z.B. yrelay-ruwen-abc123xyz" maxlength="32" pattern="[A-Za-z0-9_-]+" style="flex: 1;">
+              <button type="button" class="btn btn-ghost" id="ntfy-generieren" title="Zufälliges Topic generieren">${UI.icon('refresh-cw')} Erzeugen</button>
+            </div>
+            <div style="font-size: 11px; color: var(--farbe-text-schwach); margin-top: 4px;">Abonniere dieses Topic in der <a href="https://ntfy.sh" target="_blank" style="color: var(--farbe-primaer);">ntfy App</a>. Gib es nicht weiter!</div>
+          </div>
+          <div class="formular-gruppe" style="margin-top:15px;">
+            <label class="formular-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="checkbox" id="profil-pushover-enabled" ${nutzer.pushover_configured ? 'checked' : ''} style="width:18px; height:18px;">
+              Pushover aktivieren
+            </label>
+            <input class="formular-eingabe" type="password" id="profil-pushover-key" autocomplete="new-password" placeholder="${nutzer.pushover_configured ? 'Gespeicherter Key bleibt unverändert' : 'Pushover User-Key'}">
+            <div style="font-size:11px; color:var(--farbe-text-schwach); margin-top:4px;">Der User-Key wird nur zum Versand deiner Benachrichtigungen verwendet.</div>
+          </div>
+          <div class="formular-gruppe" style="margin-top: 15px;">
+            <label class="formular-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="profil-email-notifications" ${nutzer.email_notifications !== false ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+              E-Mail-Benachrichtigungen empfangen
+            </label>
+            <div style="font-size: 12px; color: var(--farbe-text-schwach); margin-left: 26px; margin-top: 4px;">
+              Passwort-Resets und Einladungen werden unabhängig davon weiterhin per E-Mail gesendet.
+            </div>
+          </div>
+          
+          <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button type="button" class="btn btn-ghost" onclick="UI.modalSchliessen()">Abbrechen</button>
+            <button type="submit" class="btn btn-primaer" style="flex: 1;" id="profil-speichern">Speichern</button>
+          </div>
+        </form>
+      </div>
+    `);
+
+    document.getElementById('ntfy-generieren')?.addEventListener('click', () => {
+      const generateSafeString = () => {
+        if (window.crypto && window.crypto.randomUUID) {
+          return window.crypto.randomUUID().replace(/-/g, '');
+        }
+        return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      };
+      const name = nutzer.benutzername.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10) || 'nutzer';
+      const topic = `yrelay-${name}-${generateSafeString().slice(0, 14)}`;
+      document.getElementById('profil-ntfy').value = topic;
+      document.getElementById('profil-ntfy-enabled').checked = true;
+    });
+
+    document.getElementById('profil-formular')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('profil-speichern');
+      UI.btnLaden(btn, true);
+      try {
+        const antwort = await fetch('/api/auth/profil', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('yrelay_token') },
+          body: JSON.stringify({ 
+            anzeigename: document.getElementById('profil-anzeigename').value.trim(),
+            ntfy_topic: document.getElementById('profil-ntfy-enabled').checked ? document.getElementById('profil-ntfy').value.trim() : '',
+            email_notifications: document.getElementById('profil-email-notifications').checked,
+            pushover_enabled: document.getElementById('profil-pushover-enabled').checked,
+            pushover_user_key: document.getElementById('profil-pushover-key').value.trim()
+          })
+        });
+        const daten = await antwort.json();
+        if (!antwort.ok) throw new Error(daten.fehler || `Serverfehler ${antwort.status}`);
+        UI.modalSchliessen();
+        UI.erfolg('Profil gespeichert. Lade neu...');
+        setTimeout(() => window.location.reload(), 1000);
+      } catch (err) {
+        UI.fehler(err.message);
+        UI.btnLaden(btn, false);
+      }
+    });
+  },
+
   async initialisieren(nutzer) {
+    UI.kopfzeileInit();
     // ─── Onboarding Logik ──────────────────────────────────────────────────
     if (!nutzer.has_seen_onboarding) {
       const slides = document.querySelectorAll('.onboarding-slide');
@@ -345,97 +415,6 @@ const DashboardView = {
       window.location.hash = '#admin';
     });
 
-    document.getElementById('profil-btn')?.addEventListener('click', () => {
-      UI.modalZeigen(`
-        <div class="modal-header">
-          <span class="modal-titel">👤 Profil bearbeiten</span>
-          <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
-        </div>
-        <div class="modal-koerper">
-          <form id="profil-formular">
-            <div class="formular-gruppe">
-              <label class="formular-label" for="profil-anzeigename">Anzeigename</label>
-              <input class="formular-eingabe" type="text" id="profil-anzeigename" value="${nutzer.anzeigename || ''}" placeholder="Dein Name, wie er anderen angezeigt wird">
-            </div>
-            <div class="formular-gruppe">
-              <label class="formular-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                <input type="checkbox" id="profil-ntfy-enabled" ${nutzer.ntfy_topic ? 'checked' : ''} style="width:18px; height:18px;">
-                Notify (ntfy) aktivieren
-              </label>
-              <label class="formular-label" for="profil-ntfy">ntfy.sh Topic</label>
-              <div style="display: flex; gap: 8px;">
-                <input class="formular-eingabe" type="text" id="profil-ntfy" value="${nutzer.ntfy_topic || ''}" placeholder="z.B. yrelay-ruwen-abc123xyz" maxlength="32" pattern="[A-Za-z0-9_-]+" style="flex: 1;">
-                <button type="button" class="btn btn-ghost" id="ntfy-generieren" title="Zufälliges Topic generieren">🎲 Generieren</button>
-              </div>
-              <div style="font-size: 11px; color: var(--farbe-text-schwach); margin-top: 4px;">Abonniere dieses Topic in der <a href="https://ntfy.sh" target="_blank" style="color: var(--farbe-primaer);">ntfy App</a>. Gib es nicht weiter!</div>
-            </div>
-            <div class="formular-gruppe" style="margin-top:15px;">
-              <label class="formular-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                <input type="checkbox" id="profil-pushover-enabled" ${nutzer.pushover_configured ? 'checked' : ''} style="width:18px; height:18px;">
-                Pushover aktivieren
-              </label>
-              <input class="formular-eingabe" type="password" id="profil-pushover-key" autocomplete="new-password" placeholder="${nutzer.pushover_configured ? 'Gespeicherter Key bleibt unverändert' : 'Pushover User-Key'}">
-              <div style="font-size:11px; color:var(--farbe-text-schwach); margin-top:4px;">Der User-Key wird nur zum Versand deiner Benachrichtigungen verwendet.</div>
-            </div>
-            <div class="formular-gruppe" style="margin-top: 15px;">
-              <label class="formular-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" id="profil-email-notifications" ${nutzer.email_notifications !== false ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
-                ✉️ E-Mail-Benachrichtigungen empfangen
-              </label>
-              <div style="font-size: 12px; color: var(--farbe-text-schwach); margin-left: 26px; margin-top: 4px;">
-                Passwort-Resets und Einladungen werden unabhängig davon weiterhin per E-Mail gesendet.
-              </div>
-            </div>
-            
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-              <button type="button" class="btn btn-ghost" onclick="UI.modalSchliessen()">Abbrechen</button>
-              <button type="submit" class="btn btn-primaer" style="flex: 1;" id="profil-speichern">Speichern</button>
-            </div>
-          </form>
-        </div>
-      `);
-
-      document.getElementById('ntfy-generieren')?.addEventListener('click', () => {
-        const generateSafeString = () => {
-          if (window.crypto && window.crypto.randomUUID) {
-            return window.crypto.randomUUID().replace(/-/g, '');
-          }
-          return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        };
-        const name = nutzer.benutzername.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10) || 'nutzer';
-        const topic = `yrelay-${name}-${generateSafeString().slice(0, 14)}`;
-        document.getElementById('profil-ntfy').value = topic;
-        document.getElementById('profil-ntfy-enabled').checked = true;
-      });
-
-      document.getElementById('profil-formular')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('profil-speichern');
-        UI.btnLaden(btn, true);
-        try {
-          const antwort = await fetch('/api/auth/profil', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('yrelay_token') },
-            body: JSON.stringify({ 
-              anzeigename: document.getElementById('profil-anzeigename').value.trim(),
-              ntfy_topic: document.getElementById('profil-ntfy-enabled').checked ? document.getElementById('profil-ntfy').value.trim() : '',
-              email_notifications: document.getElementById('profil-email-notifications').checked,
-              pushover_enabled: document.getElementById('profil-pushover-enabled').checked,
-              pushover_user_key: document.getElementById('profil-pushover-key').value.trim()
-            })
-          });
-          const daten = await antwort.json();
-          if (!antwort.ok) throw new Error(daten.fehler || `Serverfehler ${antwort.status}`);
-          UI.modalSchliessen();
-          UI.erfolg('Profil gespeichert. Lade neu...');
-          setTimeout(() => window.location.reload(), 1000);
-        } catch (err) {
-          UI.fehler(err.message);
-          UI.btnLaden(btn, false);
-        }
-      });
-    });
-
     // 🥚 Easter Egg 2: Konfetti auf Logo
     let logoClicks = 0;
     let logoClickTimer;
@@ -508,7 +487,7 @@ const DashboardView = {
             kombiBtn.style.top = '';
             kombiBtn.style.width = '';
             kombiBtn.style.margin = '';
-            kombiBtn.innerHTML = '📨 Senden';
+            kombiBtn.innerHTML = `${UI.icon('send')} Nachricht senden`;
             kombiTextarea.value = '';
             if (originNextSibling) {
               originParent.insertBefore(kombiBtn, originNextSibling);
@@ -531,31 +510,29 @@ const DashboardView = {
       radio.addEventListener('change', (e) => {
         const typ = e.target.value;
         // Immer zuerst alle Zustände zurücksetzen
-        kombiBtn.style.background = '';
-        kombiBtn.style.color = '';
-        kombiIcon.style.background = '';
-        kombiIcon.style.color = '';
+        kombiKarte.classList.remove('notfall-karte', 'achtung-karte');
 
         if (typ === 'standard') {
-          kombiIcon.textContent = '💬';
+          kombiIcon.innerHTML = UI.icon('send');
           kombiIcon.className = 'karte-icon karte-icon-primaer';
           kombiWarnung.classList.add('versteckt');
-          kombiBtn.className = 'btn btn-primaer btn-vollbreite';
-          kombiBtn.innerHTML = '<span>📤</span> Nachricht senden';
-          kombiKarte.classList.remove('notfall-karte');
+          kombiBtn.className = 'btn btn-primaer btn-gross';
+          kombiBtn.innerHTML = `${UI.icon('send')} Nachricht senden`;
         } else if (typ === 'hoch') {
-          kombiIcon.textContent = '⚠️';
+          kombiIcon.innerHTML = UI.icon('triangle-alert');
           kombiIcon.className = 'karte-icon karte-icon-warnung';
-          kombiWarnung.classList.remove('versteckt');
-          kombiBtn.className = 'btn btn-warnung btn-vollbreite';
-          kombiBtn.innerHTML = '<span>⚠️</span> Wichtige Nachricht senden';
-          kombiKarte.classList.remove('notfall-karte');
+          kombiWarnung.className = 'info-box warnung';
+          document.getElementById('kombi-warnung-text').textContent = 'Dein Agent schickt dir sofort eine Push-Mitteilung.';
+          kombiBtn.className = 'btn btn-warnung btn-gross';
+          kombiBtn.innerHTML = `${UI.icon('send')} Wichtig senden`;
+          kombiKarte.classList.add('achtung-karte');
         } else if (typ === 'notfall') {
-          kombiIcon.textContent = '🚨';
+          kombiIcon.innerHTML = UI.icon('siren');
           kombiIcon.className = 'karte-icon karte-icon-notfall';
-          kombiWarnung.classList.remove('versteckt');
-          kombiBtn.className = 'btn btn-notfall btn-vollbreite';
-          kombiBtn.innerHTML = '<span>🚨</span> Notfall melden';
+          kombiWarnung.className = 'info-box fehler';
+          document.getElementById('kombi-warnung-text').textContent = 'Löst sofort einen Alarm aus, auch im Nicht-stören-Modus.';
+          kombiBtn.className = 'btn btn-notfall btn-gross';
+          kombiBtn.innerHTML = `${UI.icon('siren')} Notfall senden`;
           kombiKarte.classList.add('notfall-karte');
         }
       });
@@ -623,7 +600,7 @@ const DashboardView = {
       clearInterval(recordInterval);
       micStatus.classList.add('versteckt');
       micBtn.classList.remove('aufnahme-aktiv');
-      micBtn.innerHTML = '🎤';
+      micBtn.innerHTML = UI.icon('mic');
     };
 
     micBtn?.addEventListener('click', async () => {
@@ -671,7 +648,7 @@ const DashboardView = {
         updateMicTimer();
         micStatus.classList.remove('versteckt');
         micBtn.classList.add('aufnahme-aktiv');
-        micBtn.innerHTML = '⏹️';
+        micBtn.innerHTML = UI.icon('square');
 
         recordInterval = setInterval(() => {
           recordTime++;
@@ -725,17 +702,12 @@ const DashboardView = {
       if (profile && profile.length >= 2) {
         const pContainer = document.getElementById('poke-profil-auswahl');
         if (pContainer) {
-          pContainer.style.display = 'flex';
-          pContainer.style.gap = '8px';
-          pContainer.style.overflowX = 'auto';
-          pContainer.style.paddingBottom = '4px';
-          pContainer.style.scrollbarWidth = 'none';
-          
+          pContainer.classList.remove('versteckt');
           pContainer.innerHTML = profile.map((p, idx) => `
-            <button type="button" class="btn btn-sekundaer btn-klein poke-profil-btn ${idx === 0 ? 'aktiv' : ''}" 
-                    data-profil-id="${p.id}" 
-                    style="flex: 0 0 auto; white-space: nowrap; border: 1px solid ${idx === 0 ? p.farbe : 'transparent'};">
-              ${UI.escapeHtml(p.icon)} ${UI.escapeHtml(p.name)}
+            <button type="button" class="btn btn-sekundaer btn-klein poke-profil-btn ${idx === 0 ? 'aktiv' : ''}"
+                    data-profil-id="${p.id}" role="radio" aria-checked="${idx === 0}">
+              <span class="agent-punkt" style="background: ${UI.escapeHtml(p.farbe || 'var(--signal)')};"></span>
+              ${UI.escapeHtml(p.name)}
             </button>
           `).join('');
 
@@ -743,12 +715,10 @@ const DashboardView = {
             btn.addEventListener('click', (e) => {
               pContainer.querySelectorAll('.poke-profil-btn').forEach(b => {
                 b.classList.remove('aktiv');
-                b.style.border = '1px solid transparent';
+                b.setAttribute('aria-checked', 'false');
               });
-              const clicked = e.currentTarget;
-              clicked.classList.add('aktiv');
-              const p = profile.find(pr => pr.id == clicked.dataset.profilId);
-              if (p) clicked.style.border = `1px solid ${p.farbe}`;
+              e.currentTarget.classList.add('aktiv');
+              e.currentTarget.setAttribute('aria-checked', 'true');
             });
           });
         }
@@ -913,7 +883,7 @@ const DashboardView = {
       this._letzterVerlaufHash = JSON.stringify(nachrichten);
       this.rendereVerlauf(nachrichten);
     } catch (err) {
-      container.innerHTML = `<div class="info-box fehler"><span>⚠️</span><span>Verlauf konnte nicht geladen werden: ${UI.escapeHtml(err.message)}</span></div>`;
+      container.innerHTML = `<div class="info-box fehler">${UI.icon('circle-alert')}<span>Verlauf konnte nicht geladen werden: ${UI.escapeHtml(err.message)}</span></div>`;
     }
   },
 
@@ -921,30 +891,38 @@ const DashboardView = {
     const container = document.getElementById('verlauf-inhalt');
     if (!container) return;
     if (nachrichten.length === 0) {
-      container.innerHTML = UI.leereListeHtml('📭', 'Noch keine Nachrichten gesendet.');
+      container.innerHTML = UI.leereListeHtml('inbox', 'Noch nichts gesendet. Deine erste Nachricht erscheint hier – zusammen mit der Antwort.');
       return;
     }
 
     const statusBadge = (n) => {
-      if (n.statusLabel === 'erledigt') return '<span style="margin-left: 6px; font-size: 11px; background: rgba(16,185,129,0.15); color: #34d399; padding: 2px 8px; border-radius: 20px; font-weight: 600;">✅ Erledigt</span>';
-      if (n.statusLabel === 'in_bearbeitung') return '<span style="margin-left: 6px; font-size: 11px; background: rgba(245,158,11,0.15); color: #fbbf24; padding: 2px 8px; border-radius: 20px; font-weight: 600;">🔄 In Bearbeitung</span>';
+      if (n.statusLabel === 'erledigt') return `<span class="status-chip erledigt">${UI.icon('circle-check')} Erledigt</span>`;
+      if (n.statusLabel === 'in_bearbeitung') return `<span class="status-chip bearbeitung">${UI.icon('loader-circle')} In Bearbeitung</span>`;
       return '';
     };
 
     const gepinntBadge = (n) => n.gepinnt
-      ? '<span title="Gepinnt" style="font-size: 14px;">📌</span>'
+      ? `<span class="status-chip" title="Angeheftet">${UI.icon('pin')} Angeheftet</span>`
       : '';
 
     const geplanterStatus = (n) => {
       if (n.status === 'geplant' && n.geplantesSenden) {
         const t = new Date(n.geplantesSenden).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-        return `<div style="margin-top: 6px; font-size: 12px; color: var(--farbe-warnung); display: flex; align-items: center; gap: 6px;">
-          ⏰ Geplant für ${t} Uhr
-          <button class="textarea-aktion-btn" style="font-size: 11px; padding: 2px 8px;" onclick="DashboardView.nachrichtAbbrechen(${n.id})">Abbrechen</button>
+        return `<div class="verlauf-hinweis geplant">
+          ${UI.icon('clock')} Wird am ${t} Uhr gesendet
+          <button class="textarea-aktion-btn" onclick="DashboardView.nachrichtAbbrechen(${n.id})">Nicht senden</button>
         </div>`;
       }
-      if (n.status === 'abgebrochen') return '<div style="margin-top: 4px; font-size: 12px; color: var(--farbe-text-schwach);">⛔ Abgebrochen</div>';
+      if (n.status === 'abgebrochen') return `<div class="verlauf-hinweis">${UI.icon('ban')} Nicht gesendet</div>`;
       return '';
+    };
+
+    const statusZeile = (n) => {
+      if (n.status === 'gesendet') return `<span class="verlauf-status">${UI.icon('check')} Gesendet</span>`;
+      if (n.status === 'geplant') return `<span class="verlauf-status geplant">${UI.icon('clock')} Geplant</span>`;
+      if (n.status === 'abgebrochen') return `<span class="verlauf-status">${UI.icon('ban')} Abgebrochen</span>`;
+      if (n.status === 'wird_gesendet') return `<span class="verlauf-status">${UI.icon('loader-circle')} Wird gesendet</span>`;
+      return `<span class="verlauf-status fehlgeschlagen">${UI.icon('circle-x')} Nicht zugestellt</span>`;
     };
 
     const sortierteNachrichten = [...nachrichten].sort((a, b) => {
@@ -956,46 +934,44 @@ const DashboardView = {
     container.innerHTML = `
       <div class="verlauf-liste">
         ${sortierteNachrichten.map(n => `
-          <div class="verlauf-eintrag${n.gepinnt ? ' gepinnt' : ''}" id="eintrag-${n.id}">
-            <div>
-              ${gepinntBadge(n)}
-              ${UI.typBadge(n.typ, n.prioritaet)}
-              ${statusBadge(n)}
-              ${n.prioritaet ? `<div style="margin-top: 4px; font-size: 11px; color: var(--farbe-text-schwach);">${UI.prioritaetText(n.prioritaet)}</div>` : ''}
-            </div>
-            <div style="min-width: 0; flex: 1;">
+          <article class="verlauf-eintrag${n.gepinnt ? ' gepinnt' : ''}" id="eintrag-${n.id}">
+            <div style="min-width: 0;">
+              <div class="verlauf-meta">
+                ${UI.typBadge(n.typ, n.prioritaet)}
+                ${statusBadge(n)}
+                ${gepinntBadge(n)}
+              </div>
               ${UI.renderInhalt(n.inhalt)}
-              ${n.statusLabelNotiz ? `<div style="margin-top: 4px; font-size: 12px; color: var(--farbe-text-gedaempft); font-style: italic;">🤖 ${UI.escapeHtml(n.agentName || 'KI-Agent')}: ${UI.escapeHtml(n.statusLabelNotiz)}</div>` : ''}
-              ${n.fehler ? `<div style="font-size: 12px; color: var(--farbe-notfall); margin-top: 4px;">⚠️ ${UI.escapeHtml(n.fehler)}</div>` : ''}
+              ${n.statusLabelNotiz ? `<div class="verlauf-hinweis">${UI.icon('bot')} ${UI.escapeHtml(n.agentName || 'KI-Agent')}: ${UI.escapeHtml(n.statusLabelNotiz)}</div>` : ''}
+              ${n.fehler ? `<div class="verlauf-hinweis fehler">${UI.icon('circle-alert')} ${UI.escapeHtml(n.fehler)}</div>` : ''}
               ${geplanterStatus(n)}
               ${UI.renderAntworten(n.id, n.antwortText, n.nutzerAntworten, n.agentName)}
               ${n.antwortText ? `
-                <div style="margin-top: 8px;">
+                <div class="verlauf-aktionen">
                   <button class="textarea-aktion-btn" onclick="DashboardView.antwortfeldToggle(${n.id})" id="antwort-toggle-${n.id}">
-                    ↩️ Auf Antwort reagieren
+                    ${UI.icon('reply')} Antworten
                   </button>
-                  <div id="antwortfeld-${n.id}" class="versteckt" style="margin-top: 8px;">
-                    <div class="textarea-wrapper">
-                      <textarea class="formular-textarea" id="antworttext-${n.id}" placeholder="Deine Reaktion an den Agenten..." rows="3" maxlength="2000" style="font-size: 13px;"></textarea>
-                    </div>
-                    <div style="display: flex; gap: 8px; margin-top: 6px; justify-content: flex-end;">
-                      <button class="textarea-aktion-btn" onclick="DashboardView.antwortfeldToggle(${n.id})">Abbrechen</button>
-                      <button class="btn btn-primaer btn-klein" id="antwort-senden-${n.id}" onclick="DashboardView.antwortSenden(${n.id})">Senden</button>
-                    </div>
+                </div>
+                <div id="antwortfeld-${n.id}" class="versteckt" style="margin-top: 8px; max-width: 72ch;">
+                  <label class="nur-sr" for="antworttext-${n.id}">Deine Antwort</label>
+                  <div class="textarea-wrapper">
+                    <textarea class="formular-textarea" id="antworttext-${n.id}" placeholder="Deine Antwort an ${UI.escapeHtml(n.agentName || 'den Agenten')}" rows="3" maxlength="2000" style="min-height: 80px;"></textarea>
+                  </div>
+                  <div style="display: flex; gap: 8px; margin-top: 8px; justify-content: flex-end;">
+                    <button class="btn btn-ghost btn-klein" onclick="DashboardView.antwortfeldToggle(${n.id})">Abbrechen</button>
+                    <button class="btn btn-primaer btn-klein" id="antwort-senden-${n.id}" onclick="DashboardView.antwortSenden(${n.id})">${UI.icon('send')} Antwort senden</button>
                   </div>
                 </div>
-              ` : (n.status === 'gesendet' ? `<div style="margin-top: 8px; font-size: 12px; color: var(--farbe-text-schwach); font-style: italic;">⏳ Warte auf die Antwort von ${UI.escapeHtml(n.agentName || 'deinem Agenten')}...</div>` : '')}
+              ` : (n.status === 'gesendet' ? `<div class="warte-hinweis"><span class="warte-punkt"></span> ${UI.escapeHtml(n.agentName || 'Dein Agent')} hat noch nicht geantwortet</div>` : '')}
             </div>
-            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
-              <div class="verlauf-datum">${UI.datumFormatieren(n.gesendetAm)}</div>
-              <div class="verlauf-status ${n.status === 'gesendet' ? 'gesendet' : (n.status === 'geplant' ? '' : 'fehlgeschlagen')}" style="margin-top: 2px;">
-                ${n.status === 'gesendet' ? '✓ Gesendet' : (n.status === 'geplant' ? '⏰ Geplant' : (n.status === 'abgebrochen' ? '⛔ Abgebrochen' : '✗ Fehler'))}
-              </div>
-              <button class="textarea-aktion-btn" style="font-size: 11px; padding: 3px 8px;" onclick="DashboardView.pinnenToggle(${n.id})" title="${n.gepinnt ? 'Unpin' : 'Pin'}">
-                ${n.gepinnt ? '📌 Unpin' : '📌 Pinnen'}
+            <div class="verlauf-seite">
+              <time class="verlauf-datum" datetime="${UI.escapeHtml(n.gesendetAm || '')}">${UI.datumFormatieren(n.gesendetAm)}</time>
+              ${statusZeile(n)}
+              <button class="textarea-aktion-btn" onclick="DashboardView.pinnenToggle(${n.id})" aria-label="${n.gepinnt ? 'Nicht mehr anheften' : 'Anheften'}" title="${n.gepinnt ? 'Nicht mehr anheften' : 'Oben anheften'}">
+                ${UI.icon(n.gepinnt ? 'pin-off' : 'pin')} ${n.gepinnt ? 'Lösen' : 'Anheften'}
               </button>
             </div>
-          </div>
+          </article>
         `).join('')}
       </div>
     `;
@@ -1028,7 +1004,7 @@ const DashboardView = {
     try {
       const result = await API.nachrichtPinnen(id);
       await this.verlaufLaden();
-      UI.erfolg(result.gepinnt ? '📌 Nachricht gepinnt!' : 'Nachricht aus Pins entfernt.');
+      UI.erfolg(result.gepinnt ? 'Nachricht angeheftet.' : 'Nachricht gelöst.');
     } catch (err) {
       UI.fehler(err.message);
     }
@@ -1067,7 +1043,7 @@ const DashboardView = {
     UI.modalZeigen(`
       <div class="modal-header">
         <span class="modal-titel">🔒 Passwort ändern</span>
-        <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
+        <button class="modal-schliessen" onclick="UI.modalSchliessen()" aria-label="Schließen">${UI.icon('x')}</button>
       </div>
       <div class="modal-koerper">
         <form id="passwort-formular">

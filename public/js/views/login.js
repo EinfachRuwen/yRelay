@@ -5,10 +5,9 @@ const LoginView = {
       <div class="seite login-seite">
         <div class="karte login-karte">
           <div class="login-logo-bereich">
-            <span class="login-logo">
-              <span class="logo-y">y</span><span class="logo-relay">Relay</span>
-            </span>
-            <p class="login-slogan">Messaging-Portal für deinen KI-Agenten</p>
+            <div class="marke login-logo">${UI.marke()}</div>
+            <h1 class="login-titel">Anmelden</h1>
+            <p class="login-slogan">Schreib deinem KI-Agenten – im Alltag und im Notfall.</p>
           </div>
 
           <div class="karte-koerper">
@@ -20,7 +19,6 @@ const LoginView = {
                   type="text"
                   id="login-benutzername"
                   name="benutzername"
-                  placeholder="Benutzername oder E-Mail"
                   autocomplete="username"
                   required
                 >
@@ -33,19 +31,14 @@ const LoginView = {
                   type="password"
                   id="login-passwort"
                   name="passwort"
-                  placeholder="Dein Passwort"
                   autocomplete="current-password"
                   required
                 >
               </div>
 
               <div id="login-fehler" class="info-box fehler versteckt" style="margin-bottom: 16px;">
-                <span>⚠️</span>
+                ${UI.icon('circle-alert')}
                 <span id="login-fehler-text"></span>
-              </div>
-
-              <div style="display:flex; justify-content:flex-end; margin-bottom: 16px;">
-                <a href="#" id="passwort-vergessen-link" class="text-link" style="font-size: 13px;">Passwort vergessen?</a>
               </div>
 
               <button type="submit" class="btn btn-primaer btn-vollbreite btn-gross" id="login-btn">
@@ -53,10 +46,11 @@ const LoginView = {
               </button>
             </form>
 
-            <p class="text-gedaempft text-zentriert" style="margin-top: 20px;">
-              Noch kein Konto? Wende dich an den Administrator.
+            <p class="text-zentriert" style="margin-top: 16px; font-size: var(--t-klein);">
+              <a href="#" id="passwort-vergessen-link">Passwort vergessen?</a>
             </p>
           </div>
+          <div class="login-fuss">Noch kein Konto? Du bekommst eine Einladung von der Person, die yRelay betreibt.</div>
         </div>
       </div>
 
@@ -65,17 +59,18 @@ const LoginView = {
         <div class="modal-box" style="max-width: 400px;">
           <div class="modal-header">
             <h2 class="modal-titel">Passwort zurücksetzen</h2>
-            <button class="modal-schliessen" id="reset-schliessen"><i class="ph ph-x"></i></button>
+            <button class="modal-schliessen" id="reset-schliessen">${UI.icon('x')}</button>
           </div>
           <div class="modal-koerper">
-            <p class="text-gedaempft" style="margin-bottom: 16px; font-size: 14px;">Bitte gib deine E-Mail-Adresse ein. Wir senden dir einen Link, mit dem du dein Passwort sicher zurücksetzen kannst.</p>
+            <p class="text-gedaempft" style="margin-bottom: 16px;">Gib die E-Mail-Adresse deines Kontos ein. Du bekommst einen Link, mit dem du ein neues Passwort festlegst.</p>
             <form id="reset-formular">
               <div class="formular-gruppe">
-                <input class="formular-eingabe" type="email" id="reset-email" placeholder="deine@email.de" required>
+                <label class="formular-label" for="reset-email">E-Mail-Adresse</label>
+                <input class="formular-eingabe" type="email" id="reset-email" autocomplete="email" required>
               </div>
               <div style="display:flex; justify-content:flex-end; gap: 12px; margin-top: 24px;">
                 <button type="button" class="btn btn-sekundaer" id="reset-abbrechen">Abbrechen</button>
-                <button type="submit" class="btn btn-primaer" id="reset-senden-btn">Senden</button>
+                <button type="submit" class="btn btn-primaer" id="reset-senden-btn">Link senden</button>
               </div>
             </form>
           </div>

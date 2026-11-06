@@ -1,11 +1,11 @@
 {
-  "name": "yRelay Notfall-Zentrale",
+  "name": "yRelay",
   "short_name": "yRelay",
-  "description": "Die direkte Notfall- und Kommunikationsschnittstelle.",
+  "description": "Nachrichten und Notfälle direkt an deinen KI-Agenten.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#080c14",
-  "theme_color": "#080c14",
+  "background_color": "#EEF0EC",
+  "theme_color": "#EEF0EC",
   "icons": [
     {
       "src": "/img/logo.png",

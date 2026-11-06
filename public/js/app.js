@@ -25,6 +25,8 @@ const App = {
     const hash = window.location.hash || '#';
     const app = document.getElementById('app');
     if (!app) return;
+    // Die untere Navigationsleiste setzt UI.kopfzeile() wieder, wenn eine Seite sie rendert
+    document.body.classList.remove('hat-unten-nav');
 
     // Reset-Passwort-Route
     if (hash.startsWith('#reset/')) {

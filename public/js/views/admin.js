@@ -7,40 +7,23 @@ const AdminView = {
 
     return `
       <div class="seite haupt-seite">
-        <!-- Navigation -->
-        <nav class="navbar">
-          <span class="navbar-logo">
-            <span class="logo-y">y</span><span class="logo-relay">Relay</span>
-            <span style="font-size: 12px; color: var(--farbe-warnung); margin-left: 8px; font-weight: 600;">ADMIN</span>
-          </span>
-          <div class="navbar-nav">
-            <div class="nav-nutzer">
-              <div class="nav-avatar" style="background: var(--verlauf-warnung);">${UI.escapeHtml(avatarBuchstabe)}</div>
-              <div class="nav-info">
-                <span class="nav-name">${UI.escapeHtml(nutzer.benutzername)}</span>
-                <span class="nav-rolle">Administrator</span>
-              </div>
-            </div>
-            <button class="btn btn-ghost btn-klein" id="nutzer-panel-btn" title="Benutzerpanel">👤 Benutzer</button>
-            <button class="btn btn-ghost btn-klein" id="admin-abmelden-btn">Abmelden</button>
-          </div>
-        </nav>
+        ${UI.kopfzeile(nutzer, 'admin')}
 
         <!-- Hauptinhalt -->
         <main class="hauptinhalt">
-          <div class="sektion-titel">⚙️ Admin-Panel</div>
+          <h1 class="sektion-titel">Verwaltung</h1>
 
           <!-- Tabs -->
           <div class="admin-tabs" role="tablist">
-            <button class="admin-tab aktiv" data-tab="uebersicht" role="tab">📊 <span class="tab-text">Übersicht</span></button>
-            <button class="admin-tab" data-tab="nutzer" role="tab">👥 <span class="tab-text">Nutzer</span></button>
-            <button class="admin-tab" data-tab="nachrichten" role="tab">📨 <span class="tab-text">Nachrichten</span></button>
-            <button class="admin-tab" data-tab="labels" role="tab">🏷️ <span class="tab-text">Labels</span></button>
-            <button class="admin-tab" data-tab="audit" role="tab">📜 <span class="tab-text">Audit Log</span></button>
-            <button class="admin-tab" data-tab="einstellungen" role="tab">🔧 <span class="tab-text">Einstellungen</span></button>
-            <button class="admin-tab" data-tab="poke-profile" role="tab">🤖 <span class="tab-text">KI-Agenten</span></button>
-            <button class="admin-tab" data-tab="spiele" role="tab">🎮 <span class="tab-text">Spiele</span></button>
-            <button class="admin-tab" data-tab="email-tool" role="tab">📧 <span class="tab-text">E-Mail Tool</span></button>
+            <button class="admin-tab aktiv" data-tab="uebersicht" role="tab">${UI.icon('chart-column')} <span class="tab-text">Übersicht</span></button>
+            <button class="admin-tab" data-tab="nutzer" role="tab">${UI.icon('users')} <span class="tab-text">Nutzer</span></button>
+            <button class="admin-tab" data-tab="nachrichten" role="tab">${UI.icon('messages-square')} <span class="tab-text">Nachrichten</span></button>
+            <button class="admin-tab" data-tab="labels" role="tab">${UI.icon('tag')} <span class="tab-text">Labels</span></button>
+            <button class="admin-tab" data-tab="audit" role="tab">${UI.icon('scroll-text')} <span class="tab-text">Protokoll</span></button>
+            <button class="admin-tab" data-tab="einstellungen" role="tab">${UI.icon('settings')} <span class="tab-text">Einstellungen</span></button>
+            <button class="admin-tab" data-tab="poke-profile" role="tab">${UI.icon('bot')} <span class="tab-text">KI-Agenten</span></button>
+            <button class="admin-tab" data-tab="spiele" role="tab">${UI.icon('gamepad-2')} <span class="tab-text">Spiele</span></button>
+            <button class="admin-tab" data-tab="email-tool" role="tab">${UI.icon('mail')} <span class="tab-text">E-Mail</span></button>
           </div>
 
           <!-- Tab-Inhalt -->
@@ -53,6 +36,7 @@ const AdminView = {
   },
 
   async initialisieren(nutzer) {
+    UI.kopfzeileInit();
     document.getElementById('admin-abmelden-btn')?.addEventListener('click', () => App.abmelden());
 
     document.getElementById('nutzer-panel-btn')?.addEventListener('click', () => {
@@ -125,26 +109,26 @@ const AdminView = {
 
       <div class="karte">
         <div class="karte-header">
-          <div class="karte-icon karte-icon-info">🔗</div>
+          <div class="karte-icon">${UI.icon('link')}</div>
           <div>
-            <div class="karte-titel">Poke-Webhook-Status</div>
-            <div class="karte-untertitel">Verbindung zu Poke</div>
+            <h2 class="karte-titel">Zustellung</h2>
+            <div class="karte-untertitel">Ob Nachrichten einen KI-Agenten erreichen können</div>
           </div>
         </div>
         <div class="karte-koerper">
           ${stats.webhookKonfiguriert
-            ? '<div class="info-box erfolg"><span>✅</span><span>Poke-Webhook ist konfiguriert und aktiv.</span></div>'
-            : '<div class="info-box warnung"><span>⚠️</span><span>Poke-Webhook ist noch nicht konfiguriert. Gehe zu den <strong>Einstellungen</strong> und trage die Webhook-Daten ein.</span></div>'
+            ? `<div class="info-box erfolg">${UI.icon('circle-check')}<span>Mindestens ein KI-Agent ist eingerichtet und erreichbar.</span></div>`
+            : `<div class="info-box warnung">${UI.icon('triangle-alert')}<span>Noch kein KI-Agent eingerichtet. Lege unter <strong>KI-Agenten</strong> einen an, sonst kommen Nachrichten nicht an.</span></div>`
           }
         </div>
       </div>
 
-      <div class="karte" style="margin-top: 20px;">
-        <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-          <div class="karte-icon karte-icon-primaer">📝</div>
+      <div class="karte">
+        <div class="karte-header" style="flex-wrap: wrap;">
+          <div class="karte-icon">${UI.icon('sticky-note')}</div>
           <div style="flex: 1; min-width: 200px;">
-            <div class="karte-titel">Admin-Notiz</div>
-            <div class="karte-untertitel">Ein persönliches Notizfeld für dich</div>
+            <h2 class="karte-titel">Notiz</h2>
+            <div class="karte-untertitel">Nur für dich sichtbar</div>
           </div>
           <div>
             <button class="btn btn-sekundaer btn-klein" id="admin-notiz-speichern">Speichern</button>
@@ -152,50 +136,61 @@ const AdminView = {
         </div>
         <div class="karte-koerper">
           <div class="textarea-wrapper">
-            <textarea id="admin-notiz-feld" class="formular-textarea" rows="6" placeholder="Hier kannst du eine Notiz hinterlegen...">${UI.escapeHtml(notiz.text)}</textarea>
+            <textarea id="admin-notiz-feld" class="formular-textarea" rows="6" placeholder="Zum Beispiel: offene Aufgaben, Zugangsdaten-Hinweise, Ideen">${UI.escapeHtml(notiz.text)}</textarea>
           </div>
         </div>
       </div>
 
       <!-- Charts Section -->
-      <div class="karte" style="margin-top: 20px;">
+      <div class="karte">
         <div class="karte-header">
-          <div class="karte-icon karte-icon-primaer">📈</div>
-          <div><div class="karte-titel">Nachrichten (30 Tage)</div></div>
+          <div class="karte-icon">${UI.icon('chart-column')}</div>
+          <div><h2 class="karte-titel">Nachrichten pro Tag</h2><div class="karte-untertitel">Letzte 30 Tage</div></div>
         </div>
         <div class="karte-koerper">
           <canvas id="chart-verlauf" height="100"></canvas>
         </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+      <div class="dashboard-grid">
         <div class="karte">
           <div class="karte-header">
-            <div class="karte-icon karte-icon-erfolg">🎯</div>
-            <div><div class="karte-titel">Antwortrate</div></div>
+            <div class="karte-icon">${UI.icon('reply')}</div>
+            <div><h2 class="karte-titel">Antwortrate</h2><div class="karte-untertitel">Nachrichten mit mindestens einer Agenten-Antwort</div></div>
           </div>
-          <div class="karte-koerper" style="display: flex; justify-content: center;">
-            <div style="max-width: 200px;"><canvas id="chart-antwortrate"></canvas></div>
+          <div class="karte-koerper">
+            ${(() => {
+              const beantwortet = stats.antwortrate?.beantwortet || 0;
+              const offen = stats.antwortrate?.offen || 0;
+              const gesamt = beantwortet + offen;
+              const prozent = gesamt ? Math.round(beantwortet / gesamt * 100) : 0;
+              return `
+                <div class="statistik-wert" style="margin-bottom: 4px;">${prozent} %</div>
+                <div class="text-gedaempft" style="font-size: var(--t-klein); margin-bottom: 12px;">${beantwortet} beantwortet · ${offen} offen</div>
+                <div role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${prozent}" aria-label="Antwortrate" style="height: 8px; background: var(--flaeche-2); border-radius: 4px; overflow: hidden;">
+                  <div style="width: ${prozent}%; height: 100%; background: var(--signal); border-radius: 4px;"></div>
+                </div>`;
+            })()}
           </div>
         </div>
         <div class="karte">
           <div class="karte-header">
-            <div class="karte-icon karte-icon-primaer">🏆</div>
-            <div><div class="karte-titel">Top Nutzer</div></div>
+            <div class="karte-icon">${UI.icon('users')}</div>
+            <div><h2 class="karte-titel">Aktivste Nutzer</h2><div class="karte-untertitel">Nach Anzahl gesendeter Nachrichten</div></div>
           </div>
           <div class="karte-koerper">
-            <canvas id="chart-top-nutzer" height="140"></canvas>
+            <canvas id="chart-top-nutzer" height="160" aria-label="Aktivste Nutzer nach Nachrichten"></canvas>
           </div>
         </div>
       </div>
 
       <!-- Broadcast-Karte -->
-      <div class="karte" style="margin-top: 20px;">
-        <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-          <div class="karte-icon karte-icon-warnung">📢</div>
+      <div class="karte">
+        <div class="karte-header" style="flex-wrap: wrap;">
+          <div class="karte-icon">${UI.icon('mail')}</div>
           <div style="flex: 1; min-width: 200px;">
-            <div class="karte-titel">Broadcast-Mail</div>
-            <div class="karte-untertitel">E-Mail an alle aktiven Nutzer senden</div>
+            <h2 class="karte-titel">Rundmail</h2>
+            <div class="karte-untertitel">E-Mail an alle aktiven Nutzer oder an ein Label</div>
           </div>
         </div>
         <div class="karte-koerper">
@@ -270,45 +265,51 @@ const AdminView = {
   },
 
   _renderCharts(stats) {
-    // Nachrichten-Verlauf Chart
+    // Farben aus den Design-Tokens lesen, damit Hell und Dunkel stimmen
+    const css = getComputedStyle(document.documentElement);
+    const token = (name) => css.getPropertyValue(name).trim();
+    const signal = token('--signal');
+    const tinte2 = token('--tinte-2');
+    const linie = token('--linie');
+    const flaeche = token('--flaeche');
+    const schrift = { family: token('--schrift') || 'system-ui', size: 12 };
+    const tooltip = { backgroundColor: token('--tinte'), titleColor: token('--grund'), bodyColor: token('--grund'), padding: 10, cornerRadius: 8, displayColors: false, titleFont: schrift, bodyFont: schrift };
+    const achse = (raster) => ({ ticks: { color: tinte2, font: schrift }, grid: raster ? { color: linie, drawTicks: false } : { display: false }, border: { display: false } });
+
     const verlaufCtx = document.getElementById('chart-verlauf')?.getContext('2d');
     if (verlaufCtx && stats.nachrichtenProTag?.length > 0) {
       new Chart(verlaufCtx, {
         type: 'line',
         data: {
           labels: stats.nachrichtenProTag.map(d => {
-            const [y, m, day] = d.tag.split('-');
+            const [, m, day] = d.tag.split('-');
             return `${day}.${m}.`;
           }),
-          datasets: [{ label: 'Nachrichten', data: stats.nachrichtenProTag.map(d => d.anzahl), borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4, pointBackgroundColor: '#6366f1' }]
+          datasets: [{ label: 'Nachrichten', data: stats.nachrichtenProTag.map(d => d.anzahl), borderColor: signal, borderWidth: 2, backgroundColor: signal + '1f', fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: signal, pointHoverBorderColor: flaeche, pointHoverBorderWidth: 2 }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 } } }
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { display: false }, tooltip },
+          scales: { x: { ...achse(false), ticks: { ...achse(false).ticks, maxTicksLimit: 8 } }, y: { ...achse(true), ticks: { ...achse(true).ticks, precision: 0 }, min: 0 } }
+        }
       });
     }
 
-    // Antwortrate Donut
-    const antwortrateCtx = document.getElementById('chart-antwortrate')?.getContext('2d');
-    if (antwortrateCtx) {
-      new Chart(antwortrateCtx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Beantwortet', 'Offen'],
-          datasets: [{ data: [stats.antwortrate?.beantwortet || 0, stats.antwortrate?.offen || 0], backgroundColor: ['#10b981', '#1e293b'], borderColor: ['#059669', '#334155'], borderWidth: 2 }]
-        },
-        options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, cutout: '65%' }
-      });
-    }
-
-    // Top Nutzer Bar Chart
     const topNutzerCtx = document.getElementById('chart-top-nutzer')?.getContext('2d');
     if (topNutzerCtx && stats.topNutzer?.length > 0) {
       new Chart(topNutzerCtx, {
         type: 'bar',
         data: {
           labels: stats.topNutzer.map(n => n.username),
-          datasets: [{ label: 'Nachrichten', data: stats.topNutzer.map(n => n.anzahl), backgroundColor: 'rgba(99,102,241,0.6)', borderColor: '#6366f1', borderWidth: 1, borderRadius: 6 }]
+          datasets: [{ label: 'Nachrichten', data: stats.topNutzer.map(n => n.anzahl), backgroundColor: signal, borderRadius: 4, borderSkipped: 'start', barThickness: 14 }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8' }, grid: { display: false } }, y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 } } }
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          plugins: { legend: { display: false }, tooltip },
+          scales: { x: { ...achse(true), ticks: { ...achse(true).ticks, precision: 0 }, min: 0 }, y: achse(false) }
+        }
       });
     }
   },

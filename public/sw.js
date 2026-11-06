@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yrelay-cache-v3';
+const CACHE_NAME = 'yrelay-cache-v4';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -13,6 +13,11 @@ const ASSETS_TO_CACHE = [
   '/js/views/login.js',
   '/js/views/reset.js',
   '/img/logo.png',
+  '/img/logo.svg',
+  '/img/icons.svg',
+  '/fonts/atkinson-next-latin.woff2',
+  '/js/views/schuldashboard.js',
+  '/js/views/games.js',
   '/sounds/doorbell.mp3',
   '/sounds/success.mp3',
   '/sounds/alarm.mp3',

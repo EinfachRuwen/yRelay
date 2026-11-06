@@ -2,6 +2,110 @@
 // Toast-Benachrichtigungen, Modals, Buttons, etc.
 
 const UI = {
+  // ─── Icons (Lucide-Sprite unter /img/icons.svg) ───────────────────────
+  icon(name, klasse = '') {
+    return `<svg class="icon ${klasse}" aria-hidden="true" focusable="false"><use href="/img/icons.svg#i-${name}"></use></svg>`;
+  },
+
+  // ─── Darstellung (System / Hell / Dunkel) ─────────────────────────────
+  themaLaden() {
+    let thema = 'system';
+    try { thema = localStorage.getItem('yrelay_thema') || 'system'; } catch {}
+    if (thema === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', thema);
+    return thema;
+  },
+
+  themaWechseln() {
+    const reihe = ['system', 'light', 'dark'];
+    const naechstes = reihe[(reihe.indexOf(this.themaLaden()) + 1) % reihe.length];
+    try { localStorage.setItem('yrelay_thema', naechstes); } catch {}
+    this.themaLaden();
+    document.querySelectorAll('[data-thema-wert]').forEach(el => { el.textContent = this.themaName(naechstes); });
+  },
+
+  themaName(thema) {
+    return { system: 'System', light: 'Hell', dark: 'Dunkel' }[thema] || 'System';
+  },
+
+  // ─── Gemeinsame Kopfzeile für alle Bereiche ───────────────────────────
+  marke() {
+    return `<svg class="marke-zeichen" viewBox="0 0 18 18" aria-hidden="true"><rect x="0.75" y="0.75" width="16.5" height="16.5" rx="5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9" r="4" fill="var(--signal)"/></svg><span>yRelay</span>`;
+  },
+
+  kopfzeile(nutzer, aktiv = '') {
+    const name = nutzer.anzeigename || nutzer.benutzername || '';
+    const buchstabe = (name || '?')[0].toUpperCase();
+    const istAdmin = nutzer.rolle === 'admin';
+    const schule = nutzer.schul_dashboard_global_enabled && nutzer.has_schul_access;
+    const link = (ziel, icon, text, extra = '') =>
+      `<a class="kopf-link${aktiv === ziel ? ' aktiv' : ''}" href="#${ziel}" ${aktiv === ziel ? 'aria-current="page"' : ''} ${extra}>${this.icon(icon)}<span>${text}</span></a>`;
+    const links = [
+      link('dashboard', 'messages-square', 'Nachrichten'),
+      schule ? link('schule', 'graduation-cap', 'Schule') : '',
+      link('spiele', 'gamepad-2', 'Spiele', `data-spiele-link ${aktiv === 'spiele' ? '' : 'hidden'}`),
+      istAdmin ? link('admin', 'shield-check', 'Verwaltung') : '',
+    ].join('');
+    document.body.classList.add('hat-unten-nav');
+    return `
+      <header class="kopfzeile">
+        <div class="kopfzeile-innen">
+          <a class="marke" href="#dashboard" id="header-logo" aria-label="yRelay – zu den Nachrichten">${this.marke()}</a>
+          <nav class="kopf-nav" aria-label="Bereiche">${links}</nav>
+          <div class="kopf-rechts">
+            <details class="konto">
+              <summary aria-label="Konto">
+                <span class="avatar">${this.escapeHtml(buchstabe)}</span>
+                <span class="konto-text"><span class="konto-name">${this.escapeHtml(name)}</span></span>
+                ${this.icon('chevron-down')}
+              </summary>
+              <div class="konto-menue" role="menu">
+                <div class="konto-menue-kopf">
+                  <div class="konto-name">${this.escapeHtml(name)}</div>
+                  <span class="konto-rolle">${istAdmin ? 'Administrator' : 'Mitglied'}${nutzer.email ? ' · ' + this.escapeHtml(nutzer.email) : ''}</span>
+                </div>
+                <button class="menue-eintrag" type="button" data-konto="profil" role="menuitem">${this.icon('user')} Profil und Benachrichtigungen</button>
+                <button class="menue-eintrag" type="button" data-konto="passwort" role="menuitem">${this.icon('key-round')} Passwort ändern</button>
+                <button class="menue-eintrag" type="button" data-konto="thema" role="menuitem">${this.icon('sun')} Darstellung <span class="menue-wert" data-thema-wert>${this.themaName(this.themaLaden())}</span></button>
+                <div class="menue-trenner"></div>
+                <button class="menue-eintrag" type="button" data-konto="abmelden" role="menuitem">${this.icon('log-out')} Abmelden</button>
+              </div>
+            </details>
+          </div>
+        </div>
+      </header>
+      <nav class="unten-nav" aria-label="Bereiche">${links}</nav>
+    `;
+  },
+
+  kopfzeileInit() {
+    const konto = document.querySelector('.konto');
+    document.querySelectorAll('[data-konto]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const aktion = btn.dataset.konto;
+        if (aktion !== 'thema' && konto) konto.open = false;
+        if (aktion === 'profil') DashboardView.profilModal(App.nutzer);
+        else if (aktion === 'passwort') DashboardView.passwortAendernModal();
+        else if (aktion === 'thema') this.themaWechseln();
+        else if (aktion === 'abmelden') App.abmelden();
+      });
+    });
+    if (konto && !this._kontoKlickGebunden) {
+      this._kontoKlickGebunden = true;
+      document.addEventListener('click', (e) => {
+        const offen = document.querySelector('.konto[open]');
+        if (offen && !offen.contains(e.target)) offen.open = false;
+      });
+    }
+    // Spiele nur zeigen, wenn mindestens ein Spiel verfügbar ist
+    const spieleLinks = document.querySelectorAll('[data-spiele-link][hidden]');
+    if (spieleLinks.length) {
+      API.anfrage('GET', '/games/verfuegbar').then(daten => {
+        if (daten.spiele && daten.spiele.some(sp => sp.istVerfuegbar)) spieleLinks.forEach(l => l.hidden = false);
+      }).catch(() => {});
+    }
+  },
+
   // ─── Toast-Benachrichtigungen ─────────────────────────────────────────
   toast(text, typ = 'info', dauer = 4000) {
     const container = document.getElementById('toast-container');
@@ -19,7 +123,7 @@ const UI = {
     toast.innerHTML = `
       <span class="toast-icon">${icons[typ] || icons.info}</span>
       <span class="toast-text">${this.escapeHtml(text)}</span>
-      <button class="toast-schliessen" onclick="UI.toastSchliessen(this.parentElement)" aria-label="Schließen">✕</button>
+      <button class="toast-schliessen" onclick="UI.toastSchliessen(this.parentElement)" aria-label="Schließen">${this.icon('x')}</button>
     `;
 
     container.appendChild(toast);
@@ -138,19 +242,16 @@ const UI = {
 
   // ─── Nachrichtentyp-Badge ─────────────────────────────────────────────
   typBadge(typ, prioritaet) {
-    if (typ === 'emergency' && prioritaet === 'hoch') {
-      return '<span class="verlauf-typ-badge warnung">⚠️ Wichtig</span>';
-    }
-    if (typ === 'emergency') {
-      return '<span class="verlauf-typ-badge notfall">🚨 Notfall</span>';
-    }
-    return '<span class="verlauf-typ-badge frei">💬 Nachricht</span>';
+    if (typ === 'emergency' && prioritaet === 'hoch') return '<span class="verlauf-typ-badge warnung">Wichtig</span>';
+    if (typ === 'emergency') return '<span class="verlauf-typ-badge notfall">Notfall</span>';
+    if (typ === 'school') return '<span class="verlauf-typ-badge frei">Schule</span>';
+    return '<span class="verlauf-typ-badge frei">Nachricht</span>';
   },
 
   // ─── Priorität-Text ────────────────────────────────────────────
   prioritaetText(prioritaet) {
-    if (prioritaet === 'notfall') return '🚨 Notfall';
-    if (prioritaet === 'hoch') return '⚠️ Hohe Priorität';
+    if (prioritaet === 'notfall') return 'Notfall';
+    if (prioritaet === 'hoch') return 'Hohe Priorität';
     return '-';
   },
 
@@ -187,88 +288,71 @@ const UI = {
     });
 
     return alle.map(a => {
-      const datumTxt = a.time ? ` (${this.datumFormatieren(a.time)})` : '';
-      
+      const zeit = a.time ? `<time datetime="${this.escapeHtml(a.time)}">· ${this.escapeHtml(this.datumFormatieren(a.time))}</time>` : '';
+
       if (a.absender === 'poke') {
         let buttonsHtml = '';
         if (a.buttons && a.buttons.length > 0) {
+          const klassen = { primaer: 'btn-primaer', sekundaer: 'btn-sekundaer', warnung: 'btn-warnung', notfall: 'btn-notfall' };
           const btnTags = a.buttons.map(btn => {
-            let btnStyle = 'background: var(--farbe-primaer); color: white;';
-            if (btn.style === 'sekundaer') btnStyle = 'background: var(--farbe-rahmen); color: var(--farbe-text);';
-            if (btn.style === 'warnung') btnStyle = 'background: var(--farbe-warnung); color: white;';
-            if (btn.style === 'notfall') btnStyle = 'background: var(--farbe-notfall); color: white;';
-            
-            const dis = a.buttons_disabled ? 'opacity: 0.5; cursor: not-allowed;' : 'cursor: pointer;';
-            const oc = a.buttons_disabled ? '' : `onclick="DashboardView.buttonKlick(this, ${nachrichtId}, '${this.escapeHtml(btn.id)}')";`;
-            
-            return `<button type="button" style="border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 13px; transition: opacity 0.2s; ${btnStyle} ${dis}" ${oc} ${a.buttons_disabled ? 'disabled' : ''}>
-              ${this.escapeHtml(btn.text)}
-            </button>`;
+            const klasse = klassen[btn.style] || 'btn-primaer';
+            const oc = a.buttons_disabled ? '' : `onclick="DashboardView.buttonKlick(this, ${nachrichtId}, '${this.escapeHtml(btn.id)}')"`;
+            return `<button type="button" class="btn btn-klein ${klasse}" ${oc} ${a.buttons_disabled ? 'disabled' : ''}>${this.escapeHtml(btn.text)}</button>`;
           }).join('');
-          
-          buttonsHtml = `<div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">${btnTags}</div>`;
+          buttonsHtml = `<div class="antwort-buttons">${btnTags}</div>`;
         }
 
         return `
-          <div style="margin-top: 12px; padding: 12px 16px; background: rgba(6, 182, 212, 0.08); border-left: 3px solid var(--farbe-akzent); border-radius: 4px;">
-            <div style="font-size: 11px; color: var(--farbe-akzent); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-              🤖 ${this.escapeHtml(agentName)} hat geantwortet${this.escapeHtml(datumTxt)}
-            </div>
-            <div style="font-size: 13px; color: var(--farbe-text); line-height: 1.5; white-space: pre-wrap;">${this.escapeHtml(a.text)}</div>
+          <div class="antwort">
+            <div class="antwort-kopf">${this.icon('bot')} ${this.escapeHtml(agentName)} ${zeit}</div>
+            <div class="antwort-text">${this.escapeHtml(a.text)}</div>
             ${buttonsHtml}
           </div>
         `;
-      } else {
-        return `
-          <div style="margin-top: 8px; margin-left: 20px; padding: 12px 16px; background: rgba(99, 102, 241, 0.08); border-left: 3px solid var(--farbe-primaer); border-radius: 4px;">
-            <div style="font-size: 11px; color: var(--farbe-primaer-hell); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-              👤 Deine Antwort${this.escapeHtml(datumTxt)}
-            </div>
-            <div style="font-size: 13px; color: var(--farbe-text); line-height: 1.5; white-space: pre-wrap;">${this.escapeHtml(a.text)}</div>
-          </div>
-        `;
       }
+      return `
+        <div class="antwort eigene">
+          <div class="antwort-kopf">${this.icon('reply')} Deine Antwort ${zeit}</div>
+          <div class="antwort-text">${this.escapeHtml(a.text)}</div>
+        </div>
+      `;
     }).join('');
   },
 
   // ─── Spezielle Nachrichten rendern ─────────────────────────────────────
   renderInhalt(text) {
-    let iconHtml = '';
     const match = text.match(/^\[SPECIAL:([A-Z_]+)\]/);
     if (match) {
-      // Poke-Hint entfernen für saubere Anzeige
-      text = text.replace(/^\[SPECIAL:[A-Z_]+\]\s*/, '').split('\n\nHinweis für Poke:')[0];
-      const type = match[1];
-      let icon = ''; let anim = '';
-      if (type === 'DOORBELL') { icon = '🚪'; anim = 'anim-doorbell'; }
-      else if (type === 'SOS') { icon = '🚨'; anim = 'anim-sos'; }
-      else if (type === 'DEADLINE') { icon = '⏱️'; anim = 'anim-deadline'; }
-      else if (type === 'WAKEUP') { icon = '😴'; anim = 'anim-wakeup'; }
-      else if (type === 'WHERE_ARE_YOU') { icon = '🕵️'; anim = 'anim-radar'; }
-      
-      if (icon) {
-        iconHtml = `<div class="special-icon ${anim}">${icon}</div>`;
+      // Agenten-Hinweis entfernen für saubere Anzeige
+      text = text.replace(/^\[SPECIAL:[A-Z_]+\]\s*/, '').split('\n\nHinweis für Poke:')[0].split('\n\nHinweis für den Agenten:')[0];
+      const arten = {
+        DOORBELL: ['door-open', 'anim-doorbell', ''],
+        SOS: ['siren', 'anim-sos', ''],
+        DEADLINE: ['hourglass', 'anim-deadline', 'achtung'],
+        WAKEUP: ['alarm-clock', 'anim-wakeup', ''],
+        WHERE_ARE_YOU: ['map-pin', 'anim-radar', 'achtung'],
+      };
+      const art = arten[match[1]];
+      if (art) {
+        return `
+          <div class="special-inhalt">
+            <span class="special-icon ${art[1]} ${art[2]}">${this.icon(art[0])}</span>
+            <div class="verlauf-inhalt">${this.escapeHtml(text)}</div>
+          </div>
+        `;
       }
     }
-    
-    if (iconHtml) {
-      return `
-        <div style="display: flex; align-items: center; gap: 12px;">
-          ${iconHtml}
-          <div class="verlauf-inhalt" style="font-weight: 600; font-size: 16px; color: var(--farbe-text);">${this.escapeHtml(text)}</div>
-        </div>
-      `;
-    }
-    
     return `<div class="verlauf-inhalt">${this.escapeHtml(text)}</div>`;
   },
 
   // ─── Leere-Liste-Placeholder ──────────────────────────────────────────
-  leereListeHtml(emoji, text) {
+  // Erstes Argument: Icon-Name aus dem Sprite (z. B. 'inbox') oder ein Zeichen
+  leereListeHtml(icon, text) {
+    const zeichen = /^[a-z0-9-]+$/.test(icon) ? this.icon(icon) : this.escapeHtml(icon);
     return `
       <div class="leere-liste">
-        <span class="leere-liste-icon">${emoji}</span>
-        ${this.escapeHtml(text)}
+        <span class="leere-liste-icon">${zeichen}</span>
+        <span>${this.escapeHtml(text)}</span>
       </div>
     `;
   },
