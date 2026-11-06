@@ -5,55 +5,26 @@ const EinladungView = {
   rendern(token) {
     this.token = token;
     return `
-      <div class="seite login-seite">
-        <div class="karte login-karte">
-          <div class="login-logo-bereich">
-            <span class="login-logo">
-              <span class="logo-y">y</span><span class="logo-relay">Relay</span>
-            </span>
-            <p class="login-slogan">Konto aktivieren</p>
-          </div>
-
-          <div class="karte-koerper">
-            <div class="info-box info" style="margin-bottom: 20px;">
-              <span>👋</span>
-              <span>Du wurdest zu yRelay eingeladen! Lege jetzt ein Passwort fest, um dein Konto zu aktivieren.</span>
-            </div>
-
+      <div class="solo">
+        <div class="solo-tafel">
+          <span class="wegweiser wegweiser-blau">yRelay</span>
+          <h1>Willkommen</h1>
+          <p class="unterzeile">Du wurdest zu yRelay eingeladen. Lege ein Passwort fest, dann ist dein Zugang aktiv.</p>
+          <div class="tafel">
             <form id="einladung-formular">
               <div class="formular-gruppe">
-                <label class="formular-label" for="einl-passwort">Passwort wählen</label>
-                <input
-                  class="formular-eingabe"
-                  type="password"
-                  id="einl-passwort"
-                  placeholder="Mindestens 8 Zeichen"
-                  autocomplete="new-password"
-                  required
-                  minlength="8"
-                >
+                <label class="formular-label" for="einl-passwort">Passwort</label>
+                <input class="formular-eingabe" type="password" id="einl-passwort" autocomplete="new-password" required minlength="8">
+                <div class="formular-hilfe">Mindestens 8 Zeichen.</div>
               </div>
-
               <div class="formular-gruppe">
-                <label class="formular-label" for="einl-passwort2">Passwort bestätigen</label>
-                <input
-                  class="formular-eingabe"
-                  type="password"
-                  id="einl-passwort2"
-                  placeholder="Passwort wiederholen"
-                  autocomplete="new-password"
-                  required
-                >
+                <label class="formular-label" for="einl-passwort2">Passwort wiederholen</label>
+                <input class="formular-eingabe" type="password" id="einl-passwort2" autocomplete="new-password" required>
               </div>
-
-              <div id="einl-fehler" class="info-box fehler versteckt" style="margin-bottom: 16px;">
-                <span>⚠️</span>
-                <span id="einl-fehler-text"></span>
+              <div id="einl-fehler" class="info-box fehler versteckt" role="alert">
+                ${UI.icon('fehler')}<span id="einl-fehler-text"></span>
               </div>
-
-              <button type="submit" class="btn btn-primaer btn-vollbreite btn-gross" id="einl-btn">
-                Konto aktivieren →
-              </button>
+              <button type="submit" class="btn btn-primaer btn-vollbreite btn-gross" id="einl-btn">Zugang aktivieren</button>
             </form>
           </div>
         </div>

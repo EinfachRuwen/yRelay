@@ -1,7 +1,6 @@
-const CACHE_NAME = 'yrelay-cache-v3';
+const CACHE_NAME = 'yrelay-cache-v4';
 const ASSETS_TO_CACHE = [
   '/',
-  '/index.html',
   '/manifest.json',
   '/css/style.css',
   '/js/app.js',
@@ -12,12 +11,20 @@ const ASSETS_TO_CACHE = [
   '/js/views/einladung.js',
   '/js/views/login.js',
   '/js/views/reset.js',
+  '/js/views/schuldashboard.js',
+  '/js/views/games.js',
   '/img/logo.png',
+  '/img/logo.svg',
+  '/img/icons.svg',
+  '/fonts/schild-regular.woff2',
+  '/fonts/schild-bold.woff2',
+  '/fonts/schild-italic.woff2',
+  '/fonts/schild-condensed-bold.woff2',
   '/sounds/doorbell.mp3',
-  '/sounds/success.mp3',
-  '/sounds/alarm.mp3',
-  '/sounds/error.mp3',
-  '/sounds/notification.mp3'
+  '/sounds/sos.mp3',
+  '/sounds/deadline.mp3',
+  '/sounds/wakeup.mp3',
+  '/sounds/radar.mp3'
 ];
 
 // Installieren und Assets cachen

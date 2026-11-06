@@ -1,357 +1,120 @@
 // yRelay - Schul-Dashboard View
 const SchulDashboardView = {
   rendern(nutzer) {
-    const nameToDisplay = nutzer.anzeigename || nutzer.benutzername;
-    const avatarBuchstabe = nameToDisplay[0].toUpperCase();
-    const isMobile = window.innerWidth <= 768;
-
+    const ic = (n) => UI.icon(n);
+    const heute = new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+    const kopf = (icon, titel, extra = '') => `<div class="schul-widget-kopf"><h2 class="schul-widget-titel">${ic(icon)}${titel}</h2>${extra}</div>`;
     return `
-      <div class="seite haupt-seite schul-dashboard-seite">
-        <!-- Navigation -->
-        <nav class="navbar">
-          <span class="navbar-logo" style="cursor: pointer; user-select: none;" onclick="window.location.hash='#dashboard'">
-            <span class="logo-y">y</span><span class="logo-relay">Relay</span>
-          </span>
-          <div class="navbar-nav">
-            <div class="nav-nutzer">
-              <div class="nav-avatar">${UI.escapeHtml(avatarBuchstabe)}</div>
-              <div class="nav-info">
-                <span class="nav-name">${UI.escapeHtml(nameToDisplay)}</span>
-                <span class="nav-rolle">Nutzer</span>
-              </div>
-            </div>
-            <button class="btn btn-sekundaer btn-klein" onclick="window.location.hash='#dashboard'" title="Zum normalen Dashboard">📊 Chat</button>
-            ${nutzer.rolle === 'admin' ? '<button class="btn btn-primaer btn-klein" onclick="window.location.hash=\'#admin\'" title="Admin Panel">🛠️ Admin</button>' : ''}
-            <button class="btn btn-ghost btn-klein" id="abmelden-btn">Abmelden</button>
-          </div>
-        </nav>
+      <div class="seite">
+        ${UI.kopf(nutzer, 'schule')}
 
-        <main class="hauptinhalt schul-dashboard-inhalt">
-          <div class="sektion-titel schul-dashboard-kopf">
-            <div>🎒 Schul-Dashboard <span id="schulzeit-hinweis" class="text-gedaempft"></span></div>
+        <main class="inhalt schul-dashboard-inhalt">
+          <div class="schultag-kopf">
+            <div>
+              <h1>Schultag</h1>
+              <div class="datum">${heute} <span id="schulzeit-hinweis" class="text-gedaempft"></span></div>
+            </div>
             <div class="schulmodus-toggle">
-              <button id="integration-btn" class="btn btn-ghost btn-klein" title="Poke-Integration anzeigen">🔗 Integration</button>
-              <button id="auto-modus-btn" class="btn btn-ghost btn-klein" title="Automatischen Zeitplan verwenden">⏱️ Auto</button>
-              <span id="modus-status-badge" class="status-badge" style="background:var(--text-sekundaer);">Modus: Inaktiv</span>
-              <button id="toggle-modus-btn" class="btn btn-sekundaer btn-klein">Aktivieren</button>
+              <span id="modus-status-badge" class="modus-anzeige">Schulmodus aus</span>
+              <button id="toggle-modus-btn" class="btn btn-primaer btn-klein">Einschalten</button>
+              <button id="auto-modus-btn" class="btn btn-sekundaer btn-klein" title="Automatischen Zeitplan verwenden">${ic('uhr')}Nach Zeitplan</button>
+              <button id="integration-btn" class="btn btn-ghost btn-klein" title="Agent-Integration anzeigen">${ic('link')}Integration</button>
             </div>
           </div>
 
           <div id="schul-layout" class="schul-grid">
-            
-            <!-- Linke Spalte: Widgets (Kalender & Aufgaben) -->
-            <div class="widgets-container">
-              <div class="karte schul-widget">
-                <div class="schul-widget-kopf">
-                  <h3 class="schul-widget-titel schul-widget-titel-erfolg">📚 Stundenplan</h3>
-                </div>
-                <div id="schul-stundenplan-inhalt" class="widget-inhalt">
-                  <div class="lade-spinner"></div>
-                </div>
-              </div>
-              <div class="karte schul-widget schul-wetter-karte">
-                <div class="schul-widget-kopf">
-                  <h3 class="schul-widget-titel schul-widget-titel-wetter">☀️ Wetter</h3>
-                  <button class="btn btn-ghost btn-klein" id="btn-wetter-ort" style="display:none; margin-left: auto;" title="Ort ändern">⚙️</button>
-                </div>
-                <div id="schul-wetter-inhalt" class="widget-inhalt">Wetter wird geladen ...</div>
-              </div>
-              <div id="schul-kacheln" class="schul-kacheln"></div>
-              
-              <!-- Klausuren Widget -->
-              <div class="karte schul-widget" id="schul-klausuren-widget" style="display: none; background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2);">
-                <div class="schul-widget-kopf">
-                  <h3 class="schul-widget-titel schul-widget-titel-notfall">⚠️ Nächste Klausur</h3>
-                </div>
-                <div id="schul-klausuren-inhalt" class="widget-inhalt">
-                </div>
-              </div>
+            <div class="schul-spalte">
+              <section class="karte schul-widget">
+                ${kopf('stundenplan', 'Stundenplan heute')}
+                <div id="schul-stundenplan-inhalt" class="widget-inhalt"><div class="lade-spinner"></div></div>
+              </section>
 
-              <!-- ÖPNV Widget -->
-              <div class="karte schul-widget schul-opnv-karte">
-                <div class="schul-widget-kopf">
-                  <h3 class="schul-widget-titel schul-widget-titel-opnv">🚌 ÖPNV Abfahrten</h3>
-                  <button class="btn btn-ghost btn-klein" id="btn-haltestelle-aendern" style="display:none; margin-left:auto;" title="Haltestelle ändern">⚙️</button>
-                </div>
-                <div id="schul-opnv-inhalt" class="widget-inhalt">Abfahrten werden geladen ...</div>
-              </div>
+              <section class="karte schul-widget">
+                ${kopf('kalender', 'Termine', `<button class="btn btn-sekundaer btn-klein btn-icon btn-aktion" data-typ="termin" title="Termin hinzufügen" aria-label="Termin hinzufügen">${ic('plus')}</button>`)}
+                <div id="schul-kalender-inhalt" class="widget-inhalt"><div class="lade-spinner"></div></div>
+              </section>
 
-              <!-- Kalender Widget -->
-              <div class="karte schul-widget">
-                <div class="schul-widget-kopf">
-                  <h3 class="schul-widget-titel schul-widget-titel-primaer">📅 Heute</h3>
-                  <button class="btn btn-sekundaer btn-klein btn-aktion" data-typ="termin">➕</button>
-                </div>
-                <div id="schul-kalender-inhalt" class="widget-inhalt">
-                  <div class="lade-spinner"></div>
-                </div>
-              </div>
-
-              <!-- Aufgaben Widget -->
-              <div class="karte schul-widget">
-                <div class="schul-widget-kopf">
-                  <h3 class="schul-widget-titel schul-widget-titel-warnung">📋 Aufgaben</h3>
-                  <button class="btn btn-sekundaer btn-klein btn-aktion" data-typ="aufgabe">➕</button>
-                </div>
-                <div id="schul-aufgaben-inhalt" class="widget-inhalt">
-                  <div class="lade-spinner"></div>
-                </div>
-              </div>
-              
-              <!-- Schnelle Notiz -->
-              <div class="karte schul-widget schul-notiz-widget">
-                <h3 class="schul-widget-titel">📝 Schnelle Notiz</h3>
-                <div class="schul-schnellnotiz">
-                  <input type="text" id="schnell-notiz-input" class="formular-eingabe" placeholder="Notiz an Poke...">
-                  <button id="schnell-notiz-btn" class="btn btn-primaer">Senden</button>
-                </div>
-              </div>
-
-              <!-- Stille Pings Widget -->
-              <div class="karte schul-widget schul-pings-karte" id="schul-pings-widget" style="display:none;">
-                <div class="schul-widget-kopf">
-                  <h3 class="schul-widget-titel schul-widget-titel-pings">
-                    🔔 Gemerkt für später
-                    <span id="ping-ungelesen-badge" class="ping-badge">0</span>
-                  </h3>
-                  <button class="btn btn-ghost btn-klein" id="btn-pings-gelesen" title="Alle als gelesen markieren" style="margin-left:auto; font-size:0.75rem;">✓ Alle</button>
-                </div>
-                <div id="schul-pings-inhalt" class="widget-inhalt"></div>
-              </div>
-
-              <!-- Pomodoro Timer Widget -->
-              <div class="karte schul-widget schul-pomodoro-karte">
-                <div class="schul-widget-kopf">
-                  <h3 class="schul-widget-titel schul-widget-titel-pomodoro">⏱️ Fokus-Timer</h3>
-                  <span id="pomodoro-session-count" style="font-size:0.8rem; color:var(--text-sekundaer); margin-left:auto;">0 / 4</span>
-                </div>
-                <div class="pomodoro-display">
-                  <div id="pomodoro-modus" style="font-size:0.75rem; color:var(--text-sekundaer); text-transform:uppercase; letter-spacing:1px;">Fokus</div>
-                  <div id="pomodoro-zeit" style="font-size:2.5rem; font-weight:bold; letter-spacing:2px; font-variant-numeric:tabular-nums;">25:00</div>
-                </div>
-                <div class="pomodoro-controls">
-                  <button id="btn-pomodoro-start" class="btn btn-primaer btn-klein">▶ Start</button>
-                  <button id="btn-pomodoro-skip" class="btn btn-ghost btn-klein" style="display:none;">⏭ Überspringen</button>
-                  <button id="btn-pomodoro-reset" class="btn btn-ghost btn-klein">↺ Reset</button>
-                </div>
-              </div>
-
+              <section class="karte schul-widget">
+                ${kopf('aufgaben', 'Aufgaben', `<button class="btn btn-sekundaer btn-klein btn-icon btn-aktion" data-typ="aufgabe" title="Aufgabe hinzufügen" aria-label="Aufgabe hinzufügen">${ic('plus')}</button>`)}
+                <div id="schul-aufgaben-inhalt" class="widget-inhalt"><div class="lade-spinner"></div></div>
+              </section>
             </div>
 
-            <!-- Rechte Spalte: Chat + Feed mit Tabs -->
-            <div class="karte feed-container schul-feed-karte">
-              <div class="schul-panel-tabs">
-                <button class="schul-panel-tab aktiv" id="tab-chat" onclick="SchulDashboardView._tabWechseln('chat')">💬 Chat</button>
-                <button class="schul-panel-tab" id="tab-feed" onclick="SchulDashboardView._tabWechseln('feed')">
-                  <span class="pulsing-dot" style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;animation:pulse 2s infinite;"></span>
-                  Feed
-                </button>
-                <button class="btn btn-ghost btn-klein" id="btn-chat-loeschen" title="Chat leeren" style="margin-left:auto; font-size:0.75rem;">🗑️</button>
-              </div>
+            <div class="schul-spalte">
+              <section class="karte schul-widget" id="schul-klausuren-widget" style="display:none;">
+                ${kopf('ziel', 'Nächste Klausur')}
+                <div id="schul-klausuren-inhalt" class="widget-inhalt"></div>
+              </section>
 
-              <!-- Chat -->
+              <section class="karte schul-widget schul-opnv-karte">
+                ${kopf('bus', 'Abfahrten', `<button class="btn btn-ghost btn-klein btn-icon" id="btn-haltestelle-aendern" style="display:none;" title="Haltestellen verwalten" aria-label="Haltestellen verwalten">${ic('zahnrad')}</button>`)}
+                <div id="schul-opnv-inhalt" class="widget-inhalt">Abfahrten werden geladen …</div>
+              </section>
+
+              <section class="karte schul-widget schul-wetter-karte">
+                ${kopf('wolkig', 'Wetter', `<button class="btn btn-ghost btn-klein btn-icon" id="btn-wetter-ort" style="display:none;" title="Ort ändern" aria-label="Ort ändern">${ic('zahnrad')}</button>`)}
+                <div id="schul-wetter-inhalt" class="widget-inhalt">Wetter wird geladen …</div>
+              </section>
+
+              <div id="schul-kacheln" class="schul-kacheln"></div>
+
+              <section class="karte schul-widget schul-pings-karte" id="schul-pings-widget" style="display:none;">
+                ${kopf('glocke', 'Für später <span id="ping-ungelesen-badge" class="ping-badge">0</span>', `<button class="btn btn-ghost btn-klein" id="btn-pings-gelesen" title="Alle als gelesen markieren">${ic('haken')}Alle gelesen</button>`)}
+                <div id="schul-pings-inhalt" class="widget-inhalt"></div>
+              </section>
+
+              <section class="karte schul-widget schul-notiz-widget">
+                ${kopf('notiz', 'Schnelle Notiz')}
+                <div class="schul-schnellnotiz">
+                  <label class="sr-only" for="schnell-notiz-input">Notiz an den Agenten</label>
+                  <input type="text" id="schnell-notiz-input" class="formular-eingabe" placeholder="Kurz notieren, der Agent merkt es sich">
+                  <button id="schnell-notiz-btn" class="btn btn-primaer">Senden</button>
+                </div>
+              </section>
+
+              <section class="karte schul-widget schul-pomodoro-karte">
+                ${kopf('countdown', 'Fokus-Timer', `<span id="pomodoro-session-count" class="leise" style="margin-left:auto;">0 / 4</span>`)}
+                <div class="pomodoro-display">
+                  <div id="pomodoro-zeit">25:00</div>
+                  <div id="pomodoro-modus" class="leise" style="font-weight:700">Fokus</div>
+                </div>
+                <div class="pomodoro-controls">
+                  <button id="btn-pomodoro-start" class="btn btn-primaer btn-klein">Start</button>
+                  <button id="btn-pomodoro-skip" class="btn btn-sekundaer btn-klein" style="display:none;">Überspringen</button>
+                  <button id="btn-pomodoro-reset" class="btn btn-ghost btn-klein">Zurücksetzen</button>
+                </div>
+              </section>
+            </div>
+
+            <section class="karte feed-container schul-feed-karte" aria-label="Chat und Feed">
+              <div class="schul-panel-tabs" role="tablist">
+                <button class="schul-panel-tab aktiv" id="tab-chat" role="tab" onclick="SchulDashboardView._tabWechseln('chat')">${ic('chat')}Chat</button>
+                <button class="schul-panel-tab" id="tab-feed" role="tab" onclick="SchulDashboardView._tabWechseln('feed')">${ic('feed')}Feed</button>
+                <button class="btn btn-ghost btn-klein btn-icon" id="btn-chat-loeschen" title="Chat leeren" aria-label="Chat leeren">${ic('loeschen')}</button>
+              </div>
               <div id="panel-chat" class="schul-panel-inhalt">
                 <div id="schul-chat-nachrichten" class="schul-chat-nachrichten"></div>
                 <div class="schul-chat-eingabe">
                   <input type="file" id="schul-chat-file" style="display:none;">
-                  <button id="schul-chat-attach" class="btn btn-sekundaer schul-chat-btn" title="Datei anhängen (Pingvin Share)">📎</button>
-                  <textarea id="schul-chat-input" class="formular-textarea schul-chat-textarea" placeholder="Schreib Poke etwas..." rows="2"></textarea>
-                  <button id="schul-chat-senden" class="btn btn-primaer schul-chat-btn">➤</button>
+                  <button id="schul-chat-attach" class="btn btn-sekundaer schul-chat-btn" title="Datei anhängen" aria-label="Datei anhängen">${ic('anhang')}</button>
+                  <label class="sr-only" for="schul-chat-input">Nachricht</label>
+                  <textarea id="schul-chat-input" class="formular-textarea schul-chat-textarea" placeholder="Frag deinen Agenten …" rows="1"></textarea>
+                  <button id="schul-chat-senden" class="btn btn-primaer schul-chat-btn" title="Senden" aria-label="Senden">${ic('senden')}</button>
                 </div>
               </div>
-
-              <!-- Feed -->
               <div id="panel-feed" class="schul-panel-inhalt" style="display:none;">
-                <div id="schul-feed-inhalt" class="schul-feed-inhalt">
-                  <div class="lade-spinner"></div>
-                </div>
+                <div id="schul-feed-inhalt" class="schul-feed-inhalt"><div class="lade-spinner"></div></div>
               </div>
-            </div>
-            
+            </section>
           </div>
 
           <div id="schul-inaktiv-meldung" class="schul-inaktiv-meldung">
-            <div style="font-size:3rem; margin-bottom:20px;">😴</div>
-            <h2>Der Schulmodus ist momentan inaktiv.</h2>
-            <p style="color:var(--text-sekundaer); max-width:500px; margin:0 auto;">
-              In diesem Modus werden Benachrichtigungen gepuffert und dein Kalender sowie deine Aufgaben übersichtlich dargestellt, ohne dich zu stören.
-            </p>
+            <span class="leere-liste-icon">${ic('schule')}</span>
+            <h2>Der Schulmodus ist aus.</h2>
+            <p>Ist er an, puffert dein Agent Benachrichtigungen und zeigt dir Stundenplan, Termine und Aufgaben hier übersichtlich an, ohne dich zu stören.</p>
           </div>
         </main>
       </div>
-      
-      <style>
-        .schul-dashboard-kopf { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-        .schulmodus-toggle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-        .schul-feed-karte { display: flex; flex-direction: column; position: sticky; top: 20px; align-self: stretch; }
-        .schul-feed-titel { margin: 0 0 15px; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; }
-        .schul-feed-inhalt { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px; }
-        .schul-schnellnotiz { display: flex; gap: 10px; }
-        .schul-schnellnotiz .formular-eingabe { min-width: 0; }
-        @keyframes pulse {
-          0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-          70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
-        .feed-item {
-          padding: 12px;
-          border-radius: var(--radius-klein);
-          background: rgba(255,255,255,0.03);
-          border-left: 3px solid var(--text-sekundaer);
-          font-size: 0.95rem;
-        }
-        .feed-item.typ-email { border-color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
-        .feed-item.typ-info { border-color: #10b981; }
-        .feed-item.typ-briefing { border-color: #f59e0b; background: rgba(245, 158, 11, 0.08); }
-        .feed-item.typ-notfall { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
-        .feed-zeit { font-size: 0.75rem; color: var(--text-sekundaer); margin-bottom: 4px; display:block; }
-        .feed-inhalt { line-height: 1.65; overflow-wrap: anywhere; }
-        .feed-inhalt h4 { margin: 10px 0 4px; color: var(--farbe-text); font-size: 1rem; }
-        .feed-inhalt h4:first-child { margin-top: 0; }
-        .feed-inhalt p { margin: 5px 0; }
-        .feed-inhalt ul { margin: 6px 0 8px 20px; padding: 0; }
-        .feed-inhalt li { margin: 3px 0; }
-        .feed-inhalt code { padding: 2px 5px; border-radius: 4px; background: rgba(0,0,0,0.25); color: #fbbf24; }
-        
-        .kalender-item, .aufgabe-item {
-          display:flex; align-items:flex-start; gap:10px;
-          padding: 10px; border-bottom: 1px solid var(--rahmen);
-        }
-        .kalender-item:last-child, .aufgabe-item:last-child { border-bottom: none; }
-        .zeit-badge {
-          background: rgba(59, 130, 246, 0.1); color: #3b82f6;
-          padding: 4px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85rem;
-          white-space: nowrap;
-        }
-        .aufgabe-item .zeit-badge {
-          background: rgba(245, 158, 11, 0.1); color: #f59e0b;
-        }
-        .aufgabe-checkbox { cursor: pointer; width: 18px; height: 18px; margin-top: 2px; accent-color: var(--farbe-primaer); }
-        .aufgabe-item.erledigt .aufgabe-text { opacity: 0.5; text-decoration: line-through; }
-
-        .abfahrt-tabelle { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        .abfahrt-tabelle td { padding: 7px 5px; border-bottom: 1px solid var(--rahmen); vertical-align: middle; }
-        .abfahrt-tabelle tr:last-child td { border-bottom: none; }
-        .abfahrt-linie {
-          font-weight: bold; font-size: 0.85rem;
-          display: inline-block; padding: 2px 7px; border-radius: 4px;
-          background: rgba(99, 102, 241, 0.15); color: #818cf8;
-          white-space: nowrap;
-        }
-        .abfahrt-verspaetet { color: #f87171; font-weight: 600; }
-        .abfahrt-puenktlich { color: #34d399; }
-        .abfahrt-bald { color: #f87171; font-weight: bold; }
-        .abfahrt-bald-ok { color: #f59e0b; }
-        .abfahrt-entspannt { color: #34d399; }
-
-        /* Panel Tabs (Chat/Feed) */
-        .schul-panel-tabs { display:flex; gap:6px; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--rahmen); padding-bottom:10px; }
-        .schul-panel-tab { background:none; border:none; padding:5px 12px; border-radius: var(--radius-klein); color:var(--text-sekundaer); cursor:pointer; font-size:0.9rem; font-family: inherit; transition: all 0.15s; display:flex; align-items:center; gap:5px; }
-        .schul-panel-tab.aktiv { background: rgba(99,102,241,0.15); color: #818cf8; font-weight:600; }
-        .schul-panel-tab:hover:not(.aktiv) { background: var(--eingabe-hintergrund); }
-        .schul-panel-inhalt { display:flex; flex-direction:column; flex:1; min-height:0; }
-
-        /* Chat */
-        .schul-chat-nachrichten { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding: 10px 4px; min-height:0; }
-        
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .chat-bubble { 
-          max-width:85%; padding:12px 16px; border-radius:20px; 
-          line-height:1.5; font-size:0.95rem; word-break:break-word;
-          animation: fadeInUp 0.3s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        
-        .chat-bubble.nutzer { 
-          align-self:flex-end; 
-          background:linear-gradient(135deg, #4f46e5, #7c3aed); 
-          color:#fff; 
-          border-bottom-right-radius:4px;
-          box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-        }
-        
-        .chat-bubble.poke { 
-          align-self:flex-start; 
-          background:rgba(30, 41, 59, 0.75); 
-          backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-          border:1px solid rgba(255,255,255,0.08); 
-          color:var(--farbe-text); 
-          border-bottom-left-radius:4px; 
-        }
-        
-        .chat-bubble .chat-zeit { font-size:0.7rem; opacity:0.6; margin-top:6px; display:block; letter-spacing: 0.5px; }
-        .chat-bubble.nutzer .chat-zeit { text-align:right; color: rgba(255,255,255,0.8); }
-        
-        /* Chat Input Area */
-        .schul-chat-eingabe { 
-          display:flex; gap:10px; margin-top:10px; align-items:flex-end; 
-          background: rgba(15, 23, 42, 0.6);
-          backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-          border: 1px solid var(--rahmen);
-          padding: 10px; 
-          border-radius: 24px;
-          flex-shrink:0; 
-        }
-        
-        .schul-dashboard-inhalt { max-width: 1500px !important; }
-        
-        .schul-chat-textarea { 
-          flex:1; min-width:0; resize:none; min-height:42px; max-height:120px; 
-          font-size:0.95rem; background: transparent; border: none; box-shadow: none; 
-          padding: 10px 4px; color: #fff;
-        }
-        .schul-chat-textarea:focus { box-shadow: none; border: none; background: transparent; }
-        
-        .schul-chat-btn { 
-          padding:0; width:42px; height:42px; flex-shrink:0; 
-          display:flex; align-items:center; justify-content:center; 
-          border-radius:50%; font-size:1.2rem; transition: all 0.2s;
-        }
-        .schul-chat-btn.btn-primaer {
-          background: linear-gradient(135deg, #6366f1, #8b5cf6);
-          border: none; box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
-        }
-        .schul-chat-btn.btn-primaer:hover { transform: scale(1.05); }
-        .schul-chat-btn.btn-sekundaer {
-          background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-        }
-        .schul-chat-btn.btn-sekundaer:hover { background: rgba(255,255,255,0.1); }
-        
-        .chat-typing { 
-          align-self:flex-start; padding:12px 18px; border-radius:20px; border-bottom-left-radius:4px; 
-          background:rgba(30, 41, 59, 0.5); border:1px solid rgba(255,255,255,0.05);
-        }
-        .chat-typing span { display:inline-block; width:6px; height:6px; background:var(--text-sekundaer); border-radius:50%; animation: typing 1.2s ease-in-out infinite; margin:0 2px; }
-        .chat-typing span:nth-child(2) { animation-delay:0.2s; }
-        .chat-typing span:nth-child(3) { animation-delay:0.4s; }
-        @keyframes typing { 0%, 100% { transform:translateY(0); } 50% { transform:translateY(-5px); background: #8b5cf6; } }
-
-
-        /* Pomodoro */
-        .pomodoro-display { text-align:center; padding:10px 0 8px; }
-        .pomodoro-controls { display:flex; gap:8px; justify-content:center; }
-
-        /* Stille Pings */
-        .ping-badge { display:inline-flex; align-items:center; justify-content:center; background:#f59e0b; color:#000; border-radius:999px; font-size:0.7rem; font-weight:700; min-width:18px; height:18px; padding:0 5px; margin-left:6px; vertical-align:middle; }
-        .ping-item { display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-bottom:1px solid var(--rahmen); }
-        .ping-item:last-child { border-bottom:none; }
-        .ping-item.gelesen { opacity:0.45; }
-        .ping-inhalt { flex:1; font-size:0.88rem; line-height:1.5; }
-        .ping-zeit { font-size:0.72rem; color:var(--text-sekundaer); white-space:nowrap; margin-top:2px; }
-        .ping-ok { background:none; border:none; cursor:pointer; color:var(--text-sekundaer); font-size:1rem; padding:0 2px; transition:color 0.15s; }
-        .ping-ok:hover { color:#34d399; }
-
-        /* Wochenvorschau */
-        .woche-tag { padding:6px 0; border-bottom:1px solid var(--rahmen); }
-        .woche-tag:last-child { border-bottom:none; }
-        .woche-tag-titel { font-size:0.8rem; color:var(--text-sekundaer); font-weight:600; margin-bottom:3px; text-transform:uppercase; }
-        .woche-event { font-size:0.85rem; padding:2px 0; display:flex; gap:6px; align-items:center; }
-        .woche-event-zeit { font-size:0.75rem; color:#3b82f6; white-space:nowrap; }
-      </style>
     `;
   },
 
@@ -369,17 +132,14 @@ const SchulDashboardView = {
       try {
         const integration = await API.schulIntegrationLaden();
         UI.modalZeigen(`
-          <div class="modal-header">
-            <span class="modal-titel">🔗 Poke-Integration</span>
-            <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
-          </div>
+          ${UI.modalKopf('Agent-Integration')}
           <div class="modal-koerper">
             <p>Diese Integration gehört zu deinem Schul-Dashboard und dem Poke-Profil <strong>${UI.escapeHtml(integration.profilName)}</strong>.</p>
             <div class="formular-gruppe">
               <label class="formular-label" for="schul-callback-url">Callback-URL für Poke</label>
               <input class="formular-eingabe" id="schul-callback-url" value="${UI.escapeHtml(integration.callbackUrl)}" readonly>
             </div>
-            <button class="btn btn-primaer btn-vollbreite" id="schul-callback-kopieren">📋 URL kopieren</button>
+            <button class="btn btn-primaer btn-vollbreite" id="schul-callback-kopieren">${UI.icon('kopieren')}URL kopieren</button>
             <p class="text-gedaempft" style="margin-top:12px;">Beim Aktivieren des Schulmodus bekommt Poke diese URL automatisch mit der API-Anleitung. Teile sie nur mit diesem Poke-Profil.</p>
           </div>
         `);
@@ -442,7 +202,7 @@ const SchulDashboardView = {
 
     document.getElementById('btn-wetter-ort')?.addEventListener('click', () => {
       UI.modalZeigen(`
-        <div class="modal-header"><span class="modal-titel">Wetter-Ort ändern</span><button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button></div>
+        ${UI.modalKopf('Wetter-Ort ändern')}
         <div class="modal-koerper">
           <div class="formular-gruppe">
             <label class="formular-label">Ort (Stadt oder PLZ)</label>
@@ -503,7 +263,7 @@ const SchulDashboardView = {
       if (!file) return;
       
       const btnIcon = attachBtn.innerHTML;
-      attachBtn.innerHTML = '⏳';
+      attachBtn.innerHTML = '<span class="btn-spinner"></span>';
       attachBtn.disabled = true;
       
       try {
@@ -587,10 +347,10 @@ const SchulDashboardView = {
     if (autoButton) autoButton.style.display = daten.modus === 'auto' ? 'none' : '';
 
     if (this._schulmodusAktiv) {
-      badge.textContent = 'Modus: Aktiv';
-      badge.style.background = '#10b981';
-      btn.textContent = 'Deaktivieren';
-      btn.className = 'btn btn-gefahr btn-klein';
+      badge.textContent = daten.modus === 'auto' ? 'Schulmodus an · nach Zeitplan' : 'Schulmodus an';
+      badge.classList.add('an');
+      btn.textContent = 'Ausschalten';
+      btn.className = 'btn btn-sekundaer btn-klein';
       layout.style.display = 'grid';
       meldung.style.display = 'none';
       
@@ -604,10 +364,10 @@ const SchulDashboardView = {
       this.rendereWocheKalender(daten.wocheKalender || []);
       this.renderePings(daten.pings || []);
     } else {
-      badge.textContent = 'Modus: Inaktiv';
-      badge.style.background = 'var(--text-sekundaer)';
-      btn.textContent = 'Aktivieren';
-      btn.className = 'btn btn-sekundaer btn-klein';
+      badge.textContent = 'Schulmodus aus';
+      badge.classList.remove('an');
+      btn.textContent = 'Einschalten';
+      btn.className = 'btn btn-primaer btn-klein';
       layout.style.display = 'none';
       meldung.style.display = 'block';
     }
@@ -643,16 +403,13 @@ const SchulDashboardView = {
     }
 
     widget.style.display = 'block';
-    const alarmFarbe = diffTage <= 3 ? 'color: var(--farbe-gefahr); font-weight: bold;' : 'color: var(--farbe-warnung); font-weight: bold;';
-    
     container.innerHTML = `
-      <div style="text-align: center; padding: 10px 0;">
-        <div style="font-size: 1.2rem; margin-bottom: 5px;">${UI.escapeHtml(naechste.titel)}</div>
-        <div style="font-size: 1.5rem; ${alarmFarbe}">
-          ${diffTage === 0 ? 'Heute!' : (diffTage === 1 ? 'Morgen!' : `Noch ${diffTage} Tage`)}
-        </div>
-        <div style="font-size: 0.85rem; color: var(--text-sekundaer); margin-top: 5px;">
-          Am ${klausurDatum.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+      <div class="klausur-zaehler">
+        <div class="tage">${diffTage === 0 ? 'Heute' : diffTage}<small>${diffTage === 0 ? '' : (diffTage === 1 ? 'Tag' : 'Tage')}</small></div>
+        <div>
+          <div class="was">${UI.escapeHtml(naechste.titel)}</div>
+          <div class="wann">${klausurDatum.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+          ${items.length > 1 ? `<div class="wann">Danach: ${UI.escapeHtml(items[1].titel)}</div>` : ''}
         </div>
       </div>
     `;
@@ -671,7 +428,7 @@ const SchulDashboardView = {
     // Nur komplett neu rendern wenn container leer (beim ersten Laden)
     if (container.children.length > 0) return;
     if (!items || items.length === 0) {
-      container.innerHTML = `<p style="color:var(--text-sekundaer); text-align:center; font-size:0.9rem; margin-top:30px;">Schreib Poke etwas - er antwortet direkt hier. 💬</p>`;
+      container.innerHTML = `<p class="leise" style="text-align:center; margin-top:30px;">Schreib deinem Agenten – die Antwort kommt hier.</p>`;
       return;
     }
     items.forEach(msg => this._chatNachrichtAppenden(msg));
@@ -726,7 +483,7 @@ const SchulDashboardView = {
 
     if (Object.keys(tage).length === 0) return;
 
-    let wocheHtml = `<div style="margin-top:10px; border-top:1px solid var(--rahmen); padding-top:8px;"><div style="font-size:0.75rem; color:var(--text-sekundaer); font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:1px;">Diese Woche</div>`;
+    let wocheHtml = `<div style="margin-top:12px;"><h3 style="font-size:17px; margin-bottom:2px;">Nächste Tage</h3>`;
     Object.entries(tage).forEach(([datum, termine]) => {
       const d = new Date(datum + 'T12:00:00');
       const tagName = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
@@ -768,7 +525,7 @@ const SchulDashboardView = {
             <div>${UI.escapeHtml(ping.inhalt)}</div>
             <div class="ping-zeit">${zeitStr}</div>
           </div>
-          ${!ping.gelesen ? `<button class="ping-ok" title="Als gelesen markieren" onclick="SchulDashboardView._pingGelesen(${ping.id}, this)">✓</button>` : ''}
+          ${!ping.gelesen ? `<button class="ping-ok" title="Als gelesen markieren" onclick="SchulDashboardView._pingGelesen(${ping.id}, this)" aria-label="Als gelesen markieren">${UI.icon('haken')}</button>` : ''}
         </div>
       `;
     }).join('');
@@ -808,12 +565,9 @@ const SchulDashboardView = {
   // Pingvin Share Modal
   async _dateiAnhaengenDialog() {
     UI.modalZeigen(`
-      <div class="modal-header">
-        <span class="modal-titel">📎 Datei anhängen</span>
-        <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
-      </div>
+      ${UI.modalKopf('Datei anhängen')}
       <div class="modal-koerper">
-        <p>Wähle eine Datei aus, um sie hochzuladen und als Pingvin Share Link an Poke zu senden.</p>
+        <p>Die Datei wird über Pingvin Share hochgeladen und als Link an deinen Agenten geschickt.</p>
         <div style="margin-top: 16px;">
           <input type="file" id="pingvin-file-input" class="formular-eingabe" style="margin-bottom: 16px;">
         </div>
@@ -879,7 +633,7 @@ const SchulDashboardView = {
       modusEl.textContent = modus === 'fokus' ? 'Fokus' : (modus === 'kurze_pause' ? 'Kurze Pause' : 'Lange Pause');
       sessionEl.textContent = `${sessionen} / 4`;
       // Farbe je nach Modus
-      zeitEl.style.color = modus === 'fokus' ? '#818cf8' : '#34d399';
+      zeitEl.style.color = modus === 'fokus' ? 'var(--tinte)' : 'var(--gruen)';
     };
 
     const naechsterModus = () => {
@@ -895,39 +649,39 @@ const SchulDashboardView = {
 
     startBtn.addEventListener('click', () => {
       laeuft = !laeuft;
-      startBtn.textContent = laeuft ? '⏸ Pause' : '▶ Weiter';
+      startBtn.textContent = laeuft ? 'Pause' : 'Weiter';
       if (skipBtn) skipBtn.style.display = laeuft ? 'block' : 'none';
       if (!this._pomodoroTimer) {
         this._pomodoroTimer = setInterval(() => {
           if (!laeuft) return;
           restSekunden--;
-          if (restSekunden <= 0) { naechsterModus(); laeuft = false; startBtn.textContent = '▶ Start'; if (skipBtn) skipBtn.style.display = 'none'; }
+          if (restSekunden <= 0) { naechsterModus(); laeuft = false; startBtn.textContent = 'Start'; if (skipBtn) skipBtn.style.display = 'none'; }
           anzeigenAktualisieren();
         }, 1000);
       }
     });
 
-    skipBtn?.addEventListener('click', () => { naechsterModus(); laeuft = false; startBtn.textContent = '▶ Start'; skipBtn.style.display = 'none'; });
-    resetBtn?.addEventListener('click', () => { laeuft = false; modus = 'fokus'; restSekunden = ZEITEN.fokus; sessionen = 0; startBtn.textContent = '▶ Start'; if (skipBtn) skipBtn.style.display = 'none'; anzeigenAktualisieren(); });
+    skipBtn?.addEventListener('click', () => { naechsterModus(); laeuft = false; startBtn.textContent = 'Start'; skipBtn.style.display = 'none'; });
+    resetBtn?.addEventListener('click', () => { laeuft = false; modus = 'fokus'; restSekunden = ZEITEN.fokus; sessionen = 0; startBtn.textContent = 'Start'; if (skipBtn) skipBtn.style.display = 'none'; anzeigenAktualisieren(); });
     anzeigenAktualisieren();
   },
 
   rendereKalender(items) {
     const container = document.getElementById('schul-kalender-inhalt');
     if (!items || items.length === 0) {
-      container.innerHTML = '<p style="color:var(--text-sekundaer); text-align:center; padding:20px 0;">Keine anstehenden Termine.</p>';
+      container.innerHTML = '<p class="leise">Heute keine Termine.</p>';
       return;
     }
     
     let html = '';
     items.forEach(t => {
-      const zeit = t.ganztaegig ? 'Ganztägig' : `${this.formatTime(t.start)} ${t.ende ? '- ' + this.formatTime(t.ende) : ''}`;
+      const zeit = t.ganztaegig ? 'ganztägig' : `${this.formatTime(t.start)}${t.ende ? '–' + this.formatTime(t.ende) : ''}`;
       html += `
         <div class="kalender-item">
           <div class="zeit-badge">${zeit}</div>
           <div>
-            <div style="font-weight:500;">${UI.escapeHtml(t.titel)}</div>
-            ${t.notiz ? `<div style="font-size:0.85rem; color:var(--text-sekundaer); margin-top:2px;">${UI.escapeHtml(t.notiz)}</div>` : ''}
+            <div style="font-weight:700;">${UI.escapeHtml(t.titel)}</div>
+            ${t.notiz ? `<div class="leise" style="margin-top:2px;">${UI.escapeHtml(t.notiz)}</div>` : ''}
           </div>
         </div>
       `;
@@ -938,42 +692,52 @@ const SchulDashboardView = {
   rendereStundenplan(items) {
     const container = document.getElementById('schul-stundenplan-inhalt');
     if (!items || items.length === 0) {
-      container.innerHTML = '<p style="color:var(--text-sekundaer); text-align:center; padding:20px 0;">Noch kein Stundenplan hinterlegt.</p>';
+      container.innerHTML = '<p class="leise">Noch kein Stundenplan hinterlegt.</p>';
       return;
     }
     const heute = new Date().getDay() || 7;
-    const tage = ['', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
     const heuteItems = items.filter(stunde => Number(stunde.wochentag) === heute);
     if (heuteItems.length === 0) {
-      container.innerHTML = `<p style="color:var(--text-sekundaer); text-align:center; padding:20px 0;">Heute kein Unterricht.</p>`;
+      container.innerHTML = '<p class="leise">Heute kein Unterricht.</p>';
       return;
     }
-    container.innerHTML = heuteItems.map(stunde => `
-      <div class="stundenplan-item">
-        <div class="zeit-badge">${UI.escapeHtml(stunde.start)}${stunde.ende ? ` - ${UI.escapeHtml(stunde.ende)}` : ''}</div>
-        <div><strong>${UI.escapeHtml(stunde.fach)}</strong><br>${[stunde.lehrer ? `Lehrer: ${stunde.lehrer}` : '', stunde.raum ? `Raum: ${stunde.raum}` : ''].filter(Boolean).map(wert => UI.escapeHtml(wert)).join(' · ')}</div>
-      </div>
-    `).join('');
+    // Der Schultag als Linie: vergangene Stunden grau, die laufende markiert
+    const jetzt = new Date();
+    const minuten = jetzt.getHours() * 60 + jetzt.getMinutes();
+    const inMin = (hhmm) => { const [h, m] = String(hhmm || '').split(':').map(Number); return isNaN(h) ? null : h * 60 + (m || 0); };
+    container.innerHTML = `<ol class="fahrplan">${heuteItems.map(stunde => {
+      const a = inMin(stunde.start), e = inMin(stunde.ende) ?? (a != null ? a + 45 : null);
+      const zustand = e != null && minuten >= e ? 'vorbei' : (a != null && minuten >= a ? 'jetzt' : '');
+      return `
+        <li class="fahrplan-halt ${zustand}">
+          <div class="fahrplan-zeit">${UI.escapeHtml(stunde.start)}${stunde.ende ? `<small>${UI.escapeHtml(stunde.ende)}</small>` : ''}</div>
+          <span class="fahrplan-punkt"></span>
+          <div>
+            <div class="fahrplan-fach">${UI.escapeHtml(stunde.fach)}${stunde.raum ? `<span class="raum">${UI.escapeHtml(stunde.raum)}</span>` : ''}${zustand === 'jetzt' ? '<span class="jetzt-marke">jetzt</span>' : ''}</div>
+            ${stunde.lehrer || stunde.notiz ? `<div class="fahrplan-info">${[stunde.lehrer, stunde.notiz].filter(Boolean).map(w => UI.escapeHtml(w)).join(' · ')}</div>` : ''}
+          </div>
+        </li>`;
+    }).join('')}</ol>`;
   },
 
   rendereAufgaben(items) {
     const container = document.getElementById('schul-aufgaben-inhalt');
     if (!items || items.length === 0) {
-      container.innerHTML = '<p style="color:var(--text-sekundaer); text-align:center; padding:20px 0;">Alles erledigt! 🎉</p>';
+      container.innerHTML = '<p class="leise">Alles erledigt.</p>';
       return;
     }
     
     let html = '';
     items.forEach(a => {
-      const faellig = a.faellig ? this.formatTime(a.faellig) : 'Heute';
+      const faellig = a.faellig ? `bis ${this.formatTime(a.faellig)}` : 'heute';
       html += `
         <div class="aufgabe-item ${a.erledigt ? 'erledigt' : ''}">
-          <input type="checkbox" class="aufgabe-checkbox" ${a.erledigt ? 'checked' : ''} onchange="SchulDashboardView._aufgabeToggeln(${a.id}, this.checked)">
-          <div class="zeit-badge">${faellig}</div>
-          <div class="aufgabe-text">
-            <div style="font-weight:500;">${UI.escapeHtml(a.titel)}</div>
-            ${a.notiz ? `<div style="font-size:0.85rem; color:var(--text-sekundaer); margin-top:2px;">${UI.escapeHtml(a.notiz)}</div>` : ''}
+          <input type="checkbox" class="aufgabe-checkbox" aria-label="Erledigt" ${a.erledigt ? 'checked' : ''} onchange="SchulDashboardView._aufgabeToggeln(${a.id}, this.checked)">
+          <div class="aufgabe-text" style="flex:1">
+            <div style="font-weight:700;">${UI.escapeHtml(a.titel)}</div>
+            ${a.notiz ? `<div class="leise" style="margin-top:2px;">${UI.escapeHtml(a.notiz)}</div>` : ''}
           </div>
+          <div class="zeit-badge">${faellig}</div>
         </div>
       `;
     });
@@ -1006,7 +770,7 @@ const SchulDashboardView = {
           <button type="submit" class="btn btn-sekundaer btn-klein">Absenden</button>
         </form>` : '';
       return `<article class="schul-kachel" style="--kachel-farbe:${UI.escapeHtml(kachel.farbe || '#6366f1')}">
-        <div class="schul-kachel-kopf"><h3>${UI.escapeHtml(kachel.icon || '🧩')} ${UI.escapeHtml(kachel.titel)}</h3></div>
+        <div class="schul-kachel-kopf"><h2 class="schul-widget-titel">${UI.escapeHtml(kachel.titel)}</h2></div>
         <div class="schul-kachel-inhalt">${this.markdownSicherRendern(kachel.inhalt)}</div>${formular}
       </article>`;
     }).join('');
@@ -1019,7 +783,7 @@ const SchulDashboardView = {
         try {
           await API.anfrage('POST', '/schuldashboard/aktion', { aktionTyp: 'kachel_formular', daten: { kachelId: formular.dataset.kachelId, werte } });
           formular.reset();
-          UI.erfolg('Kachel-Formular an Poke gesendet.');
+          UI.erfolg('An deinen Agenten geschickt.');
         } catch (error) {
           UI.fehler(error.message);
         } finally {
@@ -1032,18 +796,18 @@ const SchulDashboardView = {
   rendereFeed(items) {
     const container = document.getElementById('schul-feed-inhalt');
     if (!items || items.length === 0) {
-      container.innerHTML = '<p style="color:var(--text-sekundaer); text-align:center; padding:20px 0;">Noch keine Ereignisse.</p>';
+      container.innerHTML = '<p class="leise">Noch keine Ereignisse.</p>';
       return;
     }
     
     let html = '';
     items.forEach(f => {
-      const emoji = f.typ === 'email' ? '📧' : (f.typ === 'notfall' ? '🚨' : (f.typ === 'briefing' ? '🌅' : 'ℹ️'));
-      const zeit = new Date(f.zeitpunkt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      const art = { email: 'E-Mail', notfall: 'Notfall', briefing: 'Briefing', hausaufgabe: 'Hausaufgabe', info: 'Info' }[f.typ] || 'Info';
+      const zeit = UI.uhrzeit(f.zeitpunkt);
       html += `
         <div class="feed-item typ-${UI.escapeHtml(f.typ)}">
-          <span class="feed-zeit">${zeit}</span>
-          <div class="feed-inhalt">${emoji} ${this.markdownSicherRendern(f.inhalt)}</div>
+          <span class="feed-zeit">${zeit} · ${art}</span>
+          <div class="feed-inhalt">${this.markdownSicherRendern(f.inhalt)}</div>
         </div>
       `;
     });
@@ -1110,11 +874,12 @@ const SchulDashboardView = {
       const zustand = daten.wetter.condition || 'unbekannt';
       
       container.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div style="font-size: 1.8rem; font-weight: bold;">${temperatur} °C</div>
-          <div style="text-align: right;">
-            <div style="font-weight: 500;">${UI.escapeHtml(daten.ort)}</div>
-            <div style="font-size: 0.85rem; color: var(--text-sekundaer); text-transform: capitalize;">${symbole[zustand] || zustand.replace('_', ' ')}</div>
+        <div style="display:flex; align-items:center; gap:16px;">
+          <svg class="icon" style="width:44px;height:44px;color:var(--blau)" aria-hidden="true"><use href="/img/icons.svg#i-${({ clear_sky: 'sonne', dry: 'sonne', partly_cloudy: 'wolkig', cloudy: 'wolke', fog: 'nebel', drizzle: 'regen', rain: 'regen', showers: 'regen', thunderstorm: 'gewitter', snow: 'schnee', sleet: 'schnee', hail: 'schnee' })[zustand] || 'wolke'}"></use></svg>
+          <div class="zahl" style="font-size:44px; line-height:1;">${temperatur}°</div>
+          <div>
+            <div style="font-weight:700;">${UI.escapeHtml(daten.ort)}</div>
+            <div class="leise">${symbole[zustand] || zustand.replace('_', ' ')}</div>
           </div>
         </div>
       `;
@@ -1164,7 +929,7 @@ const SchulDashboardView = {
       
       let html = '';
       for (const station of daten.stationen) {
-        html += `<div style="font-size:0.85rem; color:var(--text-sekundaer); margin-bottom:6px; margin-top:10px; font-weight:600;">📍 ${UI.escapeHtml(station.haltestelle)}</div>`;
+        html += `<h3 style="font-size:16px; margin:10px 0 2px; display:flex; gap:6px; align-items:center;">${UI.icon('ort')}${UI.escapeHtml(station.haltestelle)}</h3>`;
         
         if (!station.abfahrten || station.abfahrten.length === 0) {
           html += `<div style="font-size:0.8rem; color:var(--text-sekundaer);">Keine Abfahrten.</div>`;
@@ -1187,7 +952,7 @@ const SchulDashboardView = {
 
           const verspaetungHtml = ab.verspaetung > 0
             ? `<span class="abfahrt-verspaetet">+${ab.verspaetung}</span>`
-            : (ab.echtZeit ? `<span class="abfahrt-puenktlich">✓</span>` : '');
+            : (ab.echtZeit ? `<span class="abfahrt-puenktlich">pünktlich</span>` : '');
             
           const ortHinweis = ab.abfahrtsOrt && ab.abfahrtsOrt !== station.haltestelle ? `<div style="font-size:0.7rem; color:var(--text-sekundaer); margin-top:-2px;">${UI.escapeHtml(ab.abfahrtsOrt)}</div>` : '';
 
@@ -1245,14 +1010,14 @@ const SchulDashboardView = {
 
   _haltestelleEingabeOeffnen() {
     const listHtml = (this._letzteHaltestellen || []).map(h => `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:rgba(255,255,255,0.05); margin-bottom:5px; border-radius:4px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:var(--flaeche-2); margin-bottom:5px; border-radius:4px;">
         <span>${UI.escapeHtml(h.name)}</span>
-        <button class="btn btn-ghost btn-klein btn-haltestelle-loeschen" data-id="${h.id}">🗑️</button>
+        <button class="btn btn-ghost btn-klein btn-icon btn-haltestelle-loeschen" data-id="${h.id}" aria-label="Haltestelle entfernen">${UI.icon('loeschen')}</button>
       </div>
     `).join('') || '<div style="color:var(--text-sekundaer); margin-bottom:10px;">Keine Haltestellen gespeichert.</div>';
 
     UI.modalZeigen(`
-      <div class="modal-header"><span class="modal-titel">Haltestellen verwalten</span><button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button></div>
+      ${UI.modalKopf('Haltestellen verwalten')}
       <div class="modal-koerper">
         <div style="margin-bottom:15px; max-height:150px; overflow-y:auto;">
           ${listHtml}
@@ -1368,7 +1133,7 @@ const SchulDashboardView = {
     `;
     
     UI.modalZeigen(`
-      <div class="modal-header"><span class="modal-titel">${UI.escapeHtml(titel)}</span><button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button></div>
+      ${UI.modalKopf(titel)}
       <div class="modal-koerper">${html}</div>
     `);
     

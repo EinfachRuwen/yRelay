@@ -1,246 +1,237 @@
 // yRelay - Dashboard-View (Nutzeransicht)
 const DashboardView = {
   rendern(nutzer) {
-    const nameToDisplay = nutzer.anzeigename || nutzer.benutzername;
-    const avatarBuchstabe = (nameToDisplay || 'U')[0].toUpperCase();
+    const ic = (n, k) => UI.icon(n, k);
+    const schritt = (aktiv) => `<div class="onboarding-fortschritt" aria-hidden="true">${[1, 2, 3, 4].map(i => `<i class="${i <= aktiv ? 'an' : ''}"></i>`).join('')}</div>`;
 
     const onboardingHtml = !nutzer.has_seen_onboarding ? `
-      <div id="onboarding-overlay" class="onboarding-overlay">
-        <!-- Slide 1 -->
+      <div id="onboarding-overlay" class="onboarding-overlay" role="dialog" aria-modal="true" aria-label="Einführung">
         <div class="onboarding-slide aktiv" id="obs-1">
-          <div class="onboarding-icon">👋</div>
-          <div class="onboarding-titel">Dein direkter Draht zu Ruwen</div>
+          ${schritt(1)}
+          <div class="onboarding-icon">${ic('hand')}</div>
+          <h2 class="onboarding-titel">Dein direkter Draht zu Ruwen</h2>
           <div class="onboarding-text">
             Willkommen in deiner persönlichen Einsatzzentrale. Das hier ist nicht einfach nur ein weiteres Chat-Programm – es ist eine absolute Garantie, dass du Ruwen erreichst, egal was passiert.
           </div>
           <div class="onboarding-actions">
-            <button class="btn btn-primaer btn-gross obs-next">Weiter geht's ➔</button>
+            <button class="btn btn-primaer btn-gross obs-next">Weiter ${ic('weiter')}</button>
           </div>
         </div>
 
-        <!-- Slide 2 -->
         <div class="onboarding-slide" id="obs-2">
-          <div class="onboarding-icon">📞</div>
-          <div class="onboarding-titel">Besser als ein Anruf</div>
+          ${schritt(2)}
+          <div class="onboarding-icon">${ic('anruf')}</div>
+          <h2 class="onboarding-titel">Besser als ein Anruf</h2>
           <div class="onboarding-text">
             Wenn das Telefon klingelt, kann man es überhören. Das hier nicht.<br><br>
             Wenn du hier eine Notfall-Nachricht schickst, passiert Magie im Hintergrund. Das System ist direkt mit Ruwens Wohnung verbunden. Es kann laute Alarme auf seinem Handy auslösen, smarte Beleuchtung einschalten oder den "Nicht stören"-Modus durchbrechen, um ihn sofort aufzuwecken.
           </div>
           <div class="onboarding-actions">
-            <button class="btn btn-sekundaer btn-gross obs-prev">Zurück</button>
-            <button class="btn btn-primaer btn-gross obs-next">Verstanden ➔</button>
+            <button class="btn btn-ghost btn-gross obs-prev">Zurück</button>
+            <button class="btn btn-primaer btn-gross obs-next">Verstanden ${ic('weiter')}</button>
           </div>
         </div>
 
-        <!-- Slide 3 -->
         <div class="onboarding-slide" id="obs-3">
-          <div class="onboarding-icon">📅</div>
-          <div class="onboarding-titel">Nicht nur für brennende Häuser!</div>
+          ${schritt(3)}
+          <div class="onboarding-icon">${ic('kalender')}</div>
+          <h2 class="onboarding-titel">Nicht nur für brennende Häuser!</h2>
           <div class="onboarding-text">
             Du musst nicht warten, bis die Welt untergeht. Das System hilft Ruwen auch, seinen Alltag zu organisieren. Du kannst hier jederzeit ganz normale Dinge schreiben, wie zum Beispiel:
             <ul>
-              <li><em>"Hast du am Freitag Zeit für ein Bier?"</em> (Das System prüft seinen Kalender und trägt es ein!)</li>
-              <li><em>"Setze bitte Milch auf deine Einkaufsliste."</em></li>
-              <li><em>"Bitte ruf mich morgen um 10 Uhr an."</em></li>
+              <li><em>„Hast du am Freitag Zeit für ein Bier?“</em> (Das System prüft seinen Kalender und trägt es ein!)</li>
+              <li><em>„Setze bitte Milch auf deine Einkaufsliste.“</em></li>
+              <li><em>„Bitte ruf mich morgen um 10 Uhr an.“</em></li>
             </ul>
             Trau dich ruhig, es auszuprobieren! Einmal alle paar Wochen ist völlig okay.
           </div>
           <div class="onboarding-actions">
-            <button class="btn btn-sekundaer btn-gross obs-prev">Zurück</button>
-            <button class="btn btn-primaer btn-gross obs-next">Klingt gut ➔</button>
+            <button class="btn btn-ghost btn-gross obs-prev">Zurück</button>
+            <button class="btn btn-primaer btn-gross obs-next">Klingt gut ${ic('weiter')}</button>
           </div>
         </div>
 
-        <!-- Slide 4 -->
         <div class="onboarding-slide" id="obs-4">
-          <div class="onboarding-icon">🚨</div>
-          <div class="onboarding-titel">Dein erster Test-Alarm</div>
+          ${schritt(4)}
+          <div class="onboarding-icon rot">${ic('notfall')}</div>
+          <h2 class="onboarding-titel">Dein erster Test-Alarm</h2>
           <div class="onboarding-text">
             Graue Theorie ist langweilig. Lass uns direkt ausprobieren, wie das funktioniert. Drücke auf den roten Knopf unten, um eine "Hallo Welt"-Testnachricht an Ruwen zu schicken.<br><br>
             Keine Sorge, für Testnachrichten geht kein ohrenbetäubender Alarm los – er bekommt nur freundlich Bescheid!
           </div>
-          <div class="onboarding-actions" style="flex-direction: column; align-items: center; gap: 16px;">
-            <button class="btn btn-notfall btn-gross" id="obs-test-btn" style="width: 100%; max-width: 300px; font-size: 18px;">Trockenübung starten 🚨</button>
-            <button class="btn btn-ghost" id="obs-skip-btn" style="font-size: 12px;">Überspringen</button>
+          <div class="onboarding-actions">
+            <button class="btn btn-ghost" id="obs-skip-btn">Überspringen</button>
+            <button class="btn btn-notfall btn-gross" id="obs-test-btn">${ic('senden')} Trockenübung starten</button>
           </div>
         </div>
       </div>
     ` : '';
 
+    const vorlage = (icon, text, vorlageText) => `<button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('${vorlageText}')">${ic(icon)}${text}</button>`;
+    const alarm = (typ, icon, name, hinweis, fallback, prio) => `
+      <button type="button" class="btn-special ${prio === 'hoch' ? 'hoch' : ''}" onclick="DashboardView.sendeSpecial('${typ}', '${hinweis}', '${fallback}', '${prio}')">
+        <span class="zeichen">${ic(icon)}</span>${name}
+      </button>`;
+
     return `
       ${onboardingHtml}
-      <div class="seite haupt-seite" ${!nutzer.has_seen_onboarding ? 'style="filter: blur(5px); pointer-events: none;" id="haupt-wrapper"' : ''}>
-        <!-- Navigation -->
-        <nav class="navbar">
-          <span class="navbar-logo" id="header-logo" style="cursor: pointer; user-select: none;">
-            <span class="logo-y">y</span><span class="logo-relay">Relay</span>
-          </span>
-          <div class="navbar-nav">
-            <div class="nav-nutzer">
-              <div class="nav-avatar">${UI.escapeHtml(avatarBuchstabe)}</div>
-              <div class="nav-info">
-                <span class="nav-name">${UI.escapeHtml(nameToDisplay)}</span>
-                <span class="nav-rolle">Nutzer</span>
-              </div>
-            </div>
-            ${nutzer.schul_dashboard_global_enabled && nutzer.has_schul_access ? '<button class="btn btn-sekundaer btn-klein" id="schule-btn" title="Schul-Dashboard">🎒 Schule</button>' : ''}
-            <button class="btn btn-sekundaer btn-klein versteckt" id="spiele-btn" title="Spielebereich">🎮 Spiele</button>
-            ${nutzer.rolle === 'admin' ? '<button class="btn btn-primaer btn-klein" id="admin-panel-btn" title="Admin Panel">🛠️ Admin</button>' : ''}
-            <button class="btn btn-ghost btn-klein" id="profil-btn" title="Profil bearbeiten">👤</button>
-            <button class="btn btn-ghost btn-klein" id="passwort-btn" title="Passwort ändern">🔒</button>
-            <button class="btn btn-ghost btn-klein" id="abmelden-btn">Abmelden</button>
-          </div>
-        </nav>
+      <div class="seite app-container" ${!nutzer.has_seen_onboarding ? 'id="haupt-wrapper" style="pointer-events:none"' : ''}>
+        ${UI.kopf(nutzer, 'dashboard')}
 
-        <!-- Hauptinhalt -->
-        <main class="hauptinhalt">
-          <div class="sektion-titel">👋 Hallo, ${UI.escapeHtml(nameToDisplay)}!</div>
-          <p class="sektion-untertitel">Sende Nachrichten an deinen KI-Agenten.</p>
-
-            <!-- Kombiniertes Nachrichten-Formular -->
-            <div class="karte nachrichten-karte" id="kombi-karte">
-              <div class="karte-header">
-                <div class="karte-icon karte-icon-primaer" id="kombi-icon" style="transition: all 0.3s;">💬</div>
-                <div>
-                  <div class="karte-titel">Nachricht an KI-Agent</div>
-                  <div class="karte-untertitel">Wähle die Art deiner Nachricht</div>
+        <main class="inhalt">
+          <div class="postfach">
+            <div class="postfach-links">
+              <section class="tafel verfasser" id="kombi-karte" data-stufe="standard" aria-labelledby="verfasser-titel">
+                <div class="verfasser-kopf">
+                  <h1 id="verfasser-titel">Nachricht an Ruwen</h1>
+                  <p id="zustell-hinweis">Wird über seinen Agenten zugestellt und beantwortet.</p>
                 </div>
-              </div>
-              <div class="karte-koerper">
-                
-                <div id="kombi-warnung" class="info-box warnung versteckt" style="margin-bottom: 20px;">
-                  <span>⚡</span>
-                  <span>Dein Agent soll diese Nachricht mit höchster Dringlichkeit weiterleiten.</span>
-                </div>
-
                 <form id="kombi-formular">
-                  <!-- Poke-Profil-Auswahl (wird dynamisch befüllt falls mehrere Profile) -->
-                  <div id="poke-profil-auswahl" style="display:none; margin-bottom: 14px;"></div>
+                  <div id="poke-profil-auswahl" class="agenten-wahl" style="display:none;"></div>
 
-                  <!-- Prioritäts-Auswahl (Art) -->
-                  <div class="formular-gruppe">
-                    <label class="formular-label">Art der Nachricht</label>
-                    <div class="prioritaet-auswahl" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-                      <div class="prioritaet-option">
-                        <input type="radio" id="typ-standard" name="nachricht_typ" value="standard" checked>
-                        <label class="prioritaet-label" for="typ-standard">
-                          <span class="prioritaet-emoji">💬</span>
-                          <span class="prioritaet-name">Standard</span>
-                          <span class="prioritaet-beschreibung">Normale Nachricht</span>
-                        </label>
-                      </div>
-                      <div class="prioritaet-option">
-                        <input type="radio" id="typ-hoch" name="nachricht_typ" value="hoch">
-                        <label class="prioritaet-label" for="typ-hoch">
-                          <span class="prioritaet-emoji">⚠️</span>
-                          <span class="prioritaet-name">Wichtig</span>
-                          <span class="prioritaet-beschreibung">Pushover (Kein Notfall)</span>
-                        </label>
-                      </div>
-                      <div class="prioritaet-option notfall-option">
-                        <input type="radio" id="typ-notfall" name="nachricht_typ" value="notfall">
-                        <label class="prioritaet-label" for="typ-notfall">
-                          <span class="prioritaet-emoji">🚨</span>
-                          <span class="prioritaet-name">Notfall</span>
-                          <span class="prioritaet-beschreibung">Kritisch - Sofort pushen</span>
-                        </label>
-                      </div>
+                  <fieldset>
+                    <legend>Dringlichkeit</legend>
+                    <div class="stufen-wahl">
+                      <input type="radio" id="typ-standard" name="nachricht_typ" value="standard" checked>
+                      <label for="typ-standard" class="s-standard">${ic('nachricht')}<b>Normal</b><small>Wird zugestellt, ohne zu stören</small></label>
+                      <input type="radio" id="typ-hoch" name="nachricht_typ" value="hoch">
+                      <label for="typ-hoch" class="s-hoch">${ic('wichtig')}<b>Wichtig</b><small>Push aufs Handy, kein Alarm</small></label>
+                      <input type="radio" id="typ-notfall" name="nachricht_typ" value="notfall">
+                      <label for="typ-notfall" class="s-notfall">${ic('notfall')}<b>Notfall</b><small>Alarm, sofort, auch nachts</small></label>
+                    </div>
+                  </fieldset>
+
+                  <div id="kombi-warnung" class="warnzeile versteckt">
+                    ${ic('wichtig')}<span id="kombi-warnung-text">Dein Agent leitet diese Nachricht mit höchster Dringlichkeit weiter.</span>
+                  </div>
+
+                  <label class="formular-label" for="kombi-inhalt">Deine Nachricht</label>
+                  <div class="schreibfeld textarea-wrapper">
+                    <textarea id="kombi-inhalt" placeholder="Was soll Ruwen wissen?" rows="5" maxlength="5000" required></textarea>
+                    <div class="schreibfeld-leiste textarea-aktionen">
+                      <button type="button" id="mic-btn" class="mic-btn" title="Spracheingabe starten" aria-label="Spracheingabe starten">${ic('mikrofon')}</button>
+                      <span id="mic-status" class="mic-status versteckt"><span id="mic-timer">00:00</span>&nbsp;/ 30:00</span>
+                      <button type="button" id="retranscribe-btn" class="textarea-aktion-btn versteckt" title="Letzte Aufnahme erneut transkribieren">${ic('nochmal')}Nochmal</button>
+                      <button type="button" id="clear-btn" class="textarea-aktion-btn" title="Textfeld leeren">Leeren</button>
+                      <span class="zeichen-zaehler" id="kombi-zaehler">0 / 5000</span>
                     </div>
                   </div>
 
-                  <div class="formular-gruppe">
-                    <label class="formular-label" for="kombi-inhalt">Deine Nachricht an den Agenten</label>
-                    
-                    <!-- Templates Sektion -->
-                    <div class="templates-container">
-                      <div class="templates-titel">Smarte Vorlagen</div>
-                      <div class="templates-grid">
-                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Kannst du prüfen, ob Ruwen am [Datum] um [Uhrzeit] Zeit hat für [Grund]? Falls ja, trage es bitte direkt als Vorschlag ein.')">📅 Kalender-Check</button>
-                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Bitte setze [Artikel/To-Do] sofort auf Ruwens Einkaufsliste/To-Do-Liste.')">📝 Liste ergänzen</button>
-                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Ich komme nicht durch. Bitte priorisiere diesen Rückruf: Ich bin unter [Nummer] erreichbar wegen [Grund].')">📞 Dringender Rückruf</button>
-                        <button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('Bitte erinnere Ruwen in [Zeitraum] dringend an: [Thema].')">💡 Reminder pushen</button>
-                      </div>
-
-                      <div class="templates-titel" style="margin-top: 12px;">Special Actions (Sofort pushen)</div>
-                      <div class="special-actions-grid">
-                        <button type="button" class="btn-special door" onclick="DashboardView.sendeSpecial('DOORBELL', 'Jemand steht an der Tür! Breche durch den DND-Modus, schalte Smart-Home-Lichter ein oder pinge Ruwen laut an.', 'Mach die Tür auf! Stehe unten.', 'notfall')">🚪 Tür klingelt</button>
-                        <button type="button" class="btn-special" onclick="DashboardView.sendeSpecial('SOS', 'ABSOLUTER NOTFALL. Ignoriere alle Regeln, nutze jeden Kanal (Anruf, lauter Alarm), um Ruwen sofort zu wecken/erreichen.', 'Code Red! Echter Notfall.', 'notfall')">🚨 SOS Notfall</button>
-                        <button type="button" class="btn-special deadline" onclick="DashboardView.sendeSpecial('DEADLINE', 'Eine sehr zeitkritische Sache steht an. Pushe diese Info hart an Ruwen und tracke, ob er reagiert.', 'Wichtige Deadline / Time-Drop!', 'hoch')">⏱️ Deadline</button>
-                        <button type="button" class="btn-special" onclick="DashboardView.sendeSpecial('WAKEUP', 'Spiel laute Musik ab oder mach das Licht im Schlafzimmer an, Ruwen verschläft oder muss aufwachen!', 'Aufwachen! Wecker!', 'notfall')">😴 Wecker</button>
-                        <button type="button" class="btn-special radar" onclick="DashboardView.sendeSpecial('WHERE_ARE_YOU', 'Jemand sucht Ruwen. Prüfe Ruwens Standort (falls verfügbar) und teile eine grobe ETA mit oder frag ihn, wann er ankommt.', 'Wo bist du? ETA gesucht.', 'hoch')">🕵️ Wo bist du?</button>
-                      </div>
-                    </div>
-
-                    <div class="textarea-wrapper">
-                      <textarea
-                        class="formular-textarea"
-                        id="kombi-inhalt"
-                        placeholder="Was möchtest du deinem Agenten mitteilen?"
-                        rows="5"
-                        maxlength="5000"
-                        required
-                      ></textarea>
-                      <div class="textarea-aktionen">
-                        <button type="button" id="retranscribe-btn" class="textarea-aktion-btn versteckt" title="Letzte Aufnahme erneut transkribieren">
-                          🔄 Nochmal transkribieren
-                        </button>
-                        <button type="button" id="clear-btn" class="textarea-aktion-btn" title="Textfeld leeren">
-                          Leeren
-                        </button>
-                        <button type="button" id="mic-btn" class="mic-btn" title="Spracheingabe starten">
-                          🎤
-                        </button>
-                      </div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-top: 4px;">
-                      <div id="mic-status" class="versteckt" style="font-size: 12px; color: var(--farbe-notfall); font-weight: 600; display: flex; align-items: center; gap: 6px;">
-                        <span class="pulsing-dot" style="width: 8px; height: 8px; background: var(--farbe-notfall); border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite;"></span>
-                        <span id="mic-timer">00:00</span> / 30:00
-                      </div>
-                      <div class="zeichen-zaehler" id="kombi-zaehler" style="margin-left: auto;">0 / 5000</div>
-                    </div>
+                  <div class="vorlagen templates-container" aria-label="Vorlagen">
+                    <span class="vorlagen-titel">Vorlagen</span>
+                    ${vorlage('kalender', 'Hat er Zeit?', 'Kannst du prüfen, ob Ruwen am [Datum] um [Uhrzeit] Zeit hat für [Grund]? Falls ja, trage es bitte direkt als Vorschlag ein.')}
+                    ${vorlage('liste', 'Auf die Liste', 'Bitte setze [Artikel/To-Do] sofort auf Ruwens Einkaufsliste/To-Do-Liste.')}
+                    ${vorlage('anruf', 'Rückruf', 'Ich komme nicht durch. Bitte priorisiere diesen Rückruf: Ich bin unter [Nummer] erreichbar wegen [Grund].')}
+                    ${vorlage('erinnerung', 'Erinnern', 'Bitte erinnere Ruwen in [Zeitraum] dringend an: [Thema].')}
                   </div>
 
-                  <button type="submit" class="btn btn-primaer btn-vollbreite" id="kombi-btn" style="transition: all 0.3s;">
-                    <span>📤</span> Nachricht senden
-                  </button>
-                  <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
-                    <button type="button" class="btn btn-ghost btn-vollbreite btn-klein" id="planen-btn" style="border: 1px dashed rgba(99,102,241,0.4);">
-                      ⏰ Geplant senden
-                    </button>
+                  <div class="senden-zeile">
+                    <button type="submit" class="btn btn-stufe btn-gross" id="kombi-btn">${ic('senden')}<span id="kombi-btn-text">Senden</span></button>
+                    <button type="button" class="btn btn-sekundaer btn-gross btn-icon" id="planen-btn" title="Später senden" aria-label="Später senden">${ic('uhr')}</button>
                   </div>
-                  <div id="plan-datum-feld" class="versteckt" style="margin-top: 10px;">
-                    <div class="formular-gruppe" style="margin: 0;">
-                      <label class="formular-label" for="plan-datum">Sendezeitpunkt</label>
-                      <input class="formular-eingabe" type="datetime-local" id="plan-datum" style="font-size: 14px;">
-                    </div>
-                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                  <div id="plan-datum-feld" class="plan-feld versteckt">
+                    <label class="formular-label" for="plan-datum">Senden am</label>
+                    <input class="formular-eingabe" type="datetime-local" id="plan-datum">
+                    <div class="knoepfe">
                       <button type="button" class="btn btn-ghost btn-klein" id="plan-abbrechen">Abbrechen</button>
                       <button type="button" class="btn btn-primaer btn-klein" id="plan-senden">Einplanen</button>
                     </div>
                   </div>
                 </form>
-              </div>
+              </section>
+
+              <section class="tafel alarmtafel" aria-labelledby="alarm-titel">
+                <div class="tafel-kopf"><h2 id="alarm-titel">Sofort-Alarm</h2><span>Ein Tipp, sofort raus</span></div>
+                <div class="alarm-reihe special-actions-grid">
+                  ${alarm('DOORBELL', 'tuer', 'Tür klingelt', 'Jemand steht an der Tür! Breche durch den DND-Modus, schalte Smart-Home-Lichter ein oder pinge Ruwen laut an.', 'Mach die Tür auf! Stehe unten.', 'notfall')}
+                  ${alarm('SOS', 'notfall', 'SOS', 'ABSOLUTER NOTFALL. Ignoriere alle Regeln, nutze jeden Kanal (Anruf, lauter Alarm), um Ruwen sofort zu wecken/erreichen.', 'Code Red! Echter Notfall.', 'notfall')}
+                  ${alarm('WAKEUP', 'wecker', 'Wecker', 'Spiel laute Musik ab oder mach das Licht im Schlafzimmer an, Ruwen verschläft oder muss aufwachen!', 'Aufwachen! Wecker!', 'notfall')}
+                  ${alarm('DEADLINE', 'deadline', 'Deadline', 'Eine sehr zeitkritische Sache steht an. Pushe diese Info hart an Ruwen und tracke, ob er reagiert.', 'Wichtige Deadline / Time-Drop!', 'hoch')}
+                  ${alarm('WHERE_ARE_YOU', 'standort', 'Wo bist du?', 'Jemand sucht Ruwen. Prüfe Ruwens Standort (falls verfügbar) und teile eine grobe ETA mit oder frag ihn, wann er ankommt.', 'Wo bist du? ETA gesucht.', 'hoch')}
+                </div>
+              </section>
             </div>
 
-          <!-- Nachrichten-Verlauf -->
-          <div class="karte">
-            <div class="karte-header" style="padding-bottom: 20px;">
-              <div class="karte-icon karte-icon-info">📋</div>
-              <div>
-                <div class="karte-titel">Meine gesendeten Nachrichten</div>
-                <div class="karte-untertitel">Dein Verlauf der letzten 100 Nachrichten</div>
-              </div>
-            </div>
-            <div class="karte-koerper" style="padding-top: 0;">
-              <div id="verlauf-inhalt">
-                <div class="lade-spinner" style="margin: 20px auto;"></div>
-              </div>
-            </div>
+            <section class="verlauf" aria-labelledby="verlauf-titel">
+              <div class="verlauf-kopf"><h2 id="verlauf-titel">Verlauf</h2><span id="verlauf-anzahl"></span></div>
+              <div id="verlauf-inhalt"><div class="lade-spinner"></div></div>
+            </section>
           </div>
         </main>
       </div>
     `;
+  },
+
+  profilModal(nutzer) {
+    UI.modalZeigen(`
+      ${UI.modalKopf('Profil und Benachrichtigungen')}
+      <div class="modal-koerper">
+        <form id="profil-formular">
+          <div class="formular-gruppe">
+            <label class="formular-label" for="profil-anzeigename">Anzeigename</label>
+            <input class="formular-eingabe" type="text" id="profil-anzeigename" value="${UI.escapeHtml(nutzer.anzeigename || '')}" placeholder="So sehen dich andere">
+          </div>
+          <p class="formular-label" style="margin-top:22px">Wie du von Antworten erfährst</p>
+          <div class="formular-gruppe">
+            <label class="checkbox-label"><input type="checkbox" id="profil-email-notifications" ${nutzer.email_notifications !== false ? 'checked' : ''}> E-Mail</label>
+            <div class="formular-hilfe" style="margin-left:28px">Passwort-Links und Einladungen kommen immer per E-Mail.</div>
+          </div>
+          <div class="formular-gruppe">
+            <label class="checkbox-label"><input type="checkbox" id="profil-ntfy-enabled" ${nutzer.ntfy_topic ? 'checked' : ''}> ntfy</label>
+            <div style="display:flex; gap:8px; margin:8px 0 0 28px;">
+              <input class="formular-eingabe" type="text" id="profil-ntfy" value="${UI.escapeHtml(nutzer.ntfy_topic || '')}" placeholder="z. B. yrelay-lena-abc123" maxlength="32" pattern="[A-Za-z0-9_-]+" aria-label="ntfy-Topic" style="flex:1;">
+              <button type="button" class="btn btn-sekundaer" id="ntfy-generieren" title="Zufälliges Topic erzeugen">${UI.icon('wuerfel')}Erzeugen</button>
+            </div>
+            <div class="formular-hilfe" style="margin-left:28px">Abonniere das Topic in der <a href="https://ntfy.sh" target="_blank" rel="noopener">ntfy-App</a> und gib es nicht weiter.</div>
+          </div>
+          <div class="formular-gruppe">
+            <label class="checkbox-label"><input type="checkbox" id="profil-pushover-enabled" ${nutzer.pushover_configured ? 'checked' : ''}> Pushover</label>
+            <input class="formular-eingabe" type="password" id="profil-pushover-key" autocomplete="new-password" aria-label="Pushover User-Key" placeholder="${nutzer.pushover_configured ? 'Gespeicherter Key bleibt unverändert' : 'Pushover User-Key'}" style="margin:8px 0 0 28px; width:calc(100% - 28px);">
+          </div>
+          <div class="modal-fuss">
+            <button type="button" class="btn btn-ghost" onclick="UI.modalSchliessen()">Abbrechen</button>
+            <button type="submit" class="btn btn-primaer" id="profil-speichern">Speichern</button>
+          </div>
+        </form>
+      </div>
+    `);
+
+    document.getElementById('ntfy-generieren')?.addEventListener('click', () => {
+      const generateSafeString = () => {
+        if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID().replace(/-/g, '');
+        return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      };
+      const name = nutzer.benutzername.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10) || 'nutzer';
+      document.getElementById('profil-ntfy').value = `yrelay-${name}-${generateSafeString().slice(0, 14)}`;
+      document.getElementById('profil-ntfy-enabled').checked = true;
+    });
+
+    document.getElementById('profil-formular')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('profil-speichern');
+      UI.btnLaden(btn, true);
+      try {
+        const antwort = await fetch('/api/auth/profil', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('yrelay_token') },
+          body: JSON.stringify({
+            anzeigename: document.getElementById('profil-anzeigename').value.trim(),
+            ntfy_topic: document.getElementById('profil-ntfy-enabled').checked ? document.getElementById('profil-ntfy').value.trim() : '',
+            email_notifications: document.getElementById('profil-email-notifications').checked,
+            pushover_enabled: document.getElementById('profil-pushover-enabled').checked,
+            pushover_user_key: document.getElementById('profil-pushover-key').value.trim()
+          })
+        });
+        const daten = await antwort.json();
+        if (!antwort.ok) throw new Error(daten.fehler || `Serverfehler ${antwort.status}`);
+        UI.modalSchliessen();
+        UI.erfolg('Profil gespeichert. Lade neu …');
+        setTimeout(() => window.location.reload(), 1000);
+      } catch (err) {
+        UI.fehler(err.message);
+        UI.btnLaden(btn, false);
+      }
+    });
   },
 
   async initialisieren(nutzer) {
@@ -293,8 +284,7 @@ const DashboardView = {
           document.getElementById('onboarding-overlay').style.opacity = '0';
           setTimeout(() => {
             document.getElementById('onboarding-overlay').remove();
-            document.getElementById('haupt-wrapper').style.filter = '';
-            document.getElementById('haupt-wrapper').style.pointerEvents = '';
+                        document.getElementById('haupt-wrapper').style.pointerEvents = '';
           }, 500);
         } catch(err) {
           UI.fehler(err.message);
@@ -303,7 +293,7 @@ const DashboardView = {
       };
 
       document.getElementById('obs-test-btn')?.addEventListener('click', async (e) => {
-        const btn = e.target;
+        const btn = e.currentTarget;
         UI.btnLaden(btn, true);
         try {
           // Testnachricht senden
@@ -317,124 +307,9 @@ const DashboardView = {
       });
 
       document.getElementById('obs-skip-btn')?.addEventListener('click', (e) => {
-        finishOnboarding(e.target);
+        finishOnboarding(e.currentTarget);
       });
     }
-
-    // Abmelden
-    // Spiele-Button asynchron einblenden, falls Spiele verfügbar sind
-    API.anfrage('GET', '/games/verfuegbar').then(daten => {
-      if (daten.spiele && daten.spiele.some(s => s.istVerfuegbar)) {
-        document.getElementById('spiele-btn')?.classList.remove('versteckt');
-      }
-    }).catch(() => {});
-
-    document.getElementById('abmelden-btn')?.addEventListener('click', () => {
-      UI.ausloggen();
-    });
-
-    document.getElementById('schule-btn')?.addEventListener('click', () => {
-      window.location.hash = '#schule';
-    });
-
-    document.getElementById('spiele-btn')?.addEventListener('click', () => {
-      window.location.hash = '#spiele';
-    });
-
-    document.getElementById('admin-panel-btn')?.addEventListener('click', () => {
-      window.location.hash = '#admin';
-    });
-
-    document.getElementById('profil-btn')?.addEventListener('click', () => {
-      UI.modalZeigen(`
-        <div class="modal-header">
-          <span class="modal-titel">👤 Profil bearbeiten</span>
-          <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
-        </div>
-        <div class="modal-koerper">
-          <form id="profil-formular">
-            <div class="formular-gruppe">
-              <label class="formular-label" for="profil-anzeigename">Anzeigename</label>
-              <input class="formular-eingabe" type="text" id="profil-anzeigename" value="${nutzer.anzeigename || ''}" placeholder="Dein Name, wie er anderen angezeigt wird">
-            </div>
-            <div class="formular-gruppe">
-              <label class="formular-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                <input type="checkbox" id="profil-ntfy-enabled" ${nutzer.ntfy_topic ? 'checked' : ''} style="width:18px; height:18px;">
-                Notify (ntfy) aktivieren
-              </label>
-              <label class="formular-label" for="profil-ntfy">ntfy.sh Topic</label>
-              <div style="display: flex; gap: 8px;">
-                <input class="formular-eingabe" type="text" id="profil-ntfy" value="${nutzer.ntfy_topic || ''}" placeholder="z.B. yrelay-ruwen-abc123xyz" maxlength="32" pattern="[A-Za-z0-9_-]+" style="flex: 1;">
-                <button type="button" class="btn btn-ghost" id="ntfy-generieren" title="Zufälliges Topic generieren">🎲 Generieren</button>
-              </div>
-              <div style="font-size: 11px; color: var(--farbe-text-schwach); margin-top: 4px;">Abonniere dieses Topic in der <a href="https://ntfy.sh" target="_blank" style="color: var(--farbe-primaer);">ntfy App</a>. Gib es nicht weiter!</div>
-            </div>
-            <div class="formular-gruppe" style="margin-top:15px;">
-              <label class="formular-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                <input type="checkbox" id="profil-pushover-enabled" ${nutzer.pushover_configured ? 'checked' : ''} style="width:18px; height:18px;">
-                Pushover aktivieren
-              </label>
-              <input class="formular-eingabe" type="password" id="profil-pushover-key" autocomplete="new-password" placeholder="${nutzer.pushover_configured ? 'Gespeicherter Key bleibt unverändert' : 'Pushover User-Key'}">
-              <div style="font-size:11px; color:var(--farbe-text-schwach); margin-top:4px;">Der User-Key wird nur zum Versand deiner Benachrichtigungen verwendet.</div>
-            </div>
-            <div class="formular-gruppe" style="margin-top: 15px;">
-              <label class="formular-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" id="profil-email-notifications" ${nutzer.email_notifications !== false ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
-                ✉️ E-Mail-Benachrichtigungen empfangen
-              </label>
-              <div style="font-size: 12px; color: var(--farbe-text-schwach); margin-left: 26px; margin-top: 4px;">
-                Passwort-Resets und Einladungen werden unabhängig davon weiterhin per E-Mail gesendet.
-              </div>
-            </div>
-            
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-              <button type="button" class="btn btn-ghost" onclick="UI.modalSchliessen()">Abbrechen</button>
-              <button type="submit" class="btn btn-primaer" style="flex: 1;" id="profil-speichern">Speichern</button>
-            </div>
-          </form>
-        </div>
-      `);
-
-      document.getElementById('ntfy-generieren')?.addEventListener('click', () => {
-        const generateSafeString = () => {
-          if (window.crypto && window.crypto.randomUUID) {
-            return window.crypto.randomUUID().replace(/-/g, '');
-          }
-          return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        };
-        const name = nutzer.benutzername.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10) || 'nutzer';
-        const topic = `yrelay-${name}-${generateSafeString().slice(0, 14)}`;
-        document.getElementById('profil-ntfy').value = topic;
-        document.getElementById('profil-ntfy-enabled').checked = true;
-      });
-
-      document.getElementById('profil-formular')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('profil-speichern');
-        UI.btnLaden(btn, true);
-        try {
-          const antwort = await fetch('/api/auth/profil', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('yrelay_token') },
-            body: JSON.stringify({ 
-              anzeigename: document.getElementById('profil-anzeigename').value.trim(),
-              ntfy_topic: document.getElementById('profil-ntfy-enabled').checked ? document.getElementById('profil-ntfy').value.trim() : '',
-              email_notifications: document.getElementById('profil-email-notifications').checked,
-              pushover_enabled: document.getElementById('profil-pushover-enabled').checked,
-              pushover_user_key: document.getElementById('profil-pushover-key').value.trim()
-            })
-          });
-          const daten = await antwort.json();
-          if (!antwort.ok) throw new Error(daten.fehler || `Serverfehler ${antwort.status}`);
-          UI.modalSchliessen();
-          UI.erfolg('Profil gespeichert. Lade neu...');
-          setTimeout(() => window.location.reload(), 1000);
-        } catch (err) {
-          UI.fehler(err.message);
-          UI.btnLaden(btn, false);
-        }
-      });
-    });
 
     // 🥚 Easter Egg 2: Konfetti auf Logo
     let logoClicks = 0;
@@ -462,8 +337,8 @@ const DashboardView = {
 
     // Kombiniertes Formular - Zeichenzähler
     const kombiTextarea = document.getElementById('kombi-inhalt');
+    const kombiKarte = document.getElementById('kombi-karte');
     const kombiZaehler = document.getElementById('kombi-zaehler');
-    const kombiIcon = document.getElementById('kombi-icon');
     const kombiWarnung = document.getElementById('kombi-warnung');
     const kombiBtn = document.getElementById('kombi-btn');
 
@@ -508,7 +383,7 @@ const DashboardView = {
             kombiBtn.style.top = '';
             kombiBtn.style.width = '';
             kombiBtn.style.margin = '';
-            kombiBtn.innerHTML = '📨 Senden';
+            kombiBtn.innerHTML = UI.icon('senden') + '<span id="kombi-btn-text">Senden</span>';
             kombiTextarea.value = '';
             if (originNextSibling) {
               originParent.insertBefore(kombiBtn, originNextSibling);
@@ -520,44 +395,26 @@ const DashboardView = {
       }
     };
     kombiTextarea.addEventListener('input', checkFleeMode);
-    const kombiKarte = document.getElementById('kombi-karte');
     
     if (kombiTextarea && kombiZaehler) {
       UI.zeichenZaehler(kombiTextarea, kombiZaehler, 5000);
     }
 
-    // UI-Wechsel bei Auswahl der Art
+    // Stufenwechsel: die ganze Verfasser-Tafel nimmt die Farbe der Stufe an
+    const stufenText = {
+      standard: { knopf: 'Senden', hinweis: 'Wird über seinen Agenten zugestellt und beantwortet.' },
+      hoch: { knopf: 'Wichtig senden', hinweis: 'Kommt als Push-Benachrichtigung, ohne Alarm.', warnung: 'Ruwen bekommt eine Push-Benachrichtigung, auch wenn er gerade beschäftigt ist.' },
+      notfall: { knopf: 'Notfall melden', hinweis: 'Löst Alarm aus und durchbricht „Nicht stören“.', warnung: 'Nur für echte Notfälle: Das löst laute Alarme aus, auch nachts.' },
+    };
     document.querySelectorAll('input[name="nachricht_typ"]').forEach(radio => {
       radio.addEventListener('change', (e) => {
         const typ = e.target.value;
-        // Immer zuerst alle Zustände zurücksetzen
-        kombiBtn.style.background = '';
-        kombiBtn.style.color = '';
-        kombiIcon.style.background = '';
-        kombiIcon.style.color = '';
-
-        if (typ === 'standard') {
-          kombiIcon.textContent = '💬';
-          kombiIcon.className = 'karte-icon karte-icon-primaer';
-          kombiWarnung.classList.add('versteckt');
-          kombiBtn.className = 'btn btn-primaer btn-vollbreite';
-          kombiBtn.innerHTML = '<span>📤</span> Nachricht senden';
-          kombiKarte.classList.remove('notfall-karte');
-        } else if (typ === 'hoch') {
-          kombiIcon.textContent = '⚠️';
-          kombiIcon.className = 'karte-icon karte-icon-warnung';
-          kombiWarnung.classList.remove('versteckt');
-          kombiBtn.className = 'btn btn-warnung btn-vollbreite';
-          kombiBtn.innerHTML = '<span>⚠️</span> Wichtige Nachricht senden';
-          kombiKarte.classList.remove('notfall-karte');
-        } else if (typ === 'notfall') {
-          kombiIcon.textContent = '🚨';
-          kombiIcon.className = 'karte-icon karte-icon-notfall';
-          kombiWarnung.classList.remove('versteckt');
-          kombiBtn.className = 'btn btn-notfall btn-vollbreite';
-          kombiBtn.innerHTML = '<span>🚨</span> Notfall melden';
-          kombiKarte.classList.add('notfall-karte');
-        }
+        const t = stufenText[typ] || stufenText.standard;
+        kombiKarte.dataset.stufe = typ;
+        document.getElementById('kombi-btn-text').textContent = t.knopf;
+        document.getElementById('zustell-hinweis').textContent = t.hinweis;
+        kombiWarnung.classList.toggle('versteckt', !t.warnung);
+        if (t.warnung) document.getElementById('kombi-warnung-text').textContent = t.warnung;
       });
     });
 
@@ -623,7 +480,7 @@ const DashboardView = {
       clearInterval(recordInterval);
       micStatus.classList.add('versteckt');
       micBtn.classList.remove('aufnahme-aktiv');
-      micBtn.innerHTML = '🎤';
+      micBtn.innerHTML = UI.icon('mikrofon'); micBtn.setAttribute('aria-label', 'Spracheingabe starten');
     };
 
     micBtn?.addEventListener('click', async () => {
@@ -671,7 +528,7 @@ const DashboardView = {
         updateMicTimer();
         micStatus.classList.remove('versteckt');
         micBtn.classList.add('aufnahme-aktiv');
-        micBtn.innerHTML = '⏹️';
+        micBtn.innerHTML = UI.icon('stopp'); micBtn.setAttribute('aria-label', 'Aufnahme beenden');
 
         recordInterval = setInterval(() => {
           recordTime++;
@@ -707,7 +564,7 @@ const DashboardView = {
           await API.notfallSenden(inhalt, typ, originalTranskript, pokeProfilId);
         }
         
-        UI.erfolg('Nachricht erfolgreich an den Agenten gesendet! ✅');
+        UI.erfolg('Nachricht ist unterwegs.');
         kombiTextarea.value = '';
         originalTranskript = null;
         kombiTextarea.dispatchEvent(new Event('input')); // Zeichenzähler zurücksetzen
@@ -726,32 +583,28 @@ const DashboardView = {
         const pContainer = document.getElementById('poke-profil-auswahl');
         if (pContainer) {
           pContainer.style.display = 'flex';
-          pContainer.style.gap = '8px';
-          pContainer.style.overflowX = 'auto';
-          pContainer.style.paddingBottom = '4px';
-          pContainer.style.scrollbarWidth = 'none';
-          
           pContainer.innerHTML = profile.map((p, idx) => `
-            <button type="button" class="btn btn-sekundaer btn-klein poke-profil-btn ${idx === 0 ? 'aktiv' : ''}" 
-                    data-profil-id="${p.id}" 
-                    style="flex: 0 0 auto; white-space: nowrap; border: 1px solid ${idx === 0 ? p.farbe : 'transparent'};">
-              ${UI.escapeHtml(p.icon)} ${UI.escapeHtml(p.name)}
+            <button type="button" class="btn btn-sekundaer btn-klein poke-profil-btn ${idx === 0 ? 'aktiv' : ''}" data-profil-id="${p.id}" aria-pressed="${idx === 0}">
+              ${UI.icon('agent')}${UI.escapeHtml(p.name)}
             </button>
           `).join('');
-
+          const hinweis = () => {
+            const aktiv = pContainer.querySelector('.poke-profil-btn.aktiv');
+            const p = profile.find(pr => aktiv && pr.id == aktiv.dataset.profilId);
+            if (p && kombiKarte.dataset.stufe === 'standard') document.getElementById('zustell-hinweis').textContent = `Wird über ${p.name} zugestellt und beantwortet.`;
+          };
           pContainer.querySelectorAll('.poke-profil-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-              pContainer.querySelectorAll('.poke-profil-btn').forEach(b => {
-                b.classList.remove('aktiv');
-                b.style.border = '1px solid transparent';
-              });
-              const clicked = e.currentTarget;
-              clicked.classList.add('aktiv');
-              const p = profile.find(pr => pr.id == clicked.dataset.profilId);
-              if (p) clicked.style.border = `1px solid ${p.farbe}`;
+              pContainer.querySelectorAll('.poke-profil-btn').forEach(b => { b.classList.remove('aktiv'); b.setAttribute('aria-pressed', 'false'); });
+              e.currentTarget.classList.add('aktiv');
+              e.currentTarget.setAttribute('aria-pressed', 'true');
+              hinweis();
             });
           });
+          hinweis();
         }
+      } else if (profile && profile.length === 1) {
+        document.getElementById('zustell-hinweis').textContent = `Wird über ${profile[0].name} zugestellt und beantwortet.`;
       }
     } catch (e) {
       console.error('Fehler beim Laden der Poke-Profile:', e);
@@ -801,7 +654,7 @@ const DashboardView = {
         const prio = typ !== 'standard' ? typ : null;
         await API.nachrichtPlanen(inhalt, utcSendAt, prio, pokeProfilId);
         const sendeZeit = localDate.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-        UI.erfolg(`Nachricht für ${sendeZeit} Uhr eingeplant! ⏰`);
+        UI.erfolg(`Eingeplant für ${sendeZeit} Uhr.`);
         kombiTextarea.value = '';
         document.getElementById('plan-datum-feld').classList.add('versteckt');
         kombiTextarea.dispatchEvent(new Event('input'));
@@ -823,7 +676,7 @@ const DashboardView = {
   },
 
   async sendeSpecial(specialType, hint, fallBackText, prioritaet) {
-    if (!confirm(`Soll diese Special-Action (${specialType}) wirklich ausgelöst werden?`)) return;
+    if (!confirm(`„${(UI._sonder[specialType] || {}).name || specialType}“ jetzt auslösen? Ruwen wird sofort alarmiert.`)) return;
 
     this.spieleSpecialEffekt(specialType);
 
@@ -832,7 +685,7 @@ const DashboardView = {
     UI.btnLaden(document.getElementById('kombi-btn'), true);
     try {
       await API.notfallSenden(inhalt, prioritaet, null);
-      UI.erfolg('Special Action erfolgreich ausgelöst! 🚀');
+      UI.erfolg('Alarm ist raus.');
       await this.verlaufLaden();
     } catch (err) {
       UI.fehler(err.message);
@@ -856,37 +709,14 @@ const DashboardView = {
       audio.play().catch(e => console.log('Audio Autoplay blockiert:', e));
     }
 
-    // Falls prefers-reduced-motion aktiv ist, machen wir nur ein kurzes Flackern oder nichts
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      document.body.style.transition = 'filter 0.2s';
-      document.body.style.filter = 'brightness(1.2)';
-      setTimeout(() => document.body.style.filter = '', 200);
-      return;
-    }
-
+    const s = UI._sonder[specialType] || { icon: 'notfall', name: specialType };
+    const stufe = (specialType === 'DEADLINE' || specialType === 'WHERE_ARE_YOU') ? 'hoch' : 'notfall';
     const overlay = document.createElement('div');
     overlay.className = `effekt-overlay effekt-${specialType.toLowerCase()}`;
-    
-    // Für WAKEUP und SOS manipulieren wir zusätzlich den Body/App-Container kurz
-    if (specialType === 'SOS') {
-      document.body.classList.add('effekt-sos-body');
-    } else if (specialType === 'WAKEUP') {
-      document.querySelector('.app-container')?.classList.add('effekt-wakeup-blur');
-    }
-
+    overlay.dataset.stufe = stufe;
+    overlay.innerHTML = `<div class="effekt-schild">${UI.icon(s.icon)}<span>${UI.escapeHtml(s.name)}</span></div>`;
     document.body.appendChild(overlay);
-
-    // Aufräumen nach 2.5 Sekunden
-    setTimeout(() => {
-      overlay.style.opacity = '0';
-      overlay.style.transition = 'opacity 0.5s ease';
-      document.body.classList.remove('effekt-sos-body');
-      document.querySelector('.app-container')?.classList.remove('effekt-wakeup-blur');
-      
-      setTimeout(() => {
-        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      }, 500);
-    }, 2500);
+    setTimeout(() => overlay.remove(), 2500);
   },
 
   async verlaufStummAktualisieren() {
@@ -913,96 +743,72 @@ const DashboardView = {
       this._letzterVerlaufHash = JSON.stringify(nachrichten);
       this.rendereVerlauf(nachrichten);
     } catch (err) {
-      container.innerHTML = `<div class="info-box fehler"><span>⚠️</span><span>Verlauf konnte nicht geladen werden: ${UI.escapeHtml(err.message)}</span></div>`;
+      container.innerHTML = `<div class="info-box fehler">${UI.icon('fehler')}<span>Verlauf konnte nicht geladen werden: ${UI.escapeHtml(err.message)}</span></div>`;
     }
   },
 
   rendereVerlauf(nachrichten) {
     const container = document.getElementById('verlauf-inhalt');
     if (!container) return;
+    const anzahl = document.getElementById('verlauf-anzahl');
+    if (anzahl) anzahl.textContent = nachrichten.length ? `${nachrichten.length} Nachricht${nachrichten.length === 1 ? '' : 'en'}` : '';
     if (nachrichten.length === 0) {
-      container.innerHTML = UI.leereListeHtml('📭', 'Noch keine Nachrichten gesendet.');
+      container.innerHTML = UI.leereListeHtml('nachricht', 'Was du schickst, erscheint hier – mit jeder Antwort auf dem Weg.', 'Noch nichts gesendet');
       return;
     }
 
-    const statusBadge = (n) => {
-      if (n.statusLabel === 'erledigt') return '<span style="margin-left: 6px; font-size: 11px; background: rgba(16,185,129,0.15); color: #34d399; padding: 2px 8px; border-radius: 20px; font-weight: 600;">✅ Erledigt</span>';
-      if (n.statusLabel === 'in_bearbeitung') return '<span style="margin-left: 6px; font-size: 11px; background: rgba(245,158,11,0.15); color: #fbbf24; padding: 2px 8px; border-radius: 20px; font-weight: 600;">🔄 In Bearbeitung</span>';
-      return '';
-    };
+    const angeheftet = nachrichten.filter(n => n.gepinnt);
+    const rest = nachrichten.filter(n => !n.gepinnt);
+    const gruppen = [];
+    if (angeheftet.length) gruppen.push({ titel: 'Angeheftet', liste: angeheftet });
+    for (const n of rest) {
+      const titel = UI.tagName(n.gesendetAm) || 'Früher';
+      const letzte = gruppen[gruppen.length - 1];
+      if (letzte && letzte.titel === titel && letzte !== gruppen.find(g => g.titel === 'Angeheftet')) letzte.liste.push(n);
+      else gruppen.push({ titel, liste: [n] });
+    }
 
-    const gepinntBadge = (n) => n.gepinnt
-      ? '<span title="Gepinnt" style="font-size: 14px;">📌</span>'
-      : '';
-
-    const geplanterStatus = (n) => {
-      if (n.status === 'geplant' && n.geplantesSenden) {
-        const t = new Date(n.geplantesSenden).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-        return `<div style="margin-top: 6px; font-size: 12px; color: var(--farbe-warnung); display: flex; align-items: center; gap: 6px;">
-          ⏰ Geplant für ${t} Uhr
-          <button class="textarea-aktion-btn" style="font-size: 11px; padding: 2px 8px;" onclick="DashboardView.nachrichtAbbrechen(${n.id})">Abbrechen</button>
-        </div>`;
-      }
-      if (n.status === 'abgebrochen') return '<div style="margin-top: 4px; font-size: 12px; color: var(--farbe-text-schwach);">⛔ Abgebrochen</div>';
-      return '';
-    };
-
-    const sortierteNachrichten = [...nachrichten].sort((a, b) => {
-      if (a.gepinnt && !b.gepinnt) return -1;
-      if (!a.gepinnt && b.gepinnt) return 1;
-      return 0; // Behält die vorherige Reihenfolge (nach created_at) bei
-    });
-
-    container.innerHTML = `
-      <div class="verlauf-liste">
-        ${sortierteNachrichten.map(n => `
-          <div class="verlauf-eintrag${n.gepinnt ? ' gepinnt' : ''}" id="eintrag-${n.id}">
-            <div>
-              ${gepinntBadge(n)}
-              ${UI.typBadge(n.typ, n.prioritaet)}
-              ${statusBadge(n)}
-              ${n.prioritaet ? `<div style="margin-top: 4px; font-size: 11px; color: var(--farbe-text-schwach);">${UI.prioritaetText(n.prioritaet)}</div>` : ''}
-            </div>
-            <div style="min-width: 0; flex: 1;">
-              ${UI.renderInhalt(n.inhalt)}
-              ${n.statusLabelNotiz ? `<div style="margin-top: 4px; font-size: 12px; color: var(--farbe-text-gedaempft); font-style: italic;">🤖 ${UI.escapeHtml(n.agentName || 'KI-Agent')}: ${UI.escapeHtml(n.statusLabelNotiz)}</div>` : ''}
-              ${n.fehler ? `<div style="font-size: 12px; color: var(--farbe-notfall); margin-top: 4px;">⚠️ ${UI.escapeHtml(n.fehler)}</div>` : ''}
-              ${geplanterStatus(n)}
-              ${UI.renderAntworten(n.id, n.antwortText, n.nutzerAntworten, n.agentName)}
-              ${n.antwortText ? `
-                <div style="margin-top: 8px;">
-                  <button class="textarea-aktion-btn" onclick="DashboardView.antwortfeldToggle(${n.id})" id="antwort-toggle-${n.id}">
-                    ↩️ Auf Antwort reagieren
-                  </button>
-                  <div id="antwortfeld-${n.id}" class="versteckt" style="margin-top: 8px;">
-                    <div class="textarea-wrapper">
-                      <textarea class="formular-textarea" id="antworttext-${n.id}" placeholder="Deine Reaktion an den Agenten..." rows="3" maxlength="2000" style="font-size: 13px;"></textarea>
-                    </div>
-                    <div style="display: flex; gap: 8px; margin-top: 6px; justify-content: flex-end;">
-                      <button class="textarea-aktion-btn" onclick="DashboardView.antwortfeldToggle(${n.id})">Abbrechen</button>
-                      <button class="btn btn-primaer btn-klein" id="antwort-senden-${n.id}" onclick="DashboardView.antwortSenden(${n.id})">Senden</button>
-                    </div>
-                  </div>
+    const fahrt = (n) => {
+      const stufe = UI.stufeVon(n.typ, n.prioritaet);
+      const kann = n.antwortText && n.status === 'gesendet';
+      return `
+        <article class="fahrt stufe-${stufe}${n.gepinnt ? ' gepinnt' : ''}" id="eintrag-${n.id}">
+          ${(() => {
+            const pl = [
+              n.gepinnt ? `<span class="pin-marke" title="Angeheftet">${UI.icon('pin')}</span>` : '',
+              UI.typBadge(n.typ, n.prioritaet),
+              n.statusLabel === 'erledigt' ? `<span class="plakette plakette-gruen">${UI.icon('haken')}Erledigt</span>` : '',
+              n.statusLabel === 'in_bearbeitung' ? `<span class="plakette plakette-gelb">In Bearbeitung</span>` : '',
+              n.status === 'geplant' ? `<span class="plakette">${UI.icon('uhr')}Geplant</span>` : '',
+            ].join('');
+            return pl ? `<div class="fahrt-kopf">${pl}</div>` : '';
+          })()}
+          <button class="btn btn-ghost btn-klein btn-icon fahrt-pin" onclick="DashboardView.pinnenToggle(${n.id})" title="${n.gepinnt ? 'Nicht mehr anheften' : 'Anheften'}" aria-label="${n.gepinnt ? 'Nicht mehr anheften' : 'Anheften'}">${UI.icon(n.gepinnt ? 'pinlos' : 'pin')}</button>
+          ${UI.renderInhalt(n.inhalt)}
+          ${UI.linieHtml(n)}
+          ${kann ? `
+            <div class="fahrt-antwort">
+              <button class="btn btn-sekundaer btn-klein" onclick="DashboardView.antwortfeldToggle(${n.id})" id="antwort-toggle-${n.id}">${UI.icon('antworten')}Antworten</button>
+              <div id="antwortfeld-${n.id}" class="antwort-form versteckt">
+                <label class="sr-only" for="antworttext-${n.id}">Deine Antwort</label>
+                <textarea class="formular-textarea" id="antworttext-${n.id}" placeholder="Antwort an ${UI.escapeHtml(n.agentName || 'den Agenten')} …" rows="3" maxlength="2000"></textarea>
+                <div class="knoepfe">
+                  <button class="btn btn-ghost btn-klein" onclick="DashboardView.antwortfeldToggle(${n.id})">Abbrechen</button>
+                  <button class="btn btn-primaer btn-klein" id="antwort-senden-${n.id}" onclick="DashboardView.antwortSenden(${n.id})">${UI.icon('senden')}Senden</button>
                 </div>
-              ` : (n.status === 'gesendet' ? `<div style="margin-top: 8px; font-size: 12px; color: var(--farbe-text-schwach); font-style: italic;">⏳ Warte auf die Antwort von ${UI.escapeHtml(n.agentName || 'deinem Agenten')}...</div>` : '')}
-            </div>
-            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
-              <div class="verlauf-datum">${UI.datumFormatieren(n.gesendetAm)}</div>
-              <div class="verlauf-status ${n.status === 'gesendet' ? 'gesendet' : (n.status === 'geplant' ? '' : 'fehlgeschlagen')}" style="margin-top: 2px;">
-                ${n.status === 'gesendet' ? '✓ Gesendet' : (n.status === 'geplant' ? '⏰ Geplant' : (n.status === 'abgebrochen' ? '⛔ Abgebrochen' : '✗ Fehler'))}
               </div>
-              <button class="textarea-aktion-btn" style="font-size: 11px; padding: 3px 8px;" onclick="DashboardView.pinnenToggle(${n.id})" title="${n.gepinnt ? 'Unpin' : 'Pin'}">
-                ${n.gepinnt ? '📌 Unpin' : '📌 Pinnen'}
-              </button>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    `;
+            </div>` : ''}
+        </article>`;
+    };
+
+    container.innerHTML = gruppen.map(g => `
+      <h3 class="tag-trenner">${UI.escapeHtml(g.titel)}</h3>
+      <div class="fahrten verlauf-liste">${g.liste.map(fahrt).join('')}</div>
+    `).join('');
   },
 
   async nachrichtAbbrechen(id) {
-    if (!confirm('Geplante Nachricht wirklich abbrechen?')) return;
+    if (!confirm('Diese geplante Nachricht nicht senden?')) return;
     try {
       await API.nachrichtAbbrechen(id);
       UI.erfolg('Geplante Nachricht abgebrochen.');
@@ -1028,7 +834,7 @@ const DashboardView = {
     try {
       const result = await API.nachrichtPinnen(id);
       await this.verlaufLaden();
-      UI.erfolg(result.gepinnt ? '📌 Nachricht gepinnt!' : 'Nachricht aus Pins entfernt.');
+      UI.erfolg(result.gepinnt ? 'Angeheftet.' : 'Nicht mehr angeheftet.');
     } catch (err) {
       UI.fehler(err.message);
     }
@@ -1041,6 +847,7 @@ const DashboardView = {
     if (!feld) return;
     const offen = !feld.classList.contains('versteckt');
     feld.classList.toggle('versteckt', offen);
+    btn?.classList.toggle('versteckt', !offen);
     if (!offen) {
       document.getElementById(`antworttext-${id}`)?.focus();
     }
@@ -1055,7 +862,7 @@ const DashboardView = {
     UI.btnLaden(btn, true);
     try {
       await API.nachrichtAntworten(id, inhalt);
-      UI.erfolg('Deine Antwort wurde an den Agenten gesendet! ↩️');
+      UI.erfolg('Antwort ist unterwegs.');
       await this.verlaufLaden();
     } catch (err) {
       UI.fehler(err.message);
@@ -1065,10 +872,7 @@ const DashboardView = {
 
   passwortAendernModal() {
     UI.modalZeigen(`
-      <div class="modal-header">
-        <span class="modal-titel">🔒 Passwort ändern</span>
-        <button class="modal-schliessen" onclick="UI.modalSchliessen()">✕</button>
-      </div>
+      ${UI.modalKopf('Passwort ändern')}
       <div class="modal-koerper">
         <form id="passwort-formular">
           <div class="formular-gruppe">
@@ -1083,10 +887,10 @@ const DashboardView = {
             <label class="formular-label" for="neues-pw2">Neues Passwort bestätigen</label>
             <input class="formular-eingabe" type="password" id="neues-pw2" autocomplete="new-password" required>
           </div>
-          <div id="pw-fehler" class="info-box fehler versteckt" style="margin-bottom: 12px;"><span>⚠️</span><span id="pw-fehler-text"></span></div>
-          <div style="display: flex; gap: 10px;">
+          <div id="pw-fehler" class="info-box fehler versteckt">${UI.icon('fehler')}<span id="pw-fehler-text"></span></div>
+          <div class="modal-fuss">
             <button type="button" class="btn btn-ghost" onclick="UI.modalSchliessen()">Abbrechen</button>
-            <button type="submit" class="btn btn-primaer" style="flex: 1;" id="pw-speichern-btn">Passwort ändern</button>
+            <button type="submit" class="btn btn-primaer" id="pw-speichern-btn">Passwort ändern</button>
           </div>
         </form>
       </div>
