@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yrelay-cache-v4';
+const CACHE_NAME = 'yrelay-cache-v5';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
@@ -53,7 +53,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch-Event: Stale-While-Revalidate für statische Assets, Network-First für API
+// Fetch-Event: Network-First für statische Assets, API wird nie gecacht
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
@@ -62,20 +62,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Statische Assets
+  // Statische Assets: Network-First, damit Updates sofort ankommen; Cache nur offline
+  if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return networkResponse;
-      }).catch(() => {});
-
-      return cachedResponse || fetchPromise;
-    })
+    fetch(event.request).then((networkResponse) => {
+      if (networkResponse && networkResponse.status === 200 && url.origin === self.location.origin) {
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+      }
+      return networkResponse;
+    }).catch(() => caches.match(event.request))
   );
 });

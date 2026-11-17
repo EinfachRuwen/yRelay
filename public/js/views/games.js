@@ -392,6 +392,7 @@ const GamesView = {
               <span class="board-status ${statusKlasse}">${statusText}</span>
             </div>
           </div>
+          ${istAktiv && state.agentFehler ? `<div class="hinweis-box hinweis-rot" role="alert" style="margin-bottom:16px; padding:10px 14px; border-left:4px solid var(--rot); background:var(--rot-hell);">${UI.escapeHtml(state.agentFehler)} <button class="btn btn-sekundaer btn-klein" style="margin-left:8px;" onclick="GamesView._pokeErinnern(${spiel.id})">Erneut senden</button></div>` : ''}
           ${boardHtml}
           <div class="board-fuss">
             ${istAktiv ? `<button class="btn btn-gefahr btn-klein" onclick="GamesView._aufgeben(${spiel.id})">${UI.icon('flagge')}Aufgeben</button>` : `<button class="btn btn-primaer btn-gross" onclick="GamesView._zeigeStarterAuswahl('${spiel.game_type}')">Noch eine Partie</button>`}

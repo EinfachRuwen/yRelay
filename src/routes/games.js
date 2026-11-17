@@ -137,6 +137,20 @@ async function sendePokeSpielnachricht(spiel, poke, nachrichtentext, buttons = [
   }
 }
 
+// Zustellung an den Agenten im Hintergrund: Manche Agenten (z. B. FO über MCP) antworten erst,
+// wenn sie die ganze Aufgabe erledigt haben. Darauf darf der Spielzug des Nutzers nicht warten.
+// Ein Fehlschlag wird im Spielstand vermerkt, damit die Spielseite ihn anzeigen kann.
+function agentBenachrichtigen(spiel, poke, nachrichtentext) {
+  sendePokeSpielnachricht(spiel, poke, nachrichtentext).then(result => {
+    if (result?.erfolg) {
+      db.prepare("UPDATE games SET state = json_remove(state, '$.agentFehler') WHERE id = ? AND json_extract(state, '$.agentFehler') IS NOT NULL").run(spiel.id);
+    } else {
+      const fehler = `Der Agent konnte nicht benachrichtigt werden. ${result?.fehler || ''}`.trim().substring(0, 300);
+      db.prepare("UPDATE games SET state = json_set(state, '$.agentFehler', ?) WHERE id = ?").run(fehler, spiel.id);
+    }
+  }).catch(e => console.error('[Spielebereich] Hintergrundzustellung fehlgeschlagen:', e.message));
+}
+
 // ─── GET /api/games/verfuegbar - Alle verfügbaren Spiele (für Nutzer sichtbar) ─
 router.get('/verfuegbar', (req, res) => {
   const configs = db.prepare('SELECT * FROM game_configs').all();
@@ -258,11 +272,7 @@ router.post('/starten', async (req, res) => {
   }
   const pokeNachricht = `🎮 ${req.user.benutzername} möchte **${meta.name}** spielen!\n\n${meta.beschreibung}\n\nDu spielst als ${gameType === 'battleship' ? 'Verteidiger' : gameType === 'ludo' ? 'Blau 🔵' : gameType === 'connect4' ? '🟡 Gelb' : gameType === 'tictactoe' ? '⭕ Kreis' : 'Mitspieler'}.\n\n${startText}${chatHinweis}${zugHinweis}`;
 
-  const zustellung = await sendePokeSpielnachricht(spiel, poke, pokeNachricht);
-  if (!zustellung?.erfolg) {
-    db.prepare('DELETE FROM games WHERE id = ?').run(spiel.id);
-    return res.status(502).json({ fehler: `Der Spielauftrag konnte nicht an ${poke?.name || 'den KI-Agenten'} zugestellt werden. ${zustellung?.fehler || ''}`.trim() });
-  }
+  agentBenachrichtigen(spiel, poke, pokeNachricht);
 
   res.json({ erfolg: true, spiel: { ...spiel, state: JSON.parse(spiel.state), meta } });
 });
@@ -294,8 +304,8 @@ async function spielzugVerarbeiten(req, res) {
     state.chat = state.chat || [];
     state.chat.push({ absender: 'nutzer', text: zug.nachricht.substring(0, 500) });
     db.prepare('UPDATE games SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(JSON.stringify(state), spiel.id);
-    const zustellung = await sendePokeSpielnachricht(spiel, poke, `💬 Spiel-Chat von ${req.user.benutzername}:\n"${zug.nachricht}"\n\nNutze das \`chat\`-Feld im Body bei deinem nächsten Spielzug, um zu antworten!`);
-    return res.json({ erfolg: true, state, spielStatus: spiel.status, warnung: zustellung?.erfolg ? null : 'Der Spiel-Chat konnte dem Agenten nicht zugestellt werden.' });
+    agentBenachrichtigen(spiel, poke, `💬 Spiel-Chat von ${req.user.benutzername}:\n"${zug.nachricht}"\n\nNutze das \`chat\`-Feld im Body bei deinem nächsten Spielzug, um zu antworten!`);
+    return res.json({ erfolg: true, state, spielStatus: spiel.status });
   }
 
   if (state.amZug !== 'nutzer') return res.status(409).json({ fehler: 'Poke ist am Zug!' });
@@ -336,7 +346,6 @@ async function spielzugVerarbeiten(req, res) {
         state.mussWuerfeln = false;
         const verfuegbar = Ludo.verfuegbareFiguren(state, 'nutzer', augenzahl);
         state.verfuegbar = verfuegbar;
-        let ludoZustellung = null;
         if (verfuegbar.length === 0) {
           // Kein gültiger Zug möglich, Poke ist dran
           state.amZug = 'poke';
@@ -346,9 +355,9 @@ async function spielzugVerarbeiten(req, res) {
         }
         db.prepare('UPDATE games SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(JSON.stringify(state), spiel.id);
         if (state.amZug === 'poke') {
-          ludoZustellung = await sendePokeSpielnachricht(spiel, poke, `🔄 Dein Zug! ${req.user.benutzername} hat eine ${augenzahl} gewürfelt und konnte nicht ziehen.\n${Ludo.brettAlsText(state)}\n\n${LUDO_ANLEITUNG}`);
+          agentBenachrichtigen(spiel, poke, `🔄 Dein Zug! ${req.user.benutzername} hat eine ${augenzahl} gewürfelt und konnte nicht ziehen.\n${Ludo.brettAlsText(state)}\n\n${LUDO_ANLEITUNG}`);
         }
-        return res.json({ erfolg: true, state, spielStatus: spiel.status, augenzahl, verfuegbar, warnung: ludoZustellung && !ludoZustellung.erfolg ? 'Der Agent konnte nicht benachrichtigt werden.' : null });
+        return res.json({ erfolg: true, state, spielStatus: spiel.status, augenzahl, verfuegbar });
       }
       const figurIdx = parseInt(zug?.figur);
       const augenzahl = state.letzterWurf;
@@ -386,7 +395,6 @@ async function spielzugVerarbeiten(req, res) {
   logAudit(req.user.id, 'spielzug', { spielId: spiel.id, gameType: spiel.game_type, spieler: 'nutzer' });
 
   // Benachrichtige Poke je nach Spiel
-  let zustellung = null;
   if (!spielEnde && neuerState.amZug === 'poke') {
     let nachricht = `🔄 Dein Zug!`;
     if (spiel.game_type === 'connect4') {
@@ -407,11 +415,11 @@ async function spielzugVerarbeiten(req, res) {
     } else if (spiel.game_type === 'akinator') {
       nachricht = Akinator.pokeNachrichtErstellen(neuerState, poke?.interface_mode === 'website');
     }
-    zustellung = await sendePokeSpielnachricht(spiel, poke, nachricht);
+    agentBenachrichtigen(spiel, poke, nachricht);
   } else if (spielEnde) {
     // Spielende melden
     const gewInhalt = neuerState.gewinner === 'nutzer' ? `${req.user.benutzername} hat gewonnen! 🏆` : neuerState.gewinner === 'poke' ? 'Du hast gewonnen! 🏆' : 'Unentschieden! 🤝';
-    zustellung = await sendePokeSpielnachricht(spiel, poke, `🎮 Spiel beendet! ${gewInhalt}`);
+    agentBenachrichtigen(spiel, poke, `🎮 Spiel beendet! ${gewInhalt}`);
   }
 
   const responseState = JSON.parse(JSON.stringify(neuerState));
@@ -421,7 +429,7 @@ async function spielzugVerarbeiten(req, res) {
     delete responseState.pokeFeld;
   }
 
-  res.json({ erfolg: true, state: responseState, spielStatus: neuerStatus, warnung: zustellung && !zustellung.erfolg ? 'Der Spielstatus wurde gespeichert, aber der Agent konnte nicht benachrichtigt werden.' : null });
+  res.json({ erfolg: true, state: responseState, spielStatus: neuerStatus });
 }
 
 // ─── POST /api/games/:id/erinnern - Poke erinnern ──────────────────────────────
@@ -436,8 +444,7 @@ router.post('/:id/erinnern', async (req, res) => {
   if (state.amZug !== 'poke') return res.status(409).json({ fehler: 'Poke ist nicht am Zug!' });
 
   const poke = holePokeProfil(req);
-  const zustellung = await sendePokeSpielnachricht(spiel, poke, `🔔 ${req.user.benutzername} wartet auf deinen Zug! Bitte mach deinen nächsten Spielzug.`);
-  if (!zustellung?.erfolg) return res.status(502).json({ fehler: `Der Agent konnte nicht erinnert werden. ${zustellung?.fehler || ''}`.trim() });
+  agentBenachrichtigen(spiel, poke, `🔔 ${req.user.benutzername} wartet auf deinen Zug! Bitte mach deinen nächsten Spielzug.`);
 
   res.json({ erfolg: true });
 });
