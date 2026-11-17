@@ -37,7 +37,7 @@ function kannPlatzieren(feld, r, c, groesse, horizontal) {
   for (let i = 0; i < groesse; i++) {
     const nr = horizontal ? r : r + i;
     const nc = horizontal ? c + i : c;
-    if (nr >= GROESSE || nc >= GROESSE || feld[nr][nc] !== 0) return false;
+    if (nr < 0 || nc < 0 || nr >= GROESSE || nc >= GROESSE || feld[nr][nc] !== 0) return false;
   }
   return true;
 }
@@ -93,7 +93,11 @@ function setupAbschliessen(state, nutzerFeld) {
 }
 
 function pokeSetupWaehlen(state, setup) {
-  if (!Array.isArray(setup)) return { erfolg: false, fehler: 'Das Setup muss ein Array von Schiffen sein.' };
+  if (state.pokeFeld) return { erfolg: false, fehler: 'Deine Flotte steht bereits.' };
+  if (typeof setup === 'string' && /^(zufall|random|auto)$/i.test(setup.trim())) {
+    return pokeSetupUebernehmen(state, platzierungZufaellig());
+  }
+  if (!Array.isArray(setup)) return { erfolg: false, fehler: 'Das Setup muss ein Array von Schiffen sein – oder "zufall" für eine zufällige Aufstellung.' };
   
   const feld = erstelleLeeresFeld();
   const erwarteteSchiffe = {
@@ -119,7 +123,7 @@ function pokeSetupWaehlen(state, setup) {
 
   for (const s of setup) {
     if (!erwarteteSchiffe[s.name]) return { erfolg: false, fehler: `Unbekanntes Schiff: ${s.name}` };
-    if (typeof s.x !== 'number' || typeof s.y !== 'number') return { erfolg: false, fehler: `Fehlende Koordinaten (x, y) für ${s.name}` };
+    if (!s || !Number.isInteger(s.x) || !Number.isInteger(s.y)) return { erfolg: false, fehler: `Fehlende Koordinaten (x, y) für ${s.name}` };
     if (typeof s.horizontal !== 'boolean') return { erfolg: false, fehler: `Fehlende Eigenschaft 'horizontal' (true/false) für ${s.name}` };
     
     platzierteSchiffe[s.name]++;
@@ -140,19 +144,25 @@ function pokeSetupWaehlen(state, setup) {
     }
   }
 
-  const isPlaying = state.nutzerFeld.flat().some(x => x === 1);
+  return pokeSetupUebernehmen(state, feld);
+}
+
+function pokeSetupUebernehmen(state, feld) {
+  // Der Nutzer ist fertig, sobald sein Feld Schiffe enthält und die Setup-Phase verlassen wurde
+  const nutzerFertig = state.phase === 'setup_poke';
   return {
     erfolg: true,
     state: {
       ...state,
       pokeFeld: feld,
-      phase: isPlaying ? 'playing' : 'setup',
-      amZug: isPlaying ? (state.startSpieler || 'nutzer') : 'nutzer'
+      phase: nutzerFertig ? 'playing' : 'setup',
+      amZug: nutzerFertig ? (state.startSpieler || 'nutzer') : 'nutzer'
     }
   };
 }
 
 function schiessen(state, r, c, schiesser) {
+  if (!state.pokeFeld || !state.nutzerFeld || state.phase !== 'playing') return { erfolg: false, fehler: 'Die Flotten stehen noch nicht.' };
   if (r < 0 || r >= GROESSE || c < 0 || c >= GROESSE) return { erfolg: false, fehler: 'Ungültige Koordinate.' };
 
   const zielFeld = schiesser === 'nutzer' ? 'pokeFeld' : 'nutzerFeld';

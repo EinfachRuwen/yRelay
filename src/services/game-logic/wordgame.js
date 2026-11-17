@@ -33,6 +33,7 @@ function wortEingeben(state, wort, spieler) {
   return {
     erfolg: true,
     state: {
+      ...state,
       woerter: [...state.woerter, normalisiert],
       letzterBuchstabe,
       amZug: spieler === 'nutzer' ? 'poke' : 'nutzer',
@@ -44,8 +45,11 @@ function wortEingeben(state, wort, spieler) {
 
 function aufgebenVerarbeiten(state, spieler) {
   return {
-    ...state,
-    gewinner: spieler === 'nutzer' ? 'poke' : 'nutzer',
+    erfolg: true,
+    state: {
+      ...state,
+      gewinner: spieler === 'nutzer' ? 'poke' : 'nutzer',
+    },
   };
 }
 

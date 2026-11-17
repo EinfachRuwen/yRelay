@@ -34,6 +34,8 @@ const SPIEL_META = {
 
 router.use(requireAuth);
 
+const LUDO_ANLEITUNG = 'Der Würfel wird beim Absenden automatisch geworfen. Sende { "zug": { "figur": 0-3 } } – ist die Figur nicht ziehbar, wird automatisch eine mögliche gewählt.';
+
 let gameSseClients = [];
 
 function notifyGameClients(userId, eventType, data = {}) {
@@ -177,6 +179,7 @@ router.get('/:id', (req, res) => {
   if (spiel.game_type === 'battleship' && state.pokeFeld) {
     state.pokeFeldOhneSchiffe = state.pokeFeld.map(reihe => reihe.map(z => z === 1 ? 0 : z));
   }
+  delete state.pokeFeld;
 
   res.json({ spiel: { ...spiel, state, meta: SPIEL_META[spiel.game_type] } });
 });
@@ -241,7 +244,7 @@ router.post('/starten', async (req, res) => {
   if (gameType === 'akinator' && initialState.phase === 'wort_auswahl') {
     startText = '**Du bist dran!** Denke dir ein kreatives Wort (Gegenstand, Tier, Person etc.) aus, das der Nutzer erraten muss. Sende deinen Zug mit `{ "aktion": "wort_festlegen", "wort": "DeinWort" }`.';
   } else if (gameType === 'battleship') {
-    startText = '**WICHTIG (Schiffe setzen):** Bevor das Schießen beginnt, musst du deine Flotte auf einem 10x10 Raster (0-9) aufbauen. Sende dein komplettes Setup als JSON-Array in deinem Zug. Beispiel:\n`{ "aktion": "setup", "auswahl": [ { "name": "Schlachtschiff", "x": 0, "y": 0, "horizontal": true }, { "name": "Kreuzer", "x": 2, "y": 3, "horizontal": false }, ... ] }`\nBenötigt werden: 1x Schlachtschiff (Länge 4), 2x Kreuzer (Länge 3), 3x Zerstörer (Länge 2), 4x U-Boot (Länge 1). Schiffe dürfen sich nicht berühren/überlappen und nicht über den Rand ragen!';
+    startText = '**WICHTIG (Schiffe setzen):** Bevor das Schießen beginnt, musst du deine Flotte auf einem 10x10 Raster (0-9) aufbauen. Am einfachsten: `{ "zug": { "setupWahl": "zufall" } }` stellt sie zufällig auf. Alternativ sendest du dein komplettes Setup als JSON-Array, z. B.:\n`{ "zug": { "setupWahl": [ { "name": "Schlachtschiff", "x": 0, "y": 0, "horizontal": true }, { "name": "Kreuzer", "x": 2, "y": 3, "horizontal": false }, ... ] } }`\nBenötigt werden: 1x Schlachtschiff (Länge 4), 2x Kreuzer (Länge 3), 3x Zerstörer (Länge 2), 4x U-Boot (Länge 1). Schiffe dürfen sich nicht berühren/überlappen und nicht über den Rand ragen!';
   }
   if (websiteMode && gameType === 'akinator' && initialState.phase === 'wort_auswahl') {
     startText = 'Lege dein geheimes Wort über das Wortfeld auf der Spielseite fest.';
@@ -250,6 +253,9 @@ router.post('/starten', async (req, res) => {
     ? '\n\nDu kannst Spiel-Chat auf der Website im optionalen Chat-Feld mitschicken.'
     : '\n\nHinweis: Für Spiel-Chat füge deinem Webhook-Body ein `chat`-Feld hinzu (z.B. `{ "zug": {...}, "chat": "Dein Kommentar" }`).';
   const zugHinweis = websiteMode ? '' : `\n\nDein Spielzug-URL: POST ${moveUrl}\nBody-Format: { "zug": {...} }`;
+  if (websiteMode && gameType === 'battleship') {
+    startText = 'Stelle deine Flotte über das Formular auf der Spielseite auf (oder trage „zufall“ ein).';
+  }
   const pokeNachricht = `🎮 ${req.user.benutzername} möchte **${meta.name}** spielen!\n\n${meta.beschreibung}\n\nDu spielst als ${gameType === 'battleship' ? 'Verteidiger' : gameType === 'ludo' ? 'Blau 🔵' : gameType === 'connect4' ? '🟡 Gelb' : gameType === 'tictactoe' ? '⭕ Kreis' : 'Mitspieler'}.\n\n${startText}${chatHinweis}${zugHinweis}`;
 
   const zustellung = await sendePokeSpielnachricht(spiel, poke, pokeNachricht);
@@ -263,6 +269,15 @@ router.post('/starten', async (req, res) => {
 
 // ─── POST /api/games/:id/zug - Spielzug des Nutzers ─────────────────────────
 router.post('/:id/zug', async (req, res) => {
+  try {
+    await spielzugVerarbeiten(req, res);
+  } catch (e) {
+    console.error('[Spielebereich] Fehler beim Spielzug:', e);
+    if (!res.headersSent) res.status(500).json({ fehler: 'Interner Fehler beim Spielzug: ' + e.message });
+  }
+});
+
+async function spielzugVerarbeiten(req, res) {
   const spiel = db.prepare('SELECT * FROM games WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
   if (!spiel) return res.status(404).json({ fehler: 'Spiel nicht gefunden.' });
   if (spiel.status !== 'active') return res.status(409).json({ fehler: 'Spiel ist bereits beendet.' });
@@ -304,10 +319,8 @@ router.post('/:id/zug', async (req, res) => {
       if (state.phase === 'setup') {
         const nutzerFeld = zug?.feld;
         ergebnis = Battleship.setupAbschliessen(state, nutzerFeld);
-        if (ergebnis.erfolg) {
-          // Nach dem Setup bestimmen wer anfängt
-          ergebnis.state.amZug = Math.random() > 0.5 ? 'nutzer' : 'poke';
-        }
+      } else if (state.phase !== 'playing') {
+        return res.status(409).json({ fehler: 'Der Agent stellt noch seine Flotte auf.' });
       } else {
         const r = parseInt(zug?.r), c = parseInt(zug?.c);
         if (isNaN(r) || isNaN(c)) return res.status(400).json({ fehler: 'Zug erfordert: { r: 0-9, c: 0-9 }' });
@@ -317,23 +330,31 @@ router.post('/:id/zug', async (req, res) => {
     }
     case 'ludo': {
       if (zug?.aktion === 'wuerfeln') {
+        if (state.mussWuerfeln === false) return res.status(409).json({ fehler: 'Du hast schon gewürfelt – zieh eine Figur.' });
         const augenzahl = Ludo.wuerfeln();
         state.letzterWurf = augenzahl;
         state.mussWuerfeln = false;
         const verfuegbar = Ludo.verfuegbareFiguren(state, 'nutzer', augenzahl);
+        state.verfuegbar = verfuegbar;
+        let ludoZustellung = null;
         if (verfuegbar.length === 0) {
           // Kein gültiger Zug möglich, Poke ist dran
           state.amZug = 'poke';
           state.mussWuerfeln = true;
-          state.letzterWurf = null;
+          state.verfuegbar = [];
+          state.zugAnzahl = (state.zugAnzahl || 0) + 1;
         }
         db.prepare('UPDATE games SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(JSON.stringify(state), spiel.id);
-        return res.json({ erfolg: true, state, augenzahl, verfuegbar });
+        if (state.amZug === 'poke') {
+          ludoZustellung = await sendePokeSpielnachricht(spiel, poke, `🔄 Dein Zug! ${req.user.benutzername} hat eine ${augenzahl} gewürfelt und konnte nicht ziehen.\n${Ludo.brettAlsText(state)}\n\n${LUDO_ANLEITUNG}`);
+        }
+        return res.json({ erfolg: true, state, spielStatus: spiel.status, augenzahl, verfuegbar, warnung: ludoZustellung && !ludoZustellung.erfolg ? 'Der Agent konnte nicht benachrichtigt werden.' : null });
       }
       const figurIdx = parseInt(zug?.figur);
       const augenzahl = state.letzterWurf;
       if (isNaN(figurIdx) || !augenzahl) return res.status(400).json({ fehler: 'Zug erfordert: { aktion: "wuerfeln" } oder { figur: 0-3 } nach dem Würfeln.' });
       ergebnis = Ludo.spielzugMachen(state, figurIdx, augenzahl, 'nutzer');
+      if (ergebnis.erfolg) ergebnis.state.verfuegbar = [];
       break;
     }
     case 'wordgame': {
@@ -369,19 +390,18 @@ router.post('/:id/zug', async (req, res) => {
   if (!spielEnde && neuerState.amZug === 'poke') {
     let nachricht = `🔄 Dein Zug!`;
     if (spiel.game_type === 'connect4') {
-      const btns = Connect4.pokeZugButtons();
-      nachricht += `\nWähle eine Spalte:\n` + btns.map(b => `- ${b.id} (${b.text})`).join('\n');
+      nachricht += `\nDu bist 🟡. Brett:\n${Connect4.brettAlsAscii(neuerState.brett)}\nSende { "zug": { "spalte": 0-6 } } (Spalte 1 = 0).`;
     } else if (spiel.game_type === 'tictactoe') {
-      const btns = TicTacToe.pokeZugButtons(neuerState);
-      nachricht += `\nWähle ein Feld (0-8):\n` + btns.map(b => `- ${b.id}`).join('\n');
+      const btns = TicTacToe.pokeZugButtons(neuerState.brett);
+      nachricht += `\nDu bist ⭕. Brett (Felder 1-9 = feld 0-8):\n${TicTacToe.brettAlsAscii(neuerState.brett)}\nFreie Felder: ${btns.map(b => b.id.replace('feld_', '')).join(', ')}\nSende { "zug": { "feld": 0-8 } }`;
     } else if (spiel.game_type === 'battleship') {
       if (neuerState.phase === 'setup_poke') {
-        nachricht = `🛳️ Platziere deine Flotte! Wähle eine Aufstellung durch Senden von { "zug": { "setupWahl": "A" } } (oder B oder C):\n\nSetup A:\n${Battleship.feldAlsAsciiPoke(neuerState.pokeSetups.A)}\n\nSetup B:\n${Battleship.feldAlsAsciiPoke(neuerState.pokeSetups.B)}\n\nSetup C:\n${Battleship.feldAlsAsciiPoke(neuerState.pokeSetups.C)}`;
+        nachricht = `🛳️ ${req.user.benutzername} hat die Flotte aufgestellt. Jetzt du! Sende { "zug": { "setupWahl": "zufall" } } für eine zufällige Aufstellung oder ein Array wie [{ "name": "Schlachtschiff", "x": 0, "y": 0, "horizontal": true }, ...] (1 Schlachtschiff/4, 2 Kreuzer/3, 3 Zerstörer/2, 4 U-Boote/1; x, y = 0-9).`;
       } else {
         nachricht += `\nDein Ziel: Schieße auf das Feld des Nutzers.\n${Battleship.feldAlsAsciiNutzer(neuerState.nutzerFeld)}\nSende { "zug": { "r": reihe, "c": spalte } }`;
       }
     } else if (spiel.game_type === 'ludo') {
-      nachricht += `\n${Ludo.brettAlsText(neuerState)}`;
+      nachricht += `\n${Ludo.brettAlsText(neuerState)}\n\n${LUDO_ANLEITUNG}`;
     } else if (spiel.game_type === 'wordgame') {
       nachricht = Wordgame.pokeNachrichtErstellen(neuerState, poke?.interface_mode === 'website');
     } else if (spiel.game_type === 'akinator') {
@@ -390,7 +410,7 @@ router.post('/:id/zug', async (req, res) => {
     zustellung = await sendePokeSpielnachricht(spiel, poke, nachricht);
   } else if (spielEnde) {
     // Spielende melden
-    const gewInhalt = neuerState.gewinner === 'nutzer' ? `${req.user.benutzername} hat gewonnen! 🏆` : 'Unentschieden! 🤝';
+    const gewInhalt = neuerState.gewinner === 'nutzer' ? `${req.user.benutzername} hat gewonnen! 🏆` : neuerState.gewinner === 'poke' ? 'Du hast gewonnen! 🏆' : 'Unentschieden! 🤝';
     zustellung = await sendePokeSpielnachricht(spiel, poke, `🎮 Spiel beendet! ${gewInhalt}`);
   }
 
@@ -402,7 +422,7 @@ router.post('/:id/zug', async (req, res) => {
   }
 
   res.json({ erfolg: true, state: responseState, spielStatus: neuerStatus, warnung: zustellung && !zustellung.erfolg ? 'Der Spielstatus wurde gespeichert, aber der Agent konnte nicht benachrichtigt werden.' : null });
-});
+}
 
 // ─── POST /api/games/:id/erinnern - Poke erinnern ──────────────────────────────
 router.post('/:id/erinnern', async (req, res) => {

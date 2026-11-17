@@ -23,6 +23,7 @@ function spielzugMachen(state, feld, spieler) {
   return {
     erfolg: true,
     state: {
+      ...state,
       brett,
       amZug: spieler === 'nutzer' ? 'poke' : 'nutzer',
       gewinner: gewinner === 1 ? 'nutzer' : gewinner === 2 ? 'poke' : (unentschieden ? 'unentschieden' : null),

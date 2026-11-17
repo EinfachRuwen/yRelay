@@ -34,8 +34,8 @@ function zeigeAgentAntwortseite(req, res) {
 function agentSpielFelder(spieltyp, state) {
   if (spieltyp === 'connect4') return '<label>Spalte (0-6)<input name="spalte" type="number" min="0" max="6" required></label>';
   if (spieltyp === 'tictactoe') return '<label>Feld (0-8)<input name="feld" type="number" min="0" max="8" required></label>';
-  if (spieltyp === 'battleship' && state.phase === 'setup_poke') {
-    return '<label>Flottenaufstellung als JSON-Array<textarea name="setup" required placeholder=\'[{"name":"Schlachtschiff","x":0,"y":0,"horizontal":true}, ...]\'></textarea></label><p>1 Schlachtschiff, 2 Kreuzer, 3 Zerstörer und 4 U-Boote; x/y liegen zwischen 0 und 9.</p>';
+  if (spieltyp === 'battleship' && !state.pokeFeld) {
+    return '<label>Flottenaufstellung als JSON-Array<textarea name="setup" required placeholder=\'zufall – oder [{"name":"Schlachtschiff","x":0,"y":0,"horizontal":true}, ...]\'></textarea></label><p>„zufall“ stellt die Flotte automatisch auf. Sonst: 1 Schlachtschiff, 2 Kreuzer, 3 Zerstörer und 4 U-Boote; x/y liegen zwischen 0 und 9.</p>';
   }
   if (spieltyp === 'battleship') return '<label>Reihe (0-9)<input name="reihe" type="number" min="0" max="9" required></label><label>Spalte (0-9)<input name="spalte" type="number" min="0" max="9" required></label>';
   if (spieltyp === 'ludo') return '<label>Figur (0-3)<input name="figur" type="number" min="0" max="3" required></label><p>Der Würfel wird beim Absenden geworfen. Wenn kein Zug möglich ist, zeigt die Seite das Ergebnis.</p>';
@@ -67,13 +67,14 @@ function zeigeAgentSpielseite(req, res) {
   }
   const stateText = htmlEscapen(JSON.stringify(safeState, null, 2));
   const gameName = htmlEscapen({ connect4: '4 Gewinnt', tictactoe: 'Tic Tac Toe', battleship: 'Schiffe versenken', ludo: 'Mensch ärgere dich nicht', wordgame: 'Wortspiel', akinator: 'Wer bin ich?' }[game.game_type] || game.game_type);
-  const canMove = game.status === 'active' && state.amZug === 'poke';
+  const bsSetup = game.game_type === 'battleship' && !state.pokeFeld && ['setup', 'setup_poke'].includes(state.phase);
+  const canMove = game.status === 'active' && (state.amZug === 'poke' || bsSetup);
   const controls = canMove ? agentSpielFelder(game.game_type, state) : '<p>Du bist gerade nicht am Zug. Öffne diesen Link erneut, wenn yRelay dich zum Zug auffordert.</p>';
   res.type('html').send(`<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${gameName} · yRelay</title>
 <style>body{margin:0;background:#101820;color:#edf2f4;font:16px system-ui,sans-serif}.page{max-width:720px;margin:36px auto;padding:24px}h1{font-size:24px}section,form{padding:20px 0;border-top:1px solid #35434c}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#1b2932;padding:16px;border-radius:8px;max-height:320px;overflow:auto}label{display:block;margin:14px 0 8px}input,select,textarea{box-sizing:border-box;width:100%;padding:11px;border:1px solid #56636c;border-radius:6px;background:#17242c;color:inherit;font:inherit}textarea{min-height:130px}button{margin-top:16px;padding:11px 18px;border:0;border-radius:6px;background:#2b9b87;color:white;font:inherit;font-weight:700;cursor:pointer}button:disabled{opacity:.5}#status{min-height:24px;color:#8be0c2}</style>
 <main class="page"><h1>${gameName}</h1><p>Agent: ${agentName} · Status: ${htmlEscapen(game.status)} · Zug: ${htmlEscapen(state.amZug || 'beendet')}</p>
 <section><strong>Spielstand</strong><pre>${stateText}</pre></section><form id="move" data-type="${htmlEscapen(game.game_type)}" data-phase="${htmlEscapen(state.phase || '')}" data-rater="${isAkinatorRater ? 'true' : 'false'}" ${canMove ? '' : 'hidden'}>${controls}<label>Spiel-Chat (optional)<input name="chat" type="text" maxlength="500"></label><button type="submit" ${canMove ? '' : 'disabled'}>Spielzug senden</button><p id="status" role="status"></p></form>${canMove ? '' : '<p id="status" role="status">Kein Zug erforderlich.</p>'}</main>
-<script>const form=document.getElementById('move');if(form)form.addEventListener('submit',async e=>{e.preventDefault();const data=new FormData(form);const value=name=>data.get(name);const type=form.dataset.type;const phase=form.dataset.phase;let zug;if(type==='connect4')zug={spalte:Number(value('spalte'))};else if(type==='tictactoe')zug={feld:Number(value('feld'))};else if(type==='battleship')zug=phase==='setup_poke'?{setupWahl:JSON.parse(value('setup'))}:{r:Number(value('reihe')),c:Number(value('spalte'))};else if(type==='ludo')zug={figur:Number(value('figur'))};else if(type==='wordgame')zug={wort:value('wort')};else if(type==='akinator'){if(phase==='wort_auswahl')zug={aktion:'wort_festlegen',wort:value('wort')};else if(phase==='voting')zug={aktion:'abstimmen',zustimmung:value('zustimmung')==='true'};else if(form.dataset.rater==='true'){const action=value('aktion');zug=action==='frage'?{frage:value('frage')}:action==='loesen'?{aktion:'loesen',wort:value('frage')}:{aktion:'tipp'};}else zug={antwort:value('antwort')};}try{const response=await fetch('/api/webhooks/game-move/${encodeURIComponent(req.params.gameId)}/${encodeURIComponent(req.params.token)}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zug,chat:value('chat')||undefined})});const result=await response.json();if(!response.ok)throw new Error(result.fehler||'Spielzug fehlgeschlagen');document.getElementById('status').textContent=result.nachricht||'Spielzug wurde übermittelt. Öffne den Link erneut für den aktualisierten Spielstand.';form.querySelector('button[type=submit]').disabled=true;}catch(error){document.getElementById('status').textContent=error.message;}});</script></html>`);
+<script>const form=document.getElementById('move');if(form)form.addEventListener('submit',async e=>{e.preventDefault();const data=new FormData(form);const value=name=>data.get(name);const type=form.dataset.type;const phase=form.dataset.phase;let zug;if(type==='connect4')zug={spalte:Number(value('spalte'))};else if(type==='tictactoe')zug={feld:Number(value('feld'))};else if(type==='battleship')zug=data.has('setup')?{setupWahl:(()=>{const raw=String(value('setup')).trim();try{return JSON.parse(raw)}catch{return raw}})()}:{r:Number(value('reihe')),c:Number(value('spalte'))};else if(type==='ludo')zug={figur:Number(value('figur'))};else if(type==='wordgame')zug={wort:value('wort')};else if(type==='akinator'){if(phase==='wort_auswahl')zug={aktion:'wort_festlegen',wort:value('wort')};else if(phase==='voting')zug={aktion:'abstimmen',zustimmung:value('zustimmung')==='true'};else if(form.dataset.rater==='true'){const action=value('aktion');zug=action==='frage'?{frage:value('frage')}:action==='loesen'?{aktion:'loesen',wort:value('frage')}:{aktion:'tipp'};}else zug={antwort:value('antwort')};}try{const response=await fetch('/api/webhooks/game-move/${encodeURIComponent(req.params.gameId)}/${encodeURIComponent(req.params.token)}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zug,chat:value('chat')||undefined})});const result=await response.json();if(!response.ok)throw new Error(result.fehler||'Spielzug fehlgeschlagen');document.getElementById('status').textContent=result.nachricht||'Spielzug wurde übermittelt. Öffne den Link erneut für den aktualisierten Spielstand.';form.querySelector('button[type=submit]').disabled=true;}catch(error){document.getElementById('status').textContent=error.message;}});</script></html>`);
 }
 
 function zeigeAgentSchulseite(req, res) {
@@ -493,7 +494,21 @@ router.post('/game-move/:gameId/:token', async (req, res) => {
   let state;
   try { state = JSON.parse(spiel.state); } catch { return res.status(500).json({ fehler: 'Spielstand korrupt.' }); }
 
-  if (state.amZug !== 'poke') return res.status(409).json({ fehler: 'Der Nutzer ist am Zug!' });
+  const { zug, chat } = req.body || {};
+  const { notifyGameClients } = require('./games');
+
+  // Reiner Chat ohne Spielzug ist jederzeit erlaubt
+  if (!zug && chat && typeof chat === 'string') {
+    state.chat = state.chat || [];
+    state.chat.push({ absender: 'poke', text: chat.substring(0, 500) });
+    db.prepare('UPDATE games SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(JSON.stringify(state), spiel.id);
+    try { notifyGameClients(spiel.user_id, 'game_update', { spielId: spiel.id, userId: spiel.user_id }); } catch (e) {}
+    return res.json({ erfolg: true, nachricht: 'Chat-Nachricht zugestellt.' });
+  }
+
+  // Schiffe versenken: Die Flotte darf der Agent aufstellen, sobald das Spiel läuft
+  const bsSetupZug = spiel.game_type === 'battleship' && !state.pokeFeld && ['setup', 'setup_poke'].includes(state.phase);
+  if (state.amZug !== 'poke' && !bsSetupZug) return res.status(409).json({ fehler: 'Der Nutzer ist am Zug!' });
 
   const Connect4 = require('../services/game-logic/connect4');
   const TicTacToe = require('../services/game-logic/tictactoe');
@@ -501,9 +516,6 @@ router.post('/game-move/:gameId/:token', async (req, res) => {
   const Ludo = require('../services/game-logic/ludo');
   const Wordgame = require('../services/game-logic/wordgame');
   const Akinator = require('../services/game-logic/akinator');
-  const { notifyGameClients } = require('./games');
-
-  const { zug, chat } = req.body;
   let ergebnis;
 
   try {
@@ -521,8 +533,10 @@ router.post('/game-move/:gameId/:token', async (req, res) => {
         break;
       }
       case 'battleship': {
-        if (zug?.setupWahl) {
-          ergebnis = Battleship.pokeSetupWaehlen(state, zug.setupWahl);
+        const setup = zug?.setupWahl ?? zug?.auswahl ?? zug?.setup ?? (Array.isArray(zug) ? zug : undefined);
+        if (bsSetupZug || setup !== undefined) {
+          if (setup === undefined) return res.status(400).json({ fehler: 'Stelle zuerst deine Flotte auf: { "zug": { "setupWahl": "zufall" } } oder ein Array von Schiffen.' });
+          ergebnis = Battleship.pokeSetupWaehlen(state, setup);
         } else {
           const r = parseInt(zug?.r ?? zug?.reihe ?? zug?.row);
           const c = parseInt(zug?.c ?? zug?.spalte ?? zug?.col);
@@ -535,13 +549,18 @@ router.post('/game-move/:gameId/:token', async (req, res) => {
         const augenzahl = Ludo.wuerfeln();
         const verfuegbar = Ludo.verfuegbareFiguren(state, 'poke', augenzahl);
         if (verfuegbar.length === 0) {
-          const neuerState = { ...state, amZug: 'nutzer', mussWuerfeln: true };
+          const neuerState = { ...state, amZug: 'nutzer', mussWuerfeln: true, letzterWurf: null, zugAnzahl: (state.zugAnzahl || 0) + 1 };
+          if (chat && typeof chat === 'string') {
+            neuerState.chat = [...(neuerState.chat || []), { absender: 'poke', text: chat.substring(0, 500) }];
+          }
           db.prepare('UPDATE games SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(JSON.stringify(neuerState), spiel.id);
           notifyGameClients(spiel.user_id, 'game_update', { spielId: spiel.id, userId: spiel.user_id });
-          return res.json({ erfolg: true, augenzahl, state: neuerState, nachricht: 'Poke konnte nicht ziehen.' });
+          return res.json({ erfolg: true, augenzahl, state: neuerState, nachricht: `Du hast eine ${augenzahl} gewürfelt und konntest nicht ziehen. Jetzt ist der Nutzer dran.` });
         }
-        const figurIdx = zug?.figur !== undefined ? parseInt(zug.figur) : verfuegbar[0];
+        const gewuenscht = parseInt(zug?.figur);
+        const figurIdx = verfuegbar.includes(gewuenscht) ? gewuenscht : verfuegbar[0];
         ergebnis = Ludo.spielzugMachen(state, figurIdx, augenzahl, 'poke');
+        if (ergebnis.erfolg) ergebnis.augenzahl = augenzahl;
         break;
       }
       case 'wordgame': {
@@ -579,7 +598,18 @@ router.post('/game-move/:gameId/:token', async (req, res) => {
   try { notifyGameClients(spiel.user_id, 'game_update', { spielId: spiel.id, userId: spiel.user_id }); } catch (e) {}
 
   logAudit(spiel.user_id, 'spielzug_poke', { spielId: spiel.id, gameType: spiel.game_type });
-  res.json({ erfolg: true, state: neuerState });
+
+  // Antwort für den Agenten: ohne gegnerische Schiffe, mit klarer Ansage, wer jetzt dran ist
+  const antwortState = JSON.parse(JSON.stringify(neuerState));
+  if (spiel.game_type === 'battleship' && Array.isArray(antwortState.nutzerFeld)) {
+    antwortState.nutzerFeld = antwortState.nutzerFeld.map(reihe => reihe.map(z => z === 1 ? 0 : z));
+  }
+  if (spiel.game_type === 'akinator' && antwortState.wortGeber === 'nutzer') delete antwortState.wort;
+  let nachricht;
+  if (spielEnde) nachricht = neuerState.gewinner === 'poke' ? 'Spiel beendet – du hast gewonnen!' : neuerState.gewinner === 'nutzer' ? 'Spiel beendet – der Nutzer hat gewonnen.' : 'Spiel beendet – unentschieden.';
+  else if (neuerState.amZug === 'poke') nachricht = ergebnis.treffer ? 'Treffer! Du bist gleich noch einmal dran.' : 'Du bist gleich noch einmal dran – sende deinen nächsten Zug.';
+  else nachricht = 'Zug angenommen. Jetzt ist der Nutzer dran – warte auf die nächste Nachricht.';
+  res.json({ erfolg: true, augenzahl: ergebnis.augenzahl, state: antwortState, nachricht });
 });
 
 // ─── GET /api/webhooks/poke-data/wetter?token=TOKEN ─────────────────────────

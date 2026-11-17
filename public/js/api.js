@@ -56,7 +56,10 @@ const API = {
             window.location.hash = '#login';
           }
         }
-        throw new Error(json.fehler || `Serverfehler ${antwort.status}`);
+        const fehler = new Error(json.fehler || `Serverfehler ${antwort.status}`);
+        fehler.status = antwort.status;
+        fehler.daten = json;
+        throw fehler;
       }
 
       return json;

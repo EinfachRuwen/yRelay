@@ -109,7 +109,7 @@ const GamesView = {
         .c4-chip.nutzer { background: var(--rot); box-shadow: inset 0 0 0 4px var(--rot-tief); }
         .c4-chip.poke { background: var(--gelb); box-shadow: inset 0 0 0 4px #c9a300; }
         .c4-col { position: relative; cursor: pointer; border-radius: var(--r-2); }
-        .c4-col:hover { background: var(--linie); }
+        .c4-col:hover { background: color-mix(in srgb, #fff 18%, transparent); }
         .c4-overlay { position: absolute; inset: 16px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; z-index: 10; }
 
         /* Tic Tac Toe */
@@ -197,9 +197,9 @@ const GamesView = {
       UI.erfolg('Partie gestartet.');
       await this._spielOeffnen(result.spiel.id);
     } catch (e) {
-      if (e.message.includes('bereits ein aktives Spiel')) {
-        const data = JSON.parse(e.message.split('\n')[1] || '{}');
-        if (data.spielId) await this._spielOeffnen(data.spielId);
+      if (e.daten?.spielId) {
+        UI.info('Du hast schon eine laufende Partie – hier geht es weiter.');
+        await this._spielOeffnen(e.daten.spielId);
       } else { UI.fehler(e.message); }
     }
   },
@@ -320,9 +320,9 @@ const GamesView = {
       if (this._aktivesSpiel?.id === spielId) {
         try {
           const daten = await API.anfrage('GET', `/games/${spielId}`);
+          if (this._zugLaeuft) return;
           if (daten.spiel.status !== this._aktivesSpiel.status ||
-              JSON.stringify(daten.spiel.state.zugAnzahl) !== JSON.stringify(this._aktivesSpiel.state?.zugAnzahl) ||
-              JSON.stringify(daten.spiel.state.chat) !== JSON.stringify(this._aktivesSpiel.state?.chat)) {
+              JSON.stringify(daten.spiel.state) !== JSON.stringify(this._aktivesSpiel.state)) {
             this._aktivesSpiel = daten.spiel;
             this._spielBoardRendern();
           }
@@ -394,7 +394,7 @@ const GamesView = {
           </div>
           ${boardHtml}
           <div class="board-fuss">
-            ${istAktiv ? `<button class="btn btn-gefahr btn-klein" onclick="GamesView._aufgeben(${spiel.id})">${UI.icon('flagge')}Aufgeben</button>` : `<button class="btn btn-primaer btn-gross" onclick="GamesView._spielStarten('${spiel.game_type}')">Noch eine Partie</button>`}
+            ${istAktiv ? `<button class="btn btn-gefahr btn-klein" onclick="GamesView._aufgeben(${spiel.id})">${UI.icon('flagge')}Aufgeben</button>` : `<button class="btn btn-primaer btn-gross" onclick="GamesView._zeigeStarterAuswahl('${spiel.game_type}')">Noch eine Partie</button>`}
           </div>
         </div>
         <div class="chat-wrapper">
@@ -600,8 +600,8 @@ const GamesView = {
           let klickbar = false;
           if (nutzerAmZug && spieler === 'nutzer' && !state.mussWuerfeln) {
             // Grobe Client-Prüfung für Klickbarkeit (wird vom Backend validiert)
-            if (pos === -1 && state.letzterWurf === 6) klickbar = true;
-            if (pos >= 0) klickbar = true;
+            if (Array.isArray(state.verfuegbar)) klickbar = state.verfuegbar.includes(i);
+            else klickbar = (pos === -1 && state.letzterWurf === 6) || pos >= 0;
           }
           const onClick = klickbar ? `onclick="GamesView._macheZug({figur: ${i}})"` : '';
           gridHtml += `<div class="ludo-figur ${spieler} ${klickbar ? 'klickbar' : ''}" style="grid-column:${coord.x+1}; grid-row:${coord.y+1};" ${onClick}></div>`;
@@ -835,9 +835,10 @@ const GamesView = {
 
   // ---------------- WORDGAME ----------------
   _renderWordgame(state, nutzerAmZug) {
+    const starter = state.startSpieler || ((state.amZug === 'nutzer') === (state.woerter.length % 2 === 0) ? 'nutzer' : 'poke');
+    const anderer = starter === 'nutzer' ? 'poke' : 'nutzer';
     const bubs = state.woerter.map((w, i) => {
-      const startsFirst = (state.amZug === 'nutzer' && state.woerter.length % 2 === 0) || (state.amZug === 'poke' && state.woerter.length % 2 !== 0);
-      const cls = startsFirst ? (i % 2 === 0 ? 'nutzer' : 'poke') : (i % 2 === 0 ? 'poke' : 'nutzer');
+      const cls = i % 2 === 0 ? starter : anderer;
       return `<div class="word-bubble ${cls}">${UI.escapeHtml(w)}</div>`;
     }).join('');
 
@@ -856,7 +857,7 @@ const GamesView = {
       <div style="max-width: 600px; margin: 0 auto;">
         <div class="word-chat" id="word-chat-container">
           ${bubs || '<p style="text-align:center; color:var(--text-sekundaer);">Noch keine Wörter gefallen.</p>'}
-          ${(state.amZug === 'poke' && !state.gewinner) ? `<div class="word-bubble poke" style="opacity:0.7;"><em>Poke tippt...</em></div>` : ''}
+          ${(state.amZug === 'poke' && !state.gewinner) ? `<div class="word-bubble poke" style="opacity:0.7;"><em>Agent überlegt …</em></div>` : ''}
         </div>
         ${!state.gewinner ? `<div class="word-hint">${hint}</div>` : ''}
         ${input}
@@ -886,7 +887,7 @@ const GamesView = {
       return `
         <div style="text-align:center; padding: 40px 20px;">
           <span class="leere-liste-icon">${UI.icon('frage')}</span>
-          <h3 style="margin-bottom: 15px; color: var(--text-primaer);">Warte auf Poke...</h3>
+          <h3 style="margin-bottom: 15px; color: var(--text-primaer);">Warte auf den Agenten …</h3>
           <p style="color: var(--text-sekundaer); max-width: 400px; margin: 0 auto; line-height: 1.5;">
             Poke überlegt sich gerade ein kreatives Wort (Tier, Gegenstand, Person etc.), das du gleich erraten musst. 
             Sobald Poke sein Wort festlegt, geht das Spiel automatisch los!
@@ -921,7 +922,7 @@ const GamesView = {
                 <button class="btn btn-notfall" onclick="GamesView._akiMacheZug({aktion: 'loesen', wort: document.getElementById('aki-loesen').value})">Auflösen!</button>
               </div>
               <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn btn-sekundaer" style="width:100%;" onclick="GamesView._akiMacheZug({aktion: 'tipp'})">💡 Tipp von Poke anfordern</button>
+                <button class="btn btn-sekundaer" style="width:100%;" onclick="GamesView._akiMacheZug({aktion: 'tipp'})">Tipp anfordern</button>
               </div>
             </div>
           `;
@@ -942,7 +943,7 @@ const GamesView = {
           <div style="text-align:center; margin-bottom:10px; color:var(--text-sekundaer);">Frage ${count} / ${maxFragen}</div>
           <div class="word-chat" id="aki-chat-container">
             ${bubs || '<p style="text-align:center; color:var(--text-sekundaer);">Noch keine Fragen gestellt.</p>'}
-            ${(state.amZug === 'poke') ? `<div class="word-bubble poke" style="opacity:0.7;"><em>Poke tippt...</em></div>` : ''}
+            ${(state.amZug === 'poke') ? `<div class="word-bubble poke" style="opacity:0.7;"><em>Agent überlegt …</em></div>` : ''}
           </div>
           <div style="margin-top:20px;">
             ${interaktion}
@@ -967,7 +968,7 @@ const GamesView = {
               <button class="btn btn-notfall btn-gross" onclick="GamesView._macheZug({aktion: 'abstimmen', zustimmung: false})">Nein</button>
             </div>
           ` : `
-            <div style="color:var(--text-sekundaer);">Du hast abgestimmt. Warte auf Poke...</div>
+            <div style="color:var(--text-sekundaer);">Du hast abgestimmt. Warte auf den Agenten …</div>
           `}
         </div>
       `;
@@ -979,12 +980,14 @@ const GamesView = {
   _akiMacheZug(zug) {
     if (zug.frage) zug.frage = zug.frage.trim();
     if (zug.wort) zug.wort = zug.wort.trim();
-    if (!zug.frage && !zug.wort) return;
+    if (!zug.frage && !zug.wort && zug.aktion !== 'tipp') return;
     this._macheZug(zug);
   },
 
   // ---------------- GENERAL ----------------
   async _macheZug(zug) {
+    if (this._zugLaeuft) return;
+    this._zugLaeuft = true;
     try {
       const board = document.getElementById('spiel-board');
       if (board) board.style.pointerEvents = 'none';
@@ -1004,6 +1007,7 @@ const GamesView = {
       UI.fehler(e.message);
       this._spielBoardRendern(); 
     } finally {
+      this._zugLaeuft = false;
       const board = document.getElementById('spiel-board');
       if (board) board.style.pointerEvents = 'auto';
     }
@@ -1050,7 +1054,7 @@ const GamesView = {
     const btn = document.getElementById('btn-poke-erinnern');
     if (btn) btn.disabled = true;
     try {
-      await API.anfrage('POST', `/webhooks/game-move/${spielId}/erinnerung`);
+      await API.anfrage('POST', `/games/${spielId}/erinnern`);
       UI.erfolg('Erinnerung gesendet!');
       this._pokeTurnStart = Date.now();
       this._updateReminderButton(spielId);
