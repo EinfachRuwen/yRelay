@@ -85,6 +85,12 @@ app.use('/api/games', require('./routes/games'));
 const schulDashboardRouter = require('./routes/schuldashboard');
 app.use('/api/schuldashboard', schulDashboardRouter);
 
+// Öffentliche Konfiguration für das Frontend (auch vor dem Login, z. B. für die Anmeldeseite)
+app.get('/api/konfiguration', (req, res) => {
+  const { getBesitzerName } = require('./db');
+  res.json({ besitzerName: getBesitzerName() });
+});
+
 // Gesundheitscheck
 app.get('/api/gesundheit', (req, res) => {
   res.json({

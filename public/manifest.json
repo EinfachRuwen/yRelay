@@ -1,7 +1,7 @@
 {
   "name": "yRelay",
   "short_name": "yRelay",
-  "description": "Der direkte Draht zu Ruwen – Nachrichten, Wichtiges und Notfälle.",
+  "description": "Der direkte Draht – Nachrichten, Wichtiges und Notfälle über einen KI-Agenten.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#eceeed",

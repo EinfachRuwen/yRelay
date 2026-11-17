@@ -518,6 +518,7 @@ function initSettings() {
     ['smtp_from', process.env.SMTP_FROM || ''],
     ['pushover_app_token', process.env.PUSHOVER_APP_TOKEN || ''],
     ['app_url', process.env.APP_URL || 'http://localhost:3000'],
+    ['besitzer_name', process.env.OWNER_NAME || ''],
     ['schul_startzeit', '08:00'],
     ['schul_endzeit', '15:00'],
     ['schul_wochentage', '1,2,3,4,5'],
@@ -586,7 +587,16 @@ function initPokeProfile() {
   }
 }
 
-module.exports = { db, initAdminUser, initSettings, getSetting, setSetting, logAudit, initPokeProfile };
+// Name der Person, an die yRelay Nachrichten zustellt (OWNER_NAME bzw. Admin-Einstellung).
+// Fallback: Anzeigename oder Benutzername des ersten Admins.
+function getBesitzerName() {
+  const gesetzt = (getSetting('besitzer_name') || process.env.OWNER_NAME || '').trim();
+  if (gesetzt) return gesetzt;
+  const admin = db.prepare("SELECT display_name, username FROM users WHERE role = 'admin' ORDER BY id LIMIT 1").get();
+  return (admin?.display_name || admin?.username || 'Admin').trim();
+}
+
+module.exports = { db, initAdminUser, initSettings, getSetting, setSetting, logAudit, initPokeProfile, getBesitzerName };
 
 // ─── Spielebereich ───────────────────────────────────────────────────────────
 

@@ -54,6 +54,7 @@ environment:
   POKE_API_KEY: "dein-poke-v2-api-key"
   PUSHOVER_APP_TOKEN: "dein-pushover-application-token" # Optional; alternativ im Admin-Panel eintragen
   APP_URL: "https://yrelay.deinedomain.de"
+  OWNER_NAME: "Alex"                                    # Wer die Nachrichten bekommt
 ```
 
 ### 3. Starten
@@ -91,6 +92,7 @@ Cosmos Cloud routet den Traffic automatisch über sein internes Proxy-System.
 | `SMTP_PASS` | SMTP-Passwort | - |
 | `SMTP_FROM` | Absender-E-Mail-Adresse | - |
 | `APP_URL` | Öffentliche URL für Einladungslinks | `http://localhost:3000` |
+| `OWNER_NAME` | Name des Empfängers, erscheint in der Oberfläche („Nachricht an …“). Auch im Admin-Panel unter Einstellungen änderbar | Name des Admin-Kontos |
 | `PORT` | Interner App-Port | `3000` |
 
 ---

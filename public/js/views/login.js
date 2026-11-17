@@ -7,8 +7,8 @@ const LoginView = {
           <span class="wegweiser wegweiser-gross" aria-label="yRelay">yRelay</span>
           <div class="anmeldung-mitte">
             <div>
-              <h1>Der direkte Draht zu Ruwen.</h1>
-              <p>Nachrichten, Wichtiges und Notfälle – zugestellt über seinen Agenten. Du siehst jede Station, bis die Antwort da ist.</p>
+              <h1>Der direkte Draht zu ${UI.escapeHtml(UI.besitzer)}.</h1>
+              <p>Nachrichten, Wichtiges und Notfälle – zugestellt über ${UI.escapeHtml(UI.besitzerGenitiv())} KI-Agenten. Du siehst jede Station, bis die Antwort da ist.</p>
             </div>
             <figure class="anmeldung-beispiel" aria-label="Beispiel einer Nachricht und ihres Verlaufs">
               <figcaption>Beispiel</figcaption>
@@ -49,7 +49,7 @@ const LoginView = {
               </div>
               <button type="submit" class="btn btn-primaer btn-vollbreite btn-gross" id="login-btn">Anmelden</button>
             </form>
-            <p class="fusszeile">Noch kein Zugang? Den bekommst du nur per Einladung von Ruwen.</p>
+            <p class="fusszeile">Noch kein Zugang? Den bekommst du nur per Einladung von ${UI.escapeHtml(UI.besitzer)}.</p>
           </div>
         </section>
       </div>

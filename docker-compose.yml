@@ -44,6 +44,10 @@ services:
       # Öffentliche App-URL (für Einladungslinks in E-Mails)
       APP_URL: "https://yrelay.deinedomain.de"
 
+      # Name der Person, die die Nachrichten bekommt (z. B. „Nachricht an Alex“).
+      # Auch im Admin-Panel änderbar. Leer = Name des Admin-Kontos.
+      # OWNER_NAME: "Alex"
+
     # ─── Datenpersistenz ─────────────────────────────────────────────────
     volumes:
       - yrelay_data:/app/data

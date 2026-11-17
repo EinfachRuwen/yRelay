@@ -2,6 +2,21 @@
 // Icons, Kopfband, Toasts, Modals, Buttons und der Linienplan für Nachrichten.
 
 const UI = {
+  // ─── Empfänger (konfigurierbar: OWNER_NAME bzw. Admin → Einstellungen) ──
+  besitzer: 'Admin',
+  async konfigurationLaden() {
+    try {
+      const antwort = await fetch('/api/konfiguration');
+      const daten = await antwort.json();
+      if (daten.besitzerName) this.besitzer = daten.besitzerName;
+    } catch { /* Standardwert behalten */ }
+    document.title = `yRelay – Nachrichten an ${this.besitzer}`;
+  },
+  // Genitiv: „Alex’ Kalender“, „Kims Kalender“
+  besitzerGenitiv() {
+    const n = this.besitzer;
+    return /[sßxz]$/i.test(n) ? `${n}’` : `${n}s`;
+  },
   // ─── Icons (Phosphor-Sprite unter /img/icons.svg) ─────────────────────
   icon(name, klasse = '') {
     return `<svg class="icon ${klasse}" aria-hidden="true"><use href="/img/icons.svg#i-${name}"></use></svg>`;
@@ -200,7 +215,8 @@ const UI = {
   escapeHtml(text) {
     const div = document.createElement('div');
     div.appendChild(document.createTextNode(text == null ? '' : String(text)));
-    return div.innerHTML;
+    // Auch Anführungszeichen maskieren, damit Werte in Attributen (value="…", onclick) sicher sind
+    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   },
 
   // ─── Datum ────────────────────────────────────────────────────────────

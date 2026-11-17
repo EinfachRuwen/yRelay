@@ -1,6 +1,6 @@
 # yRelay – Gestaltung
 
-yRelay ist der direkte Draht zu Ruwen: Eingeladene schicken Nachrichten, Wichtiges und Notfälle an seinen KI-Agenten und sehen, wie jede Nachricht ankommt und beantwortet wird. Die Gestaltung leiht sich ihre Sprache von der **deutschen Verkehrsbeschilderung** – einem System, das jede Person im Alltag liest, bei dem jede Farbe eine feste Bedeutung hat und das unter Zeitdruck funktionieren muss.
+yRelay ist der direkte Draht zu einer Person (dem Empfänger, einstellbar über `OWNER_NAME`): Eingeladene schicken Nachrichten, Wichtiges und Notfälle an deren KI-Agenten und sehen, wie jede Nachricht ankommt und beantwortet wird. Die Gestaltung leiht sich ihre Sprache von der **deutschen Verkehrsbeschilderung** – einem System, das jede Person im Alltag liest, bei dem jede Farbe eine feste Bedeutung hat und das unter Zeitdruck funktionieren muss.
 
 Die Welt liefert nur vier Dinge: Schrift, Farben, Dichte und eine Signatur. Navigation, Formulare und Bedienelemente bleiben gewöhnliche Web-Bausteine.
 

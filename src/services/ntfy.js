@@ -3,7 +3,7 @@ const { getSetting } = require('../db');
 
 /**
  * Sendet eine Push-Benachrichtigung über ntfy.sh
- * @param {string} topic - Das ntfy Topic (z.B. "yrelay-ruwen-xyz")
+ * @param {string} topic - Das ntfy Topic (z.B. "yrelay-alex-xyz")
  * @param {string} title - Der Titel der Benachrichtigung
  * @param {string} message - Der Nachrichtentext
  * @param {string} clickUrl - Optionale URL, die beim Klicken geöffnet wird

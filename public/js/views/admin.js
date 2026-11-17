@@ -676,7 +676,7 @@ const AdminView = {
           <div class="formular-gruppe">
             <label class="formular-label" for="bearbeiten-ntfy">ntfy.sh Topic (optional)</label>
             <div style="display: flex; gap: 8px;">
-              <input class="formular-eingabe" type="text" id="bearbeiten-ntfy" value="${ntfy_topic}" placeholder="z.B. yrelay-ruwen-abc123xyz" maxlength="32" pattern="[A-Za-z0-9_-]+" style="flex: 1;">
+              <input class="formular-eingabe" type="text" id="bearbeiten-ntfy" value="${ntfy_topic}" placeholder="z.B. yrelay-alex-abc123xyz" maxlength="32" pattern="[A-Za-z0-9_-]+" style="flex: 1;">
               <button type="button" class="btn btn-ghost" id="admin-ntfy-generieren" title="Zufälliges Topic generieren">${UI.icon('wuerfel')}Generieren</button>
             </div>
           </div>
@@ -1017,6 +1017,11 @@ const AdminView = {
             <div class="einstellungen-sektion">
               <div class="einstellungen-sektion-titel">App-Einstellungen</div>
               <div class="formular-gruppe">
+                <label class="formular-label" for="besitzer-name">Name des Empfängers</label>
+                <input class="formular-eingabe" type="text" id="besitzer-name" value="${UI.escapeHtml(einstellungen.besitzerName || '')}" placeholder="${UI.escapeHtml(UI.besitzer)}" maxlength="60">
+                <p class="text-gedaempft" style="margin-top: 6px;">Wem die Nachrichten zugestellt werden, z. B. „Alex“. Erscheint auf der Anmeldeseite, im Postfach und in den Alarmen. Leer lassen = Name des Admin-Kontos.</p>
+              </div>
+              <div class="formular-gruppe">
                 <label class="formular-label" for="app-url">Öffentliche App-URL</label>
                 <input class="formular-eingabe" type="url" id="app-url" value="${UI.escapeHtml(einstellungen.appUrl)}" placeholder="https://yrelay.deinedomain.de">
                 <p class="text-gedaempft" style="margin-top: 6px;">Wird für Einladungslinks in E-Mails verwendet.</p>
@@ -1176,6 +1181,7 @@ const AdminView = {
           smtpPass: document.getElementById('smtp-pass').value || '••••••••',
           smtpFrom: document.getElementById('smtp-from').value.trim(),
           appUrl: document.getElementById('app-url').value.trim(),
+          besitzerName: document.getElementById('besitzer-name').value.trim(),
           schulDashboardEnabled: document.getElementById('schul-dashboard-global').checked,
           schulStartzeit: document.getElementById('schul-startzeit').value,
           schulEndzeit: document.getElementById('schul-endzeit').value,
@@ -1185,6 +1191,7 @@ const AdminView = {
           schulNachlaufMinuten: document.getElementById('schul-nachlauf').value,
           schulFerien: document.getElementById('schul-ferien').value.trim()
         });
+        await UI.konfigurationLaden();
         UI.erfolg('Einstellungen gespeichert!');
       } catch (err) {
         UI.fehler(err.message);

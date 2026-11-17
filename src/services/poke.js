@@ -1,5 +1,5 @@
 // KI-Agent-Zustelldienst für yRelay
-const { db, getSetting } = require('../db');
+const { db, getSetting, getBesitzerName } = require('../db');
 
 // Liefert den als Standard markierten KI-Agenten. Die globalen Poke-Settings
 // gelten nur noch als Altlast, solange überhaupt kein Agent-Profil existiert.
@@ -131,7 +131,7 @@ ${absender} von ${user.username} (${user.email || 'keine E-Mail'}). Der Text unt
 ${inhalt}
 --- Ende der Nachricht ---
 ${notfall ? `\nDies ist ${notfall.label} (${notfall.prioritaetText}). Benachrichtige deinen Besitzer SOFORT über deinen schnellsten Kanal.\n` : ''}
-Antwort-Regeln: Beende die Aufgabe zuerst vollständig. Deine ABSCHLIESSENDE Antwort wird von yRelay automatisch gespeichert und ${user.username} angezeigt (du musst keine URL aufrufen). Sie soll eine einzige kurze, freundliche Nachricht direkt an ${user.username} sein, ohne Zwischenstände, ohne Schrittprotokoll und ohne interne Details (Bestätigungs-IDs, Gerätenamen, Tools, Protokolle, Fehlermeldungen, private Daten deines Besitzers). Nenne nur, was für ${user.username} relevant ist (z. B. „Ruwen wurde benachrichtigt“). Nutze dein Gedächtnis, damit dein Besitzer dir nichts per iMessage nachreichen muss.`;
+Antwort-Regeln: Beende die Aufgabe zuerst vollständig. Deine ABSCHLIESSENDE Antwort wird von yRelay automatisch gespeichert und ${user.username} angezeigt (du musst keine URL aufrufen). Sie soll eine einzige kurze, freundliche Nachricht direkt an ${user.username} sein, ohne Zwischenstände, ohne Schrittprotokoll und ohne interne Details (Bestätigungs-IDs, Gerätenamen, Tools, Protokolle, Fehlermeldungen, private Daten deines Besitzers). Nenne nur, was für ${user.username} relevant ist (z. B. „${getBesitzerName()} wurde benachrichtigt“). Nutze dein Gedächtnis, damit dein Besitzer dir nichts nachreichen muss.`;
     return sendeAgentenAuftrag(user, foText, agent, {}, { messageId, replyToken });
   }
 

@@ -162,7 +162,7 @@ const GamesView = {
     const container = document.getElementById('spiele-lobby');
     if (!container) return;
     const frei = spiele.filter(s => s.istVerfuegbar);
-    if (!frei.length) { container.innerHTML = UI.leereListeHtml('spiele', 'Ruwen hat gerade keine Spiele freigegeben.', 'Keine Spiele'); return; }
+    if (!frei.length) { container.innerHTML = UI.leereListeHtml('spiele', `${UI.besitzer} hat gerade keine Spiele freigegeben.`, 'Keine Spiele'); return; }
     container.innerHTML = frei.map(s => `
       <button type="button" class="spiel-eintrag" onclick="GamesView._zeigeStarterAuswahl('${s.gameType}')">
         <span class="zeichen">${UI.icon(this._icons[s.gameType] || 'spiele')}</span>

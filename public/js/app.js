@@ -3,6 +3,7 @@ const App = {
   nutzer: null,
 
   async init() {
+    await UI.konfigurationLaden();
     // Token aus dem Storage laden und Nutzer verifizieren
     const token = API.getToken();
     if (token) {

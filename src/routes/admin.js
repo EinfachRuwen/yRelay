@@ -401,6 +401,7 @@ router.get('/einstellungen', (req, res) => {
     pushoverAppToken: getSetting('pushover_app_token') ? '••••••••' : '',
     pushoverAppTokenGesetzt: !!getSetting('pushover_app_token'),
     appUrl: getSetting('app_url') || '',
+    besitzerName: getSetting('besitzer_name') || '',
     schulDashboardEnabled: getSetting('schul_dashboard_enabled') === 'true',
     schulStartzeit: getSetting('schul_startzeit') || '08:00',
     schulEndzeit: getSetting('schul_endzeit') || '15:00',
@@ -432,6 +433,7 @@ router.put('/einstellungen', (req, res) => {
   if (smtpFrom !== undefined) setSetting('smtp_from', smtpFrom);
   if (pushoverAppToken && pushoverAppToken !== '••••••••') setSetting('pushover_app_token', pushoverAppToken.trim());
   if (appUrl !== undefined) setSetting('app_url', appUrl);
+  if (req.body.besitzerName !== undefined) setSetting('besitzer_name', String(req.body.besitzerName).trim().substring(0, 60));
   if (req.body.schulDashboardEnabled !== undefined) setSetting('schul_dashboard_enabled', req.body.schulDashboardEnabled ? 'true' : 'false');
   if (req.body.schulStartzeit !== undefined && /^([01]\d|2[0-3]):[0-5]\d$/.test(req.body.schulStartzeit)) setSetting('schul_startzeit', req.body.schulStartzeit);
   if (req.body.schulEndzeit !== undefined && /^([01]\d|2[0-3]):[0-5]\d$/.test(req.body.schulEndzeit)) setSetting('schul_endzeit', req.body.schulEndzeit);

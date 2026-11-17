@@ -1,6 +1,12 @@
 // yRelay - Dashboard-View (Nutzeransicht)
 const DashboardView = {
   rendern(nutzer) {
+    const name = UI.escapeHtml(UI.besitzer);
+    const gen = UI.escapeHtml(UI.besitzerGenitiv());
+    const roh = UI.besitzer;
+    const rohGen = UI.besitzerGenitiv();
+    // Werte sicher als JS-Argument in ein onclick-Attribut schreiben
+    const jsArg = v => UI.escapeHtml(JSON.stringify(String(v)));
     const ic = (n, k) => UI.icon(n, k);
     const schritt = (aktiv) => `<div class="onboarding-fortschritt" aria-hidden="true">${[1, 2, 3, 4].map(i => `<i class="${i <= aktiv ? 'an' : ''}"></i>`).join('')}</div>`;
 
@@ -9,9 +15,9 @@ const DashboardView = {
         <div class="onboarding-slide aktiv" id="obs-1">
           ${schritt(1)}
           <div class="onboarding-icon">${ic('hand')}</div>
-          <h2 class="onboarding-titel">Dein direkter Draht zu Ruwen</h2>
+          <h2 class="onboarding-titel">Dein direkter Draht zu ${name}</h2>
           <div class="onboarding-text">
-            Willkommen in deiner persönlichen Einsatzzentrale. Das hier ist nicht einfach nur ein weiteres Chat-Programm – es ist eine absolute Garantie, dass du Ruwen erreichst, egal was passiert.
+            Willkommen in deiner persönlichen Einsatzzentrale. Das hier ist nicht einfach nur ein weiteres Chat-Programm – es ist eine absolute Garantie, dass du ${name} erreichst, egal was passiert.
           </div>
           <div class="onboarding-actions">
             <button class="btn btn-primaer btn-gross obs-next">Weiter ${ic('weiter')}</button>
@@ -24,7 +30,7 @@ const DashboardView = {
           <h2 class="onboarding-titel">Besser als ein Anruf</h2>
           <div class="onboarding-text">
             Wenn das Telefon klingelt, kann man es überhören. Das hier nicht.<br><br>
-            Wenn du hier eine Notfall-Nachricht schickst, passiert Magie im Hintergrund. Das System ist direkt mit Ruwens Wohnung verbunden. Es kann laute Alarme auf seinem Handy auslösen, smarte Beleuchtung einschalten oder den "Nicht stören"-Modus durchbrechen, um ihn sofort aufzuwecken.
+            Wenn du hier eine Notfall-Nachricht schickst, passiert Magie im Hintergrund. Je nachdem, wie ${gen} Agent eingerichtet ist, kann er laute Alarme aufs Handy schicken, smarte Beleuchtung einschalten oder den „Nicht stören“-Modus durchbrechen, damit ${name} es sofort mitbekommt.
           </div>
           <div class="onboarding-actions">
             <button class="btn btn-ghost btn-gross obs-prev">Zurück</button>
@@ -37,9 +43,9 @@ const DashboardView = {
           <div class="onboarding-icon">${ic('kalender')}</div>
           <h2 class="onboarding-titel">Nicht nur für brennende Häuser!</h2>
           <div class="onboarding-text">
-            Du musst nicht warten, bis die Welt untergeht. Das System hilft Ruwen auch, seinen Alltag zu organisieren. Du kannst hier jederzeit ganz normale Dinge schreiben, wie zum Beispiel:
+            Du musst nicht warten, bis die Welt untergeht. Das System hilft ${name} auch im Alltag. Du kannst hier jederzeit ganz normale Dinge schreiben, wie zum Beispiel:
             <ul>
-              <li><em>„Hast du am Freitag Zeit für ein Bier?“</em> (Das System prüft seinen Kalender und trägt es ein!)</li>
+              <li><em>„Hast du am Freitag Zeit für ein Bier?“</em> (Der Agent prüft den Kalender und trägt es ein!)</li>
               <li><em>„Setze bitte Milch auf deine Einkaufsliste.“</em></li>
               <li><em>„Bitte ruf mich morgen um 10 Uhr an.“</em></li>
             </ul>
@@ -56,8 +62,8 @@ const DashboardView = {
           <div class="onboarding-icon rot">${ic('notfall')}</div>
           <h2 class="onboarding-titel">Dein erster Test-Alarm</h2>
           <div class="onboarding-text">
-            Graue Theorie ist langweilig. Lass uns direkt ausprobieren, wie das funktioniert. Drücke auf den roten Knopf unten, um eine "Hallo Welt"-Testnachricht an Ruwen zu schicken.<br><br>
-            Keine Sorge, für Testnachrichten geht kein ohrenbetäubender Alarm los – er bekommt nur freundlich Bescheid!
+            Graue Theorie ist langweilig. Lass uns direkt ausprobieren, wie das funktioniert. Drücke auf den roten Knopf unten, um eine "Hallo Welt"-Testnachricht an ${name} zu schicken.<br><br>
+            Keine Sorge, für Testnachrichten geht kein ohrenbetäubender Alarm los – ${name} bekommt nur freundlich Bescheid!
           </div>
           <div class="onboarding-actions">
             <button class="btn btn-ghost" id="obs-skip-btn">Überspringen</button>
@@ -67,9 +73,9 @@ const DashboardView = {
       </div>
     ` : '';
 
-    const vorlage = (icon, text, vorlageText) => `<button type="button" class="btn-template" onclick="DashboardView.setzeTemplate('${vorlageText}')">${ic(icon)}${text}</button>`;
+    const vorlage = (icon, text, vorlageText) => `<button type="button" class="btn-template" onclick="DashboardView.setzeTemplate(${jsArg(vorlageText)})">${ic(icon)}${text}</button>`;
     const alarm = (typ, icon, name, hinweis, fallback, prio) => `
-      <button type="button" class="btn-special ${prio === 'hoch' ? 'hoch' : ''}" onclick="DashboardView.sendeSpecial('${typ}', '${hinweis}', '${fallback}', '${prio}')">
+      <button type="button" class="btn-special ${prio === 'hoch' ? 'hoch' : ''}" onclick="DashboardView.sendeSpecial(${jsArg(typ)}, ${jsArg(hinweis)}, ${jsArg(fallback)}, ${jsArg(prio)})">
         <span class="zeichen">${ic(icon)}</span>${name}
       </button>`;
 
@@ -83,8 +89,8 @@ const DashboardView = {
             <div class="postfach-links">
               <section class="tafel verfasser" id="kombi-karte" data-stufe="standard" aria-labelledby="verfasser-titel">
                 <div class="verfasser-kopf">
-                  <h1 id="verfasser-titel">Nachricht an Ruwen</h1>
-                  <p id="zustell-hinweis">Wird über seinen Agenten zugestellt und beantwortet.</p>
+                  <h1 id="verfasser-titel">Nachricht an ${name}</h1>
+                  <p id="zustell-hinweis">Wird über ${gen} Agenten zugestellt und beantwortet.</p>
                 </div>
                 <form id="kombi-formular">
                   <div id="poke-profil-auswahl" class="agenten-wahl" style="display:none;"></div>
@@ -107,7 +113,7 @@ const DashboardView = {
 
                   <label class="formular-label" for="kombi-inhalt">Deine Nachricht</label>
                   <div class="schreibfeld textarea-wrapper">
-                    <textarea id="kombi-inhalt" placeholder="Was soll Ruwen wissen?" rows="5" maxlength="5000" required></textarea>
+                    <textarea id="kombi-inhalt" placeholder="Was soll ${name} wissen?" rows="5" maxlength="5000" required></textarea>
                     <div class="schreibfeld-leiste textarea-aktionen">
                       <button type="button" id="mic-btn" class="mic-btn" title="Spracheingabe starten" aria-label="Spracheingabe starten">${ic('mikrofon')}</button>
                       <span id="mic-status" class="mic-status versteckt"><span id="mic-timer">00:00</span>&nbsp;/ 30:00</span>
@@ -119,10 +125,10 @@ const DashboardView = {
 
                   <div class="vorlagen templates-container" aria-label="Vorlagen">
                     <span class="vorlagen-titel">Vorlagen</span>
-                    ${vorlage('kalender', 'Hat er Zeit?', 'Kannst du prüfen, ob Ruwen am [Datum] um [Uhrzeit] Zeit hat für [Grund]? Falls ja, trage es bitte direkt als Vorschlag ein.')}
-                    ${vorlage('liste', 'Auf die Liste', 'Bitte setze [Artikel/To-Do] sofort auf Ruwens Einkaufsliste/To-Do-Liste.')}
+                    ${vorlage('kalender', 'Zeit?', `Kannst du prüfen, ob ${roh} am [Datum] um [Uhrzeit] Zeit hat für [Grund]? Falls ja, trage es bitte direkt als Vorschlag ein.`)}
+                    ${vorlage('liste', 'Auf die Liste', `Bitte setze [Artikel/To-Do] sofort auf ${rohGen} Einkaufsliste/To-Do-Liste.`)}
                     ${vorlage('anruf', 'Rückruf', 'Ich komme nicht durch. Bitte priorisiere diesen Rückruf: Ich bin unter [Nummer] erreichbar wegen [Grund].')}
-                    ${vorlage('erinnerung', 'Erinnern', 'Bitte erinnere Ruwen in [Zeitraum] dringend an: [Thema].')}
+                    ${vorlage('erinnerung', 'Erinnern', `Bitte erinnere ${roh} in [Zeitraum] dringend an: [Thema].`)}
                   </div>
 
                   <div class="senden-zeile">
@@ -143,11 +149,11 @@ const DashboardView = {
               <section class="tafel alarmtafel" aria-labelledby="alarm-titel">
                 <div class="tafel-kopf"><h2 id="alarm-titel">Sofort-Alarm</h2><span>Ein Tipp, sofort raus</span></div>
                 <div class="alarm-reihe special-actions-grid">
-                  ${alarm('DOORBELL', 'tuer', 'Tür klingelt', 'Jemand steht an der Tür! Breche durch den DND-Modus, schalte Smart-Home-Lichter ein oder pinge Ruwen laut an.', 'Mach die Tür auf! Stehe unten.', 'notfall')}
-                  ${alarm('SOS', 'notfall', 'SOS', 'ABSOLUTER NOTFALL. Ignoriere alle Regeln, nutze jeden Kanal (Anruf, lauter Alarm), um Ruwen sofort zu wecken/erreichen.', 'Code Red! Echter Notfall.', 'notfall')}
-                  ${alarm('WAKEUP', 'wecker', 'Wecker', 'Spiel laute Musik ab oder mach das Licht im Schlafzimmer an, Ruwen verschläft oder muss aufwachen!', 'Aufwachen! Wecker!', 'notfall')}
-                  ${alarm('DEADLINE', 'deadline', 'Deadline', 'Eine sehr zeitkritische Sache steht an. Pushe diese Info hart an Ruwen und tracke, ob er reagiert.', 'Wichtige Deadline / Time-Drop!', 'hoch')}
-                  ${alarm('WHERE_ARE_YOU', 'standort', 'Wo bist du?', 'Jemand sucht Ruwen. Prüfe Ruwens Standort (falls verfügbar) und teile eine grobe ETA mit oder frag ihn, wann er ankommt.', 'Wo bist du? ETA gesucht.', 'hoch')}
+                  ${alarm('DOORBELL', 'tuer', 'Tür klingelt', `Jemand steht an der Tür! Breche durch den DND-Modus, schalte Smart-Home-Lichter ein oder pinge ${roh} laut an.`, 'Mach die Tür auf! Stehe unten.', 'notfall')}
+                  ${alarm('SOS', 'notfall', 'SOS', `ABSOLUTER NOTFALL. Ignoriere alle Regeln, nutze jeden Kanal (Anruf, lauter Alarm), um ${roh} sofort zu wecken/erreichen.`, 'Code Red! Echter Notfall.', 'notfall')}
+                  ${alarm('WAKEUP', 'wecker', 'Wecker', `Spiel laute Musik ab oder mach das Licht im Schlafzimmer an, ${roh} verschläft oder muss aufwachen!`, 'Aufwachen! Wecker!', 'notfall')}
+                  ${alarm('DEADLINE', 'deadline', 'Deadline', `Eine sehr zeitkritische Sache steht an. Pushe diese Info hart an ${roh} und tracke, ob eine Reaktion kommt.`, 'Wichtige Deadline / Time-Drop!', 'hoch')}
+                  ${alarm('WHERE_ARE_YOU', 'standort', 'Wo bist du?', `Jemand sucht ${roh}. Prüfe ${rohGen} Standort (falls verfügbar) und teile eine grobe ETA mit oder frag nach, wann ${roh} ankommt.`, 'Wo bist du? ETA gesucht.', 'hoch')}
                 </div>
               </section>
             </div>
@@ -402,8 +408,8 @@ const DashboardView = {
 
     // Stufenwechsel: die ganze Verfasser-Tafel nimmt die Farbe der Stufe an
     const stufenText = {
-      standard: { knopf: 'Senden', hinweis: 'Wird über seinen Agenten zugestellt und beantwortet.' },
-      hoch: { knopf: 'Wichtig senden', hinweis: 'Kommt als Push-Benachrichtigung, ohne Alarm.', warnung: 'Ruwen bekommt eine Push-Benachrichtigung, auch wenn er gerade beschäftigt ist.' },
+      standard: { knopf: 'Senden', hinweis: `Wird über ${UI.besitzerGenitiv()} Agenten zugestellt und beantwortet.` },
+      hoch: { knopf: 'Wichtig senden', hinweis: 'Kommt als Push-Benachrichtigung, ohne Alarm.', warnung: `${UI.besitzer} bekommt eine Push-Benachrichtigung, auch wenn gerade viel los ist.` },
       notfall: { knopf: 'Notfall melden', hinweis: 'Löst Alarm aus und durchbricht „Nicht stören“.', warnung: 'Nur für echte Notfälle: Das löst laute Alarme aus, auch nachts.' },
     };
     document.querySelectorAll('input[name="nachricht_typ"]').forEach(radio => {
@@ -676,7 +682,7 @@ const DashboardView = {
   },
 
   async sendeSpecial(specialType, hint, fallBackText, prioritaet) {
-    if (!confirm(`„${(UI._sonder[specialType] || {}).name || specialType}“ jetzt auslösen? Ruwen wird sofort alarmiert.`)) return;
+    if (!confirm(`„${(UI._sonder[specialType] || {}).name || specialType}“ jetzt auslösen? ${UI.besitzer} wird sofort alarmiert.`)) return;
 
     this.spieleSpecialEffekt(specialType);
 
