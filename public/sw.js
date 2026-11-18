@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yrelay-cache-v5';
+const CACHE_NAME = 'yrelay-cache-v6';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
@@ -13,6 +13,7 @@ const ASSETS_TO_CACHE = [
   '/js/views/reset.js',
   '/js/views/schuldashboard.js',
   '/js/views/games.js',
+  '/js/views/hinweis.js',
   '/img/logo.png',
   '/img/logo.svg',
   '/img/icons.svg',

@@ -23,6 +23,7 @@ const ResetView = {
             </form>
           </div>
           <p style="margin-top:18px"><a href="#login" class="text-link">Zurück zur Anmeldung</a></p>
+          <p class="solo-fuss"><a href="#hinweis" class="text-link">Private Instanz · Datenschutz</a></p>
         </div>
       </div>
     `;

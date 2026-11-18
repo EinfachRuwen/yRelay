@@ -145,3 +145,9 @@ Verfügbare Architekturen: `linux/amd64`, `linux/arm64`
 ## Lizenz
 
 MIT
+
+---
+
+## Datenschutz / private Instanz
+
+Die Hinweisseite `/#hinweis` (Quelle: `public/js/views/hinweis.js`) ist auf die private Instanz von Ruwen Hohnholz zugeschnitten. Wer yRelay selbst betreibt, passt sie an die eigene Instanz an. Hintergrund und Fundstellen: `docs/PRIVAT-HINWEIS.md`.

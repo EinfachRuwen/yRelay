@@ -49,7 +49,7 @@ const LoginView = {
               </div>
               <button type="submit" class="btn btn-primaer btn-vollbreite btn-gross" id="login-btn">Anmelden</button>
             </form>
-            <p class="fusszeile">Noch kein Zugang? Den bekommst du nur per Einladung von ${UI.escapeHtml(UI.besitzer)}.</p>
+            <p class="fusszeile">Noch kein Zugang? Den bekommst du nur per Einladung von ${UI.escapeHtml(UI.besitzer)}.<br><a href="#hinweis" class="text-link">Private Instanz · Datenschutz</a></p>
           </div>
         </section>
       </div>

@@ -23,9 +23,20 @@ const App = {
   },
 
   routeVerarbeiten() {
+    // /hinweis (ohne Hash) auf die Hash-Route umleiten
+    if (window.location.pathname.replace(/\/+$/, '') === '/hinweis') {
+      history.replaceState(null, '', '/#hinweis');
+    }
     const hash = window.location.hash || '#';
     const app = document.getElementById('app');
     if (!app) return;
+
+    // Hinweis „Private Instanz“ + Datenschutzinformationen (auch ohne Login erreichbar)
+    if (hash === '#hinweis' || hash === '#hinweis/') {
+      app.innerHTML = HinweisView.rendern();
+      HinweisView.initialisieren();
+      return;
+    }
 
     // Reset-Passwort-Route
     if (hash.startsWith('#reset/')) {

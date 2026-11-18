@@ -91,6 +91,7 @@ const UI = {
               <button role="menuitem" data-menue="profil">${this.icon('nutzer')} Profil und Benachrichtigungen</button>
               <button role="menuitem" data-menue="passwort">${this.icon('schloss')} Passwort ändern</button>
               <button role="menuitem" data-menue="thema">${this.icon('mond')} <span id="thema-text">Dunkles Design</span></button>
+              <a role="menuitem" href="#hinweis">${this.icon('info')} Private Instanz · Datenschutz</a>
               <button role="menuitem" data-menue="abmelden">${this.icon('abmelden')} Abmelden</button>
             </div>
           </div>

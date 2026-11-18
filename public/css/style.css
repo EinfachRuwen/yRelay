@@ -503,6 +503,22 @@ input[type="checkbox"]:focus, input[type="radio"]:focus { box-shadow: none; }
 .solo-tafel h1 { font-size: 30px; margin-bottom: 6px; }
 .solo-tafel .unterzeile { color: var(--tinte-2); margin-bottom: 24px; }
 .solo-tafel .tafel { padding: 28px; }
+/* Hinweis „Private Instanz“ + Datenschutzinformationen */
+.solo-fuss { margin-top: 14px; font-size: 14px; color: var(--tinte-3); }
+.hinweis-seite { place-items: start center; }
+.hinweis-tafel { max-width: 720px; }
+.hinweis-tafel .tafel { padding: 24px 28px; }
+.hinweis-tafel .tafel p + p { margin-top: 12px; }
+.hinweis-kurz { border-top: 4px solid var(--blau-linie, var(--blau)); }
+.hinweis-h2 { font-family: var(--schrift-eng); font-size: 24px; line-height: 1.15; margin: 36px 0 6px; }
+.hinweis-lang section + section { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--linie); }
+.hinweis-lang h3 { font-family: var(--schrift-eng); font-size: 18px; line-height: 1.2; margin-bottom: 8px; }
+.hinweis-lang p { color: var(--tinte-2); }
+.hinweis-tafel code { font-size: 14px; background: var(--flaeche-2); padding: 1px 4px; border-radius: var(--r-1); overflow-wrap: anywhere; }
+.hinweis-tafel a { overflow-wrap: anywhere; }
+.hinweis-zurueck { margin-top: 18px; }
+@media (max-width: 760px) { .hinweis-tafel .tafel { padding: 18px 16px; } }
+
 /* Altlasten-Klassen */
 .login-seite, .auth-container { min-height: 100vh; display: grid; place-items: center; padding: 32px 16px; }
 .login-karte, .auth-karte { width: 100%; max-width: 440px; padding: 28px; }
