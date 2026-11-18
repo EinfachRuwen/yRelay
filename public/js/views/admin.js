@@ -944,6 +944,8 @@ const AdminView = {
 
   async einstellungenRendern(container) {
     const einstellungen = await API.adminEinstellungenLaden();
+    let rechtstexte = null;
+    try { rechtstexte = await API.adminRechtstexteLaden(); } catch(e) {}
     let backups = [];
     try { backups = await API.adminBackupsLaden(); } catch(e) {}
 
@@ -1100,6 +1102,8 @@ const AdminView = {
         </div>
       </div>
 
+      ${rechtstexte ? this._rechtstexteKarte(rechtstexte) : ''}
+
       <!-- Backup Verwaltung -->
       <div class="karte" style="margin-top: 20px;">
         <div class="karte-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
@@ -1143,6 +1147,8 @@ const AdminView = {
         </div>
       </div>
     `;
+
+    this._rechtstexteVerdrahten();
 
     // SMTP-Test
     document.getElementById('smtp-test-btn')?.addEventListener('click', async (e) => {
@@ -1509,6 +1515,93 @@ const AdminView = {
     });
   },
 
+  // ─── Rechtstexte (Datenschutz, Impressum) ───────────────────────────────
+
+  _rechtstexteKarte(rechtstexte) {
+    const block = (art, titel) => {
+      const e = rechtstexte[art] || { modus: 'keine', url: '', text: '' };
+      const modus = e.modus || 'keine';
+      const option = (wert, name) => `<option value="${wert}" ${modus === wert ? 'selected' : ''}>${name}</option>`;
+      return `
+        <div class="einstellungen-sektion rechtstext-sektion" data-art="${art}">
+          <div class="einstellungen-sektion-titel">${titel}</div>
+          <div class="formular-gruppe">
+            <label class="formular-label" for="rt-${art}-modus">Bereitstellung</label>
+            <select class="formular-eingabe rt-modus" id="rt-${art}-modus" data-art="${art}">
+              ${option('keine', 'Nicht anzeigen')}
+              ${option('url', 'Externer Link')}
+              ${option('text', 'Eigener Text')}
+            </select>
+          </div>
+          <div class="formular-gruppe rt-feld-url ${modus === 'url' ? '' : 'versteckt'}">
+            <label class="formular-label" for="rt-${art}-url">Adresse</label>
+            <input class="formular-eingabe" type="url" id="rt-${art}-url" value="${UI.escapeHtml(e.url || '')}" placeholder="https://deinedomain.de/${art}" maxlength="2000">
+          </div>
+          <div class="formular-gruppe rt-feld-text ${modus === 'text' ? '' : 'versteckt'}">
+            <label class="formular-label" for="rt-${art}-text">Text</label>
+            <textarea class="formular-textarea" id="rt-${art}-text" rows="10" maxlength="100000" placeholder="# Überschrift&#10;&#10;Absatz mit **fett**, *kursiv* und [Link](https://…).&#10;&#10;- Aufzählung">${UI.escapeHtml(e.text || '')}</textarea>
+            <div class="formular-hilfe">Markdown oder reiner Text. HTML wird nicht ausgeführt, sondern als Text angezeigt. Erlaubt: Überschriften (#), **fett**, *kursiv*, Listen, Links mit http(s), mailto: oder tel:.</div>
+          </div>
+        </div>`;
+    };
+    return `
+      <div class="karte" style="margin-top: 20px;">
+        <div class="karte-header">
+          <div>
+            <div class="karte-titel">Rechtstexte</div>
+            <div class="karte-untertitel">Datenschutz und Impressum dieser Instanz (optional)</div>
+          </div>
+        </div>
+        <div class="karte-koerper">
+          <p class="text-gedaempft" style="margin-bottom: 16px;">Als Betreiber dieser Instanz bist du selbst verantwortlich. Hinterlegte Texte erscheinen als Links auf der Anmeldeseite, bei Einladung und Passwort-Reset sowie im Nutzermenü. Ohne Eintrag wird nichts angezeigt.</p>
+          <form id="rechtstexte-formular">
+            ${block('datenschutz', 'Datenschutz')}
+            <hr class="trennlinie">
+            ${block('impressum', 'Impressum')}
+            <div style="display: flex; justify-content: flex-end;">
+              <button type="submit" class="btn btn-primaer" id="rechtstexte-speichern-btn">Rechtstexte speichern</button>
+            </div>
+          </form>
+        </div>
+      </div>`;
+  },
+
+  _rechtstexteVerdrahten() {
+    const formular = document.getElementById('rechtstexte-formular');
+    if (!formular) return;
+    formular.querySelectorAll('.rt-modus').forEach(select => {
+      select.addEventListener('change', () => {
+        const sektion = select.closest('.rechtstext-sektion');
+        sektion.querySelector('.rt-feld-url').classList.toggle('versteckt', select.value !== 'url');
+        sektion.querySelector('.rt-feld-text').classList.toggle('versteckt', select.value !== 'text');
+      });
+    });
+    formular.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('rechtstexte-speichern-btn');
+      const daten = {};
+      formular.querySelectorAll('.rechtstext-sektion').forEach(sektion => {
+        const art = sektion.dataset.art;
+        daten[art] = {
+          modus: document.getElementById(`rt-${art}-modus`).value,
+          url: document.getElementById(`rt-${art}-url`).value.trim(),
+          text: document.getElementById(`rt-${art}-text`).value,
+        };
+      });
+      UI.btnLaden(btn, true);
+      try {
+        await API.adminRechtstexteSpeichern(daten);
+        await UI.konfigurationLaden();
+        UI.rechtsMenueAktualisieren();
+        UI.erfolg('Rechtstexte gespeichert.');
+      } catch (err) {
+        UI.fehler(err.message);
+      } finally {
+        UI.btnLaden(btn, false);
+      }
+    });
+  },
+
   // ─── E-Mail Tool ──────────────────────────────────────────────────────────
 
   async emailToolRendern(container) {
@@ -1566,8 +1659,10 @@ const AdminView = {
       </div>
     `;
 
-    // Initialize Quill
+    // Quill lokal nachladen (nur hier im Admin-E-Mail-Tool benötigt)
     let quill;
+    try { await UI.quillLaden(); } catch (err) { console.warn('[yRelay]', err.message); }
+    if (!document.getElementById('email-quill-editor')) return; // Tab inzwischen gewechselt
     if (window.Quill) {
       quill = new Quill('#email-quill-editor', {
         theme: 'snow',

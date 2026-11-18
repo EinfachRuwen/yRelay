@@ -14,6 +14,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 
+// Keine Indexierung durch Suchmaschinen (gilt für alle Antworten inkl. API und Agenten-Seiten)
+app.use((req, res, next) => {
+  res.set('X-Robots-Tag', 'noindex, nofollow');
+  next();
+});
+
 // Audio-Upload separat vor express.json() registrieren,
 // damit der Binär-Body nicht von express.json() verworfen wird
 const { requireAuth } = require('./middleware/auth');
@@ -70,9 +76,20 @@ app.use(express.urlencoded({ extended: true }));
 // index: false, damit wir index.html unten manuell mit Cache-Buster ausliefern können
 app.use(express.static(path.join(__dirname, '../public'), { index: false }));
 
+// Front-End-Bibliotheken selbst ausliefern (statt CDN): Version über package.json festgelegt,
+// Lizenzdateien werden mit ausgeliefert.
+const vendorPaket = (paket) => path.dirname(require.resolve(`${paket}/package.json`));
+app.use('/vendor/quill', express.static(path.join(vendorPaket('quill'), 'dist'), { index: false }));
+app.get('/vendor/quill/LICENSE', (req, res) => res.type('text/plain').sendFile(path.join(vendorPaket('quill'), 'LICENSE')));
+app.use('/vendor/canvas-confetti', express.static(path.join(vendorPaket('canvas-confetti'), 'dist'), { index: false }));
+app.get('/vendor/canvas-confetti/LICENSE', (req, res) => res.type('text/plain').sendFile(path.join(vendorPaket('canvas-confetti'), 'LICENSE')));
+
 // ─── API-Routes ──────────────────────────────────────────────────────────────
 
 app.use('/api/auth', require('./routes/auth'));
+const rechtstexteRoutes = require('./routes/rechtstexte');
+app.use('/api/admin/rechtstexte', rechtstexteRoutes.admin);
+app.use('/api/rechtstexte', rechtstexteRoutes.oeffentlich);
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/nachrichten', require('./routes/messages'));
 const webhooksRouter = require('./routes/webhooks');
@@ -88,7 +105,8 @@ app.use('/api/schuldashboard', schulDashboardRouter);
 // Öffentliche Konfiguration für das Frontend (auch vor dem Login, z. B. für die Anmeldeseite)
 app.get('/api/konfiguration', (req, res) => {
   const { getBesitzerName } = require('./db');
-  res.json({ besitzerName: getBesitzerName() });
+  const { uebersicht } = require('./services/rechtstexte');
+  res.json({ besitzerName: getBesitzerName(), rechtstexte: uebersicht() });
 });
 
 // Gesundheitscheck

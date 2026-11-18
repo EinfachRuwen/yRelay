@@ -27,6 +27,7 @@ const EinladungView = {
               <button type="submit" class="btn btn-primaer btn-vollbreite btn-gross" id="einl-btn">Zugang aktivieren</button>
             </form>
           </div>
+          ${UI.rechtsLinksHtml()}
         </div>
       </div>
     `;

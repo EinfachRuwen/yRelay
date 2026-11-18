@@ -231,6 +231,14 @@ const API = {
     return this.anfrage('GET', '/admin/einstellungen');
   },
 
+  async adminRechtstexteLaden() {
+    return this.anfrage('GET', '/admin/rechtstexte');
+  },
+
+  async adminRechtstexteSpeichern(daten) {
+    return this.anfrage('PUT', '/admin/rechtstexte', daten);
+  },
+
   async adminEinstellungenSpeichern(daten) {
     return this.anfrage('PUT', '/admin/einstellungen', daten);
   },
