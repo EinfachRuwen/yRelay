@@ -9,6 +9,7 @@ const UI = {
       const antwort = await fetch('/api/konfiguration');
       const daten = await antwort.json();
       if (daten.besitzerName) this.besitzer = daten.besitzerName;
+      this.rechtstexte = (daten.rechtstexte && typeof daten.rechtstexte === 'object') ? daten.rechtstexte : {};
     } catch { /* Standardwert behalten */ }
     document.title = `yRelay – Nachrichten an ${this.besitzer}`;
   },
@@ -17,6 +18,87 @@ const UI = {
     const n = this.besitzer;
     return /[sßxz]$/i.test(n) ? `${n}’` : `${n}s`;
   },
+
+  // ─── Rechtstexte (Datenschutz, Impressum) ─────────────────────────────
+  // Vom Betreiber in den Admin-Einstellungen hinterlegt. Nichts hinterlegt = keine Links.
+  rechtstexte: {},
+  _rechtsEintraege() {
+    return ['datenschutz', 'impressum']
+      .map(art => ({ art, ...(this.rechtstexte[art] || {}) }))
+      .filter(e => (e.modus === 'text') || (e.modus === 'url' && /^https?:\/\//i.test(e.url || '')));
+  },
+  _rechtsLinkAttribute(e) {
+    if (e.modus === 'url') return `href="${this.escapeHtml(e.url)}" target="_blank" rel="noopener noreferrer"`;
+    return `href="#${e.art}"`;
+  },
+  // Fußzeilen-Links (Anmeldung, Einladung, Passwort-Reset)
+  rechtsLinksHtml() {
+    const eintraege = this._rechtsEintraege();
+    if (!eintraege.length) return '';
+    return `<nav class="rechtslinks" aria-label="Rechtliches">${eintraege.map(e =>
+      `<a ${this._rechtsLinkAttribute(e)}>${this.escapeHtml(e.titel)}${e.modus === 'url' ? this.icon('extern') : ''}</a>`
+    ).join('')}</nav>`;
+  },
+  // Einträge im Nutzermenü
+  rechtsMenueHtml() {
+    const eintraege = this._rechtsEintraege();
+    if (!eintraege.length) return '';
+    return `<div class="menue-trenner menue-recht" role="separator"></div>${eintraege.map(e =>
+      `<a role="menuitem" class="menue-recht" ${this._rechtsLinkAttribute(e)}>${this.icon(e.art === 'impressum' ? 'info' : 'schild')} ${this.escapeHtml(e.titel)}${e.modus === 'url' ? this.icon('extern', 'icon-rechts') : ''}</a>`
+    ).join('')}`;
+  },
+
+  // Nach dem Speichern in der Verwaltung: Menü-Einträge ohne Neuaufbau der Seite tauschen
+  rechtsMenueAktualisieren() {
+    const menue = document.getElementById('nutzer-menue');
+    if (!menue) return;
+    menue.querySelectorAll('.menue-recht').forEach(el => el.remove());
+    menue.insertAdjacentHTML('beforeend', this.rechtsMenueHtml());
+  },
+
+  // ─── Lokale Bibliotheken bei Bedarf nachladen (keine CDNs) ────────────
+  _geladen: {},
+  skriptLaden(src) {
+    if (!this._geladen[src]) {
+      this._geladen[src] = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = () => resolve();
+        script.onerror = () => { delete this._geladen[src]; reject(new Error(`${src} konnte nicht geladen werden.`)); };
+        document.head.appendChild(script);
+      });
+    }
+    return this._geladen[src];
+  },
+  stilLaden(href) {
+    if (!this._geladen[href]) {
+      this._geladen[href] = new Promise((resolve, reject) => {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = href;
+        link.onload = () => resolve();
+        link.onerror = () => { delete this._geladen[href]; reject(new Error(`${href} konnte nicht geladen werden.`)); };
+        document.head.appendChild(link);
+      });
+    }
+    return this._geladen[href];
+  },
+  async quillLaden() {
+    await Promise.all([
+      this.stilLaden('/vendor/quill/quill.snow.css'),
+      this.skriptLaden('/vendor/quill/quill.min.js'),
+    ]);
+    return window.Quill;
+  },
+  async konfetti(optionen) {
+    try {
+      if (!window.confetti) await this.skriptLaden('/vendor/canvas-confetti/confetti.browser.js');
+      window.confetti(optionen);
+    } catch (err) {
+      console.warn('[yRelay] Konfetti nicht verfügbar:', err.message);
+    }
+  },
+
   // ─── Icons (Phosphor-Sprite unter /img/icons.svg) ─────────────────────
   icon(name, klasse = '') {
     return `<svg class="icon ${klasse}" aria-hidden="true"><use href="/img/icons.svg#i-${name}"></use></svg>`;
@@ -92,6 +174,7 @@ const UI = {
               <button role="menuitem" data-menue="passwort">${this.icon('schloss')} Passwort ändern</button>
               <button role="menuitem" data-menue="thema">${this.icon('mond')} <span id="thema-text">Dunkles Design</span></button>
               <button role="menuitem" data-menue="abmelden">${this.icon('abmelden')} Abmelden</button>
+              ${this.rechtsMenueHtml()}
             </div>
           </div>
         </div>
@@ -121,6 +204,7 @@ const UI = {
     document.addEventListener('click', (e) => { if (!menue.contains(e.target)) zu(); });
     menue.addEventListener('keydown', (e) => { if (e.key === 'Escape') { zu(); knopf.focus(); } });
     menue.addEventListener('click', (e) => {
+      if (e.target.closest('a')) { zu(); return; }
       const ziel = e.target.closest('[data-menue]');
       if (!ziel) return;
       const aktion = ziel.dataset.menue;

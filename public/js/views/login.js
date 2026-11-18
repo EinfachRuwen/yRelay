@@ -50,6 +50,7 @@ const LoginView = {
               <button type="submit" class="btn btn-primaer btn-vollbreite btn-gross" id="login-btn">Anmelden</button>
             </form>
             <p class="fusszeile">Noch kein Zugang? Den bekommst du nur per Einladung von ${UI.escapeHtml(UI.besitzer)}.</p>
+            ${UI.rechtsLinksHtml()}
           </div>
         </section>
       </div>

@@ -278,14 +278,7 @@ const DashboardView = {
           nutzer.has_seen_onboarding = true; // Im Speicher aktualisieren
           
           // Konfetti laden, wenn nicht da
-          if (!window.confetti) {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
-            script.onload = () => confetti({ particleCount: 200, spread: 120 });
-            document.body.appendChild(script);
-          } else {
-            confetti({ particleCount: 200, spread: 120 });
-          }
+          UI.konfetti({ particleCount: 200, spread: 120 });
 
           document.getElementById('onboarding-overlay').style.opacity = '0';
           setTimeout(() => {
@@ -325,14 +318,7 @@ const DashboardView = {
       clearTimeout(logoClickTimer);
       if (logoClicks >= 7) {
         logoClicks = 0;
-        if (!window.confetti) {
-          const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
-          script.onload = () => confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
-          document.body.appendChild(script);
-        } else {
-          confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
-        }
+        UI.konfetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
       }
       logoClickTimer = setTimeout(() => logoClicks = 0, 1500);
     });

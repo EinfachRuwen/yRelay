@@ -35,6 +35,14 @@ const App = {
       return;
     }
 
+    // Rechtstexte (auch ohne Login erreichbar)
+    if (hash === '#datenschutz' || hash === '#impressum') {
+      const art = hash.slice(1);
+      app.innerHTML = RechtstextView.rendern(art);
+      RechtstextView.initialisieren(art);
+      return;
+    }
+
     // Einladungs-Route (auch ohne Login erreichbar)
     if (hash.startsWith('#einladung/')) {
       const token = hash.slice('#einladung/'.length);

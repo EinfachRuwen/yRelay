@@ -23,6 +23,7 @@ const ResetView = {
             </form>
           </div>
           <p style="margin-top:18px"><a href="#login" class="text-link">Zurück zur Anmeldung</a></p>
+          ${UI.rechtsLinksHtml()}
         </div>
       </div>
     `;

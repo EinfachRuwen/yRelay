@@ -103,6 +103,34 @@ Im Admin-Panel unter **KI-Agenten** lassen sich Agenten per Webhook oder E-Mail 
 
 Im Admin-Panel kann ein Agent mit der Zustellung **FO über MCP** angelegt werden. Es genügt die MCP-URL; die Anmeldung läuft über OAuth (Discovery, automatische Client-Registrierung, PKCE): In der Agenten-Kachel auf **Mit FO verbinden** klicken, bei FO freigeben, fertig. yRelay erneuert die Tokens selbstständig. Die Redirect-URI ist `<APP_URL>/api/webhooks/fo-oauth/callback` (die `app_url` in den Einstellungen muss stimmen). Ein statisches Bearer-Token ist als Alternative möglich. yRelay arbeitet dann als MCP-Client: Die Nachricht geht per `ask_fo` an FO, die Antwort wird per `get_fo_reply` abgeholt und automatisch wie eine normale Agenten-Antwort gespeichert (Dashboard, Mail, Push). Weil der MCP-Zugang als dein eigener FO-Account gilt, behandelt FO solche Anfragen als vertrauenswürdig. yRelay kennzeichnet den Nachrichtentext deshalb ausdrücklich als Text eines Dritten, damit externe Absender FO keine Aktionen in deinem Namen auslösen können. Einschränkung: Strukturierte Callbacks (Spielzüge, Schul-Dashboard-Daten) benötigen weiterhin Webhook- oder Webseiten-Zugriff.
 
+## Datenschutz & Rechtstexte (für Betreiber)
+
+yRelay ist Software zum Selbsthosten. **Wer eine Instanz betreibt, ist dafür selbst verantwortlich** – auch für Datenschutzerklärung und ggf. Impressum. Das Projekt liefert keine fertigen Rechtstexte mit.
+
+- **Rechtstexte hinterlegen:** Verwaltung → Einstellungen → *Rechtstexte*. Für „Datenschutz“ und „Impressum“ jeweils entweder eine externe Adresse (http/https) oder einen eigenen Text (Markdown oder reiner Text; HTML wird nicht ausgeführt). Hinterlegte Texte erscheinen als Links auf der Anmeldeseite, bei Einladung und Passwort-Reset sowie im Nutzermenü; eigene Texte unter `#datenschutz` bzw. `#impressum`. Ohne Eintrag wird nichts angezeigt.
+- **Keine Indexierung:** `robots.txt` (Disallow), `<meta name="robots" content="noindex, nofollow">` und Header `X-Robots-Tag: noindex, nofollow`.
+- **Keine externen Ressourcen im Browser:** Schriften, Icons, Quill (E-Mail-Editor, nur in der Verwaltung geladen) und canvas-confetti werden von der eigenen Instanz ausgeliefert (`/vendor/…`, inkl. Lizenzdateien unter `/vendor/<paket>/LICENSE`).
+
+### Externe Dienste (je nach Konfiguration)
+
+Der **Server** spricht – nur wenn das jeweilige Feature eingerichtet ist – mit diesen Diensten. Was davon bei dir aktiv ist, gehört in deine Datenschutzerklärung:
+
+| Dienst | Wann | Was übertragen wird |
+|---|---|---|
+| **Poke** (`poke.com`) bzw. andere Agenten-Webhooks | KI-Agent per Webhook konfiguriert | Nachrichtentext, Absender-Name und -E-Mail, Typ/Priorität, Antwort-Links |
+| **FO über MCP** (vom Betreiber angegebene MCP-URL) | Agent mit Zustellung „FO über MCP“ | Nachrichtentext und Absenderangaben, OAuth-Tokens |
+| **E-Mail-Agent / SMTP-Anbieter** | SMTP eingerichtet | Einladungen, Passwort-Reset, Benachrichtigungen, manuelle Mails, Nachrichten an E-Mail-Agenten (Empfängeradresse, Inhalt) |
+| **Deepgram** (`api.deepgram.com`) | Deepgram-API-Key gesetzt und Spracheingabe genutzt | Sprachaufnahme zur Transkription |
+| **Pushover** (`api.pushover.net`) | App-Token gesetzt und Nutzer hat Pushover gewählt | Benachrichtigungstext, Pushover-User-Key |
+| **ntfy** (`ntfy.sh`, öffentlicher Server) | Nutzer hat ein ntfy-Topic hinterlegt | Benachrichtigungstext an das Topic (wer das Topic kennt, kann mitlesen) |
+| **OpenStreetMap Nominatim** (`nominatim.openstreetmap.org`) | Schul-Dashboard mit Wetter-Ort | Ortsname |
+| **Bright Sky / DWD** (`api.brightsky.dev`) | Schul-Dashboard mit Wetter | Koordinaten des Orts |
+| **VRR EFA** (`openservice-test.vrr.de`) | Schul-Dashboard mit Haltestellen/Fahrten | Haltestellen- und Ortsnamen |
+| **Pingvin Share** (eigene URL) | Pingvin-Integration eingerichtet | Hochgeladene Dateien aus dem Schul-Chat |
+| **Hosting / Reverse Proxy / CDN** (z. B. Cloudflare, Cosmos Cloud) | je nach deinem Setup | IP-Adressen, Anfragedaten, ggf. TLS-Terminierung |
+
+**Gespeichert** werden lokal in SQLite (`data/`): Nutzerkonten (Benutzername, E-Mail, Passwort-Hash, Einstellungen wie ntfy-Topic/Pushover-Key), Nachrichten und Antworten, Spiel- und Schul-Dashboard-Daten, ein Audit-Protokoll von Admin-Aktionen sowie tägliche Backups unter `data/backups/`. Im Browser liegen Anmelde-Token und Design-Wahl im `localStorage`. Server-Logs (Konsole) können bei Fehlern IP-Adressen enthalten.
+
 ## Poke Payload-Format
 
 Nachrichten an Poke werden weiterhin im offiziellen Poke API-Format gesendet:

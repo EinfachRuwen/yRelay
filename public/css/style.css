@@ -991,3 +991,32 @@ input[type="checkbox"]:focus, input[type="radio"]:focus { box-shadow: none; }
 }
 
 .karte .trennlinie { display: none; }
+
+/* ─── Rechtstexte (Datenschutz, Impressum) ─────────────────── */
+.rechtslinks {
+  display: flex; flex-wrap: wrap; gap: 6px 18px;
+  margin-top: 18px; font-size: 14px;
+}
+.rechtslinks a {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--tinte-3); text-decoration: underline; text-underline-offset: 3px;
+  min-height: 32px;
+}
+.rechtslinks a:hover { color: var(--tinte); }
+.rechtslinks .icon { width: 14px; height: 14px; }
+.menue-trenner { height: 1px; background: var(--linie); margin: 6px 0; }
+.menue a .icon-rechts { margin-left: auto; width: 14px; height: 14px; }
+.solo-tafel.rechtstext-tafel { max-width: 760px; }
+.rechtstext { overflow-wrap: anywhere; line-height: 1.55; }
+.rechtstext h2 { font-size: 24px; margin: 24px 0 8px; }
+.rechtstext h3 { font-size: 20px; margin: 20px 0 6px; }
+.rechtstext h4 { font-size: 17px; margin: 16px 0 4px; }
+.rechtstext > :first-child { margin-top: 0; }
+.rechtstext p { margin: 0 0 12px; }
+.rechtstext ul, .rechtstext ol { margin: 0 0 12px; padding-left: 22px; }
+.rechtstext li { margin-bottom: 4px; }
+.rechtstext hr { border: 0; border-top: 1px solid var(--linie); margin: 18px 0; }
+.rechtstext code { font-size: 0.92em; background: var(--flaeche-2); padding: 1px 4px; border-radius: var(--r-1); }
+@media (max-width: 520px) {
+  .solo-tafel.rechtstext-tafel .tafel { padding: 18px; }
+}
